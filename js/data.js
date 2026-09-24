@@ -1,4 +1,4 @@
-// --- 多语言字典（可扩展更多语言） ---
+// UTF-8
 const i18n = {
   zh: {
     siteTitle: "Aesthetic East",
@@ -6,22 +6,18 @@ const i18n = {
     heroBadge: "精选东方美学",
     heroTitle: "手工穿戴甲与传承古董家具",
     heroDesc: "将东方匠心与流行艺术融入现代生活方式。",
-    shopCollection: "浏览系列",
     categoryNails: "手工穿戴甲",
     categoryMerch: "亚克力周边",
     categoryFurniture: "古董家具",
     sizeGuide: "尺码说明",
-    addToCart: "+ 添加",
-    view360: "360° 全景",
-    zoom: "放大查看",
     cartTitle: "您的购物袋",
     cartEmpty: "购物袋空空如也",
-    cartSubtotal: "小计",
     cartShipping: "运费",
     cartFree: "免费",
     cartTotal: "合计",
     checkoutBtn: "前往结算",
-    close: "关闭"
+    zoomHint: "滚轮缩放 · 双击重置 · 拖拽移动",
+    spinHint: "按住鼠标左右拖拽查看 360° 全景"
   },
   en: {
     siteTitle: "Aesthetic East",
@@ -29,26 +25,21 @@ const i18n = {
     heroBadge: "CURATED ASIAN AESTHETICS",
     heroTitle: "Handcrafted Press-Ons & Timeless Chinese Antiques",
     heroDesc: "Bringing oriental craftsmanship and pop art into modern American homes.",
-    shopCollection: "Shop Collection",
     categoryNails: "Handcrafted Press-On Nails",
     categoryMerch: "Original Acrylic Merch",
     categoryFurniture: "Antique Chinese Furniture",
     sizeGuide: "Size Guide",
-    addToCart: "+ Add",
-    view360: "360°",
-    zoom: "Zoom",
     cartTitle: "Your Cart",
     cartEmpty: "Your cart is empty",
-    cartSubtotal: "Subtotal",
     cartShipping: "Shipping",
     cartFree: "Free",
     cartTotal: "Total",
     checkoutBtn: "Proceed to Checkout",
-    close: "Close"
+    zoomHint: "Scroll wheel to zoom · Double click to reset · Drag to move",
+    spinHint: "Click and drag horizontally to spin 360°"
   }
 };
 
-// --- 商品数据集（已匹配你 images/ 文件夹的真实文件名） ---
 const productsData = {
   nails: [
     {
@@ -58,7 +49,7 @@ const productsData = {
       title: 'Sweet Strawberry Pearl',
       subtitle: 'Pearl Accents · Hand Crafted',
       price: 22.00,
-      images: ['images/image.png', 'images/strawberry.jpg'],
+      images: ['images/image.png', 'images/strawberry.jpg', 'images/image_1.png', 'images/image_2.png'],
       shapes: ['Almond', 'Coffin'],
       sizes: ['XS', 'S', 'M', 'L']
     },
@@ -69,7 +60,7 @@ const productsData = {
       title: 'Y2K Celestial Bow & Star',
       subtitle: '3D Chrome · Silver Charms',
       price: 24.50,
-      images: ['images/image_1.png', 'images/gothic.jpg'],
+      images: ['images/image_1.png', 'images/gothic.jpg', 'images/image.png'],
       shapes: ['Stiletto', 'Coffin'],
       sizes: ['XS', 'S', 'M', 'L']
     },
@@ -80,7 +71,7 @@ const productsData = {
       title: 'Gold Foil Ink Wash Set',
       subtitle: 'Hand-painted Gradient · Gold Accent',
       price: 26.00,
-      images: ['images/image_2.png', 'images/image_3.png'],
+      images: ['images/image_2.png', 'images/image_3.png', 'images/image.png'],
       shapes: ['Almond', 'Square'],
       sizes: ['XS', 'S', 'M', 'L']
     }
@@ -93,7 +84,7 @@ const productsData = {
       title: 'Custom Anime Acrylic Standee with Base',
       subtitle: 'High-clarity laser cut acrylic with protective film.',
       price: 14.50,
-      images: ['images/image_3.png']
+      images: ['images/image_3.png', 'images/image_2.png']
     }
   ],
   furniture: [
@@ -104,7 +95,7 @@ const productsData = {
       title: '19th Century Antique Elm Console Table & Cabinet',
       subtitle: 'Sourced from Northern China with authentic natural patina, brass fittings.',
       price: 1850.00,
-      images: ['images/gothic.jpg']
+      images: ['images/gothic.jpg', 'images/image_1.png']
     }
   ]
 };
