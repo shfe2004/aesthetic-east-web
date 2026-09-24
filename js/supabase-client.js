@@ -1,6 +1,6 @@
 // 填入你在 Supabase 控制台获取到的 URL 和 Key
 const SUPABASE_URL = 'https://hptnyyxpxvpyyhrrutds.supabase.co'; // 替换为你的 Project URL
-const SUPABASE_ANON_KEY = 'sb_publishable_9t4ON7BTWAu7-xEsPsP5AA_-TXo2ih1';                 // 替换为你的 anon public Key
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwdG55eXhweHZweXlocnJ1dGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMDgwNjQsImV4cCI6MjEwNTc4NDA2NH0.-CUuIFQ6J7GzUbAkZfY8e5sqSEwBznhX1yQLcju6MVo';                 // 替换为你的 anon public Key
 
 // 初始化 Supabase 客户端
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
