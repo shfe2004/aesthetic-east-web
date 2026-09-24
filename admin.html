@@ -3,39 +3,70 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aesthetic East - 商品管理后台</title>
+  <title>Aesthetic East - 商品与站点管理后台</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen p-4 md:p-8">
-  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-6 md:p-8">
+  <div class="max-w-5xl mx-auto space-y-8">
 
-    <div class="flex justify-between items-center pb-6 mb-6 border-b">
+    <!-- 顶部导航 -->
+    <div class="bg-white rounded-xl shadow-md p-6 flex justify-between items-center">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Aesthetic East 管理后台</h1>
-        <p class="text-xs text-gray-500 mt-1">移动端优先 · 支持本地图片自动压缩上传</p>
+        <p class="text-xs text-gray-500 mt-1">自动生成编码 · 站点文案动态配置 · 云端同步</p>
       </div>
       <a href="index.html" target="_blank" class="text-amber-800 hover:text-amber-900 text-sm font-medium">预览前台 ↗</a>
     </div>
 
-    <!-- 上架新商品表单 -->
-    <div class="bg-gray-50 p-5 rounded-lg border border-gray-200 mb-8">
-      <h2 class="text-lg font-semibold mb-4 text-gray-800">添加新商品</h2>
+    <!-- 1. 站点文案与品牌配置 (Logo/促销横幅/Hero) -->
+    <div class="bg-white rounded-xl shadow-md p-6 border border-amber-200">
+      <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">🌐 网站全局信息配置</h2>
+      <form id="site-settings-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">品牌名称 (Logo Text)</label>
+            <input type="text" id="cfg-site-logo" placeholder="Aesthetic East" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">顶部固定促销横幅 (Sticky Announcement)</label>
+            <input type="text" id="cfg-banner-text" placeholder="✨ Free US Shipping on Nails & Merch over $50" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hero 大图标题 (Main Heading)</label>
+            <input type="text" id="cfg-hero-title" placeholder="Handcrafted Press-Ons & Timeless Chinese Antiques" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hero 描述文案 (Description)</label>
+            <input type="text" id="cfg-hero-desc" placeholder="Bringing oriental craftsmanship and pop art into modern American homes." class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          </div>
+        </div>
+        <button type="submit" class="bg-stone-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-stone-800 transition">
+          保存站点配置
+        </button>
+      </form>
+    </div>
+
+    <!-- 2. 上架新商品表单 (自动编码 ID) -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">📦 添加新商品</h2>
 
       <form id="add-product-form" class="space-y-4">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">商品编码 (ID, 如 nail-03)</label>
-            <input type="text" id="prod-id" required placeholder="如 nail-03" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">所属分类</label>
-            <select id="prod-category" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+            <label class="block text-sm font-medium text-gray-700 mb-1">1. 先选择商品分类 (决定编码前缀)</label>
+            <select id="prod-category" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none bg-amber-50">
               <option value="nails">穿戴甲 (Nails)</option>
               <option value="merch">周边 (Merch)</option>
               <option value="furniture">古董家具 (Furniture)</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">2. 自动生成唯一编码 (ID)</label>
+            <input type="text" id="prod-id" readonly class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600 font-mono font-bold cursor-not-allowed">
           </div>
         </div>
 
@@ -61,16 +92,16 @@
           </div>
         </div>
 
-        <!-- 穿戴甲专属配置 (仅在选择穿戴甲时展示) -->
-        <div id="nail-options-section" class="bg-amber-50/50 p-4 rounded-lg border border-amber-200/60 space-y-3">
+        <!-- 穿戴甲专属配置 -->
+        <div id="nail-options-section" class="bg-amber-50/60 p-4 rounded-lg border border-amber-200/60 space-y-3">
           <p class="text-xs font-semibold text-amber-900 uppercase tracking-wider">穿戴甲专属规格配置</p>
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">可供选择的甲型 (Shapes)</label>
             <div class="flex flex-wrap gap-4 text-sm text-gray-700">
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Almond" class="shape-checkbox" checked> Almond (杏仁型)</label>
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Coffin" class="shape-checkbox" checked> Coffin (梯形)</label>
-              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Stiletto" class="shape-checkbox"> Stiletto (尖甲)</label>
-              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Square" class="shape-checkbox"> Square (方型)</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Stiletto" class="shape-checkbox" checked> Stiletto (尖甲)</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Square" class="shape-checkbox" checked> Square (方型)</label>
             </div>
           </div>
           <div>
@@ -86,27 +117,22 @@
 
         <!-- 图片上传区域 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">选择本地商品图片 (系统将自动优化尺寸并同步至云端)</label>
-          <div class="flex items-center gap-3">
-            <input type="file" id="prod-image-file" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
-          </div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">选择本地商品图片 (自动调整尺寸并同步至云端)</label>
+          <input type="file" id="prod-image-file" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
           <div id="image-preview-container" class="mt-3 hidden">
-            <p class="text-xs text-gray-500 mb-1">图片预览 (自动处理压缩后):</p>
             <img id="image-preview" src="" class="w-24 h-24 object-cover rounded-lg border">
           </div>
         </div>
 
-        <div class="pt-2">
-          <button type="submit" id="submit-btn" class="w-full md:w-auto bg-amber-800 text-white px-8 py-2.5 rounded-lg hover:bg-amber-900 font-medium transition flex items-center justify-center gap-2">
-            <span>保存并发布商品</span>
-          </button>
-        </div>
+        <button type="submit" id="submit-btn" class="w-full bg-amber-800 text-white py-3 rounded-lg hover:bg-amber-900 font-medium transition">
+          保存并发布商品
+        </button>
 
       </form>
     </div>
 
-    <!-- 商品列表 -->
-    <div>
+    <!-- 3. 在线商品管理列表 -->
+    <div class="bg-white rounded-xl shadow-md p-6">
       <h2 class="text-lg font-semibold mb-4 text-gray-800">在线商品管理列表</h2>
       <div class="overflow-x-auto border rounded-lg">
         <table class="w-full text-left border-collapse text-sm">
