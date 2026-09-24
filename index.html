@@ -61,7 +61,7 @@
     </div>
   </section>
 
-  <!-- Press-on Nails Grid -->
+  <!-- Section: Press-on Nails Grid -->
   <section id="nails" class="px-4 mb-8">
     <div class="flex justify-between items-end mb-3">
       <div>
@@ -72,164 +72,31 @@
         📏 Size Guide
       </button>
     </div>
-
-    <div class="grid grid-cols-2 gap-3">
-      <!-- Item 1: Strawberry -->
-      <div class="bg-white rounded-xl overflow-hidden border border-stone-200 shadow-sm flex flex-col justify-between">
-        <div class="relative aspect-square bg-stone-100 overflow-hidden group">
-          <img id="main-img-nail1" src="images/nail1_main.jpg" 
-               onclick="openImageModal(this.src, getI18nText('nail1_title'))" 
-               class="w-full h-full object-cover transition-all duration-300 cursor-pointer" alt="Nail 1">
-          <span class="absolute top-2 left-2 bg-rose-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full" data-i18n="tagSweet">Sweet</span>
-          <button onclick="open360Modal(getI18nText('nail1_title'))" class="absolute bottom-2 right-2 bg-black/75 text-amber-300 text-[9px] font-bold px-2 py-1 rounded-md shadow backdrop-blur-sm">
-            🔄 360°
-          </button>
-        </div>
-
-        <!-- Thumbnails Gallery -->
-        <div class="p-2 pb-0 flex space-x-1.5 overflow-x-auto hide-scrollbar">
-          <img src="images/nail1_main.jpg" onclick="switchMainImg('nail1', this.src)" class="w-8 h-8 rounded border-2 border-amber-800 object-cover cursor-pointer">
-          <img src="images/nail2_main.jpg" onclick="switchMainImg('nail1', this.src)" class="w-8 h-8 rounded border border-stone-200 object-cover cursor-pointer">
-        </div>
-
-        <div class="p-2.5">
-          <h3 class="text-xs font-bold text-stone-800 line-clamp-1" data-i18n="nail1_title">Sweet Strawberry French Tip</h3>
-          <p class="text-[10px] text-stone-500 mb-2" data-i18n="nail1_desc">Pearl Accents • Hand Crafted</p>
-          
-          <!-- Shape & Size Selectors -->
-          <div class="mb-2 space-y-1.5">
-            <div>
-              <span class="text-[9px] text-stone-400 block" data-i18n="lblShape">Shape:</span>
-              <div class="flex space-x-1 mt-0.5">
-                <button onclick="selectVariant(this, 'shape1', 'Almond')" class="shape1-btn text-[8px] border border-stone-900 bg-stone-900 text-white font-bold rounded px-1.5 py-0.5">Almond</button>
-                <button onclick="selectVariant(this, 'shape1', 'Coffin')" class="shape1-btn text-[8px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">Coffin</button>
-              </div>
-            </div>
-            <div>
-              <span class="text-[9px] text-stone-400 block" data-i18n="lblSize">Size:</span>
-              <div class="flex space-x-1 mt-0.5">
-                <button onclick="selectVariant(this, 'nail1', 'XS')" class="nail1-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">XS</button>
-                <button onclick="selectVariant(this, 'nail1', 'S')" class="nail1-btn text-[9px] border border-stone-900 bg-stone-900 text-white font-bold rounded px-1.5 py-0.5">S</button>
-                <button onclick="selectVariant(this, 'nail1', 'M')" class="nail1-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">M</button>
-                <button onclick="selectVariant(this, 'nail1', 'L')" class="nail1-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">L</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-stone-900 text-sm">$22.00</span>
-            <button onclick="addNailToCart('nail1_title', 22.00, 'nail1', 'shape1')" class="bg-stone-900 text-white text-xs px-2.5 py-1 rounded-md font-medium active:scale-95 transition-transform" data-i18n="addBtn">+ Add</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Item 2: Y2K Celestial -->
-      <div class="bg-white rounded-xl overflow-hidden border border-stone-200 shadow-sm flex flex-col justify-between">
-        <div class="relative aspect-square bg-stone-100 overflow-hidden group">
-          <img id="main-img-nail2" src="images/nail2_main.jpg" 
-               onclick="openImageModal(this.src, getI18nText('nail2_title'))" 
-               class="w-full h-full object-cover transition-all duration-300 cursor-pointer" alt="Nail 2">
-          <span class="absolute top-2 left-2 bg-purple-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full" data-i18n="tagGoth">Y2K Goth</span>
-          <button onclick="open360Modal(getI18nText('nail2_title'))" class="absolute bottom-2 right-2 bg-black/75 text-amber-300 text-[9px] font-bold px-2 py-1 rounded-md shadow backdrop-blur-sm">
-            🔄 360°
-          </button>
-        </div>
-
-        <!-- Thumbnails Gallery -->
-        <div class="p-2 pb-0 flex space-x-1.5 overflow-x-auto hide-scrollbar">
-          <img src="images/nail2_main.jpg" onclick="switchMainImg('nail2', this.src)" class="w-8 h-8 rounded border-2 border-amber-800 object-cover cursor-pointer">
-          <img src="images/nail2_thumb.jpg" onclick="switchMainImg('nail2', this.src)" class="w-8 h-8 rounded border border-stone-200 object-cover cursor-pointer">
-        </div>
-
-        <div class="p-2.5">
-          <h3 class="text-xs font-bold text-stone-800 line-clamp-1" data-i18n="nail2_title">Y2K Celestial Bow & Starburst</h3>
-          <p class="text-[10px] text-stone-500 mb-2" data-i18n="nail2_desc">3D Chrome • Silver Charms</p>
-          
-          <!-- Shape & Size Selectors -->
-          <div class="mb-2 space-y-1.5">
-            <div>
-              <span class="text-[9px] text-stone-400 block" data-i18n="lblShape">Shape:</span>
-              <div class="flex space-x-1 mt-0.5">
-                <button onclick="selectVariant(this, 'shape2', 'Stiletto')" class="shape2-btn text-[8px] border border-stone-900 bg-stone-900 text-white font-bold rounded px-1.5 py-0.5">Stiletto</button>
-                <button onclick="selectVariant(this, 'shape2', 'Coffin')" class="shape2-btn text-[8px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">Coffin</button>
-              </div>
-            </div>
-            <div>
-              <span class="text-[9px] text-stone-400 block" data-i18n="lblSize">Size:</span>
-              <div class="flex space-x-1 mt-0.5">
-                <button onclick="selectVariant(this, 'nail2', 'XS')" class="nail2-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">XS</button>
-                <button onclick="selectVariant(this, 'nail2', 'S')" class="nail2-btn text-[9px] border border-stone-900 bg-stone-900 text-white font-bold rounded px-1.5 py-0.5">S</button>
-                <button onclick="selectVariant(this, 'nail2', 'M')" class="nail2-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">M</button>
-                <button onclick="selectVariant(this, 'nail2', 'L')" class="nail2-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600">L</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-stone-900 text-sm">$24.50</span>
-            <button onclick="addNailToCart('nail2_title', 24.50, 'nail2', 'shape2')" class="bg-stone-900 text-white text-xs px-2.5 py-1 rounded-md font-medium active:scale-95 transition-transform" data-i18n="addBtn">+ Add</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Dynamic Container -->
+    <div id="nailsContainer" class="grid grid-cols-2 gap-3"></div>
   </section>
 
-  <!-- Acrylic Merch Section -->
+  <!-- Section: Acrylic Merch -->
   <section id="merch" class="px-4 mb-8">
     <div class="mb-3">
       <h2 class="font-bold text-stone-900 text-base" data-i18n="secMerchTitle">Original Acrylic Merch</h2>
       <p class="text-xs text-stone-500" data-i18n="secMerchSub">Double-sided UV printed anime standees</p>
     </div>
-
-    <div class="bg-white border border-stone-200 rounded-xl p-3 flex space-x-3 items-center shadow-sm">
-      <div class="w-24 h-24 bg-stone-100 rounded-lg flex-none overflow-hidden relative cursor-pointer" onclick="openImageModal('images/merch1.jpg', getI18nText('merch1_title'))">
-        <img src="images/merch1.jpg" class="w-full h-full object-cover" alt="Merch 1">
-        <span class="absolute bottom-1 left-1 bg-indigo-600 text-white text-[8px] font-bold px-1 rounded" data-i18n="zoomBadge">🔍 Zoom</span>
-      </div>
-      <div class="flex-1">
-        <span class="bg-indigo-100 text-indigo-800 text-[9px] font-bold px-2 py-0.5 rounded" data-i18n="uvTag">Double-Sided Print</span>
-        <h3 class="text-xs font-bold text-stone-800 mt-1" data-i18n="merch1_title">Custom Anime Acrylic Standee with Base</h3>
-        <p class="text-[10px] text-stone-500 mt-0.5" data-i18n="merch1_desc">High-clarity laser cut acrylic with protective film.</p>
-        <div class="flex justify-between items-center mt-2">
-          <span class="font-bold text-stone-900 text-sm">$14.50</span>
-          <button onclick="addToCart(getI18nText('merch1_title'), 14.50, 'One Size')" class="bg-stone-900 text-white text-xs px-2.5 py-1 rounded-md font-medium" data-i18n="addBtn">+ Add</button>
-        </div>
-      </div>
-    </div>
+    <!-- Dynamic Container -->
+    <div id="merchContainer" class="space-y-3"></div>
   </section>
 
-  <!-- Antique Chinese Furniture -->
+  <!-- Section: Antique Chinese Furniture -->
   <section id="furniture" class="px-4 mb-8">
     <div class="mb-3">
       <h2 class="font-bold text-stone-900 text-base" data-i18n="secFurnitureTitle">Antique Chinese Furniture</h2>
       <p class="text-xs text-stone-500" data-i18n="secFurnitureSub">Authentic 19th & 20th century curated heirlooms</p>
     </div>
-
-    <div class="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-      <div class="relative h-56 bg-stone-900 cursor-pointer group">
-        <img src="images/antique1.jpg" 
-             onclick="openImageModal(this.src, getI18nText('ant1_title'))" 
-             class="w-full h-full object-cover opacity-90 transition-transform duration-300 group-hover:scale-105" alt="Antique Cabinet">
-        <span class="absolute top-3 left-3 bg-amber-900/90 text-amber-100 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm" data-i18n="qingTag">Late Qing Dynasty</span>
-        <button onclick="open360Modal(getI18nText('ant1_title'))" class="absolute bottom-3 right-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow backdrop-blur-sm flex items-center space-x-1">
-          <span>🔄 360° View</span>
-        </button>
-      </div>
-      <div class="p-4">
-        <h3 class="font-bold text-stone-900 text-sm" data-i18n="ant1_title">19th Century Antique Elm Console Table & Cabinet</h3>
-        <p class="text-xs text-stone-600 mt-1" data-i18n="ant1_desc">Sourced from Northern China with authentic natural patina, brass fittings, and traditional mortise-and-tenon joinery.</p>
-        <div class="mt-3 pt-3 border-t border-stone-100 flex justify-between items-center">
-          <div>
-            <span class="text-[10px] text-stone-400 block" data-i18n="lblEstPrice">Est. Price</span>
-            <span class="font-bold text-stone-900 text-base">$1,850.00</span>
-          </div>
-          <button onclick="openInquireModal(getI18nText('ant1_title'), 1850.00)" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded-lg font-medium shadow-sm" data-i18n="inquireBtn">Inquire / Freight</button>
-        </div>
-      </div>
-    </div>
+    <!-- Dynamic Container -->
+    <div id="furnitureContainer" class="space-y-4"></div>
   </section>
 
-  <!-- IMAGE LIGHTBOX & ZOOM MODAL -->
+  <!-- MODALS (IMAGE ZOOM, 360 VIEWER, CART, CHECKOUT, INQUIRE, SIZE GUIDE) -->
   <div id="imageModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col justify-between hidden">
     <div class="p-4 flex justify-between items-center text-white z-10">
       <h4 id="imageModalTitle" class="text-xs font-medium text-stone-300 truncate max-w-[200px]">Product Image</h4>
@@ -246,7 +113,6 @@
     <div class="p-3 text-center text-[11px] text-stone-400" data-i18n="zoomHint">Pinch or use + / - buttons to zoom.</div>
   </div>
 
-  <!-- 360 DEGREE INTERACTIVE VIEWER MODAL -->
   <div id="threeSixtyModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col justify-between hidden">
     <div class="p-4 flex justify-between items-center text-white z-10">
       <div>
@@ -255,24 +121,18 @@
       </div>
       <button onclick="close360Modal()" class="text-stone-400 text-2xl font-bold">✕</button>
     </div>
-
-    <div class="flex-1 flex flex-col items-center justify-center relative touch-none cursor-grab active:cursor-grabbing" 
+    <div class="flex-1 flex flex-col items-center justify-center relative touch-none cursor-grab active:cursor-grabbing"
          id="viewer360Box"
-         onmousedown="startDrag360(event)" onmousemove="drag360(event)" onmouseup="stopDrag360()" 
-         ontouchstart="startDrag360(event)" ontouchmove="drag360(event)" ontouchend="stopDrag360()">
-      
+         onmousedown="startDrag360(event)" onmousemove="drag360(event)" onmouseup="stopDrag360()"
+         ontouchstart="startDrag360(event)" ontouchend="stopDrag360()">
       <div class="absolute top-4 bg-white/10 backdrop-blur-md text-white text-[10px] px-3 py-1 rounded-full border border-white/20">
         Rotation: <span id="angleText" class="font-bold text-amber-300">0°</span>
       </div>
-
       <div class="relative w-72 h-72 sm:w-96 sm:h-96 flex items-center justify-center">
-        <img id="img360" src="images/antique1.jpg" 
-             class="w-full h-full object-contain rounded-xl shadow-2xl transition-all duration-75" alt="360 Frame">
+        <img id="img360" src="" class="w-full h-full object-contain rounded-xl shadow-2xl transition-all duration-75" alt="360 Frame">
       </div>
-
       <div class="mt-4 text-stone-400 text-xs" data-i18n="dragHint">👈 Drag Left / Right 👉</div>
     </div>
-
     <div class="p-4 text-center">
       <button onclick="toggleAutoRotate360()" id="autoRotateBtn" class="bg-amber-800 text-white text-xs px-4 py-2 rounded-xl font-bold">
         ▶ Auto Rotate
@@ -280,24 +140,19 @@
     </div>
   </div>
 
-  <!-- CART DRAWER MODAL (含计税与总价明细) -->
   <div id="cartModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end hidden">
     <div class="bg-white w-full max-w-md h-full flex flex-col justify-between shadow-2xl">
       <div class="p-4 border-b border-stone-200 flex justify-between items-center">
         <h3 class="font-bold text-stone-900 text-base" data-i18n="cartTitle">Your Shopping Cart</h3>
         <button onclick="closeCart()" class="text-stone-400 text-lg font-bold">✕</button>
       </div>
-
       <div class="bg-amber-50 px-4 py-2 border-b border-amber-200">
         <div class="text-[11px] font-semibold text-amber-900 mb-1" id="freeShipText">Add $50.00 more for Free US Shipping!</div>
         <div class="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden">
           <div id="freeShipBar" class="bg-amber-600 h-full w-0 transition-all duration-300"></div>
         </div>
       </div>
-
       <div id="cartItemsList" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
-
-      <!-- 费用明细结算区域（Subtotal + Tax = Total） -->
       <div class="p-4 border-t border-stone-200 bg-stone-50 space-y-2">
         <div class="flex justify-between items-center text-xs text-stone-500">
           <span data-i18n="subtotalLbl">Subtotal:</span>
@@ -318,13 +173,11 @@
     </div>
   </div>
 
-  <!-- CHECKOUT DEMO MODAL (结算卡片确认弹窗) -->
   <div id="checkoutModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 relative shadow-xl">
       <button onclick="closeCheckoutModal()" class="absolute top-3 right-3 text-stone-400 text-lg font-bold">✕</button>
       <h3 class="text-base font-bold text-stone-900 mb-1" data-i18n="checkoutModalTitle">💳 Order Summary</h3>
       <p class="text-xs text-stone-500 mb-4" data-i18n="checkoutModalSub">Simulated Stripe Payment</p>
-
       <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-1.5 text-xs mb-4">
         <div class="flex justify-between text-stone-600">
           <span data-i18n="subtotalLbl">Subtotal:</span>
@@ -343,20 +196,17 @@
           <span id="chkTotal" class="text-amber-900">$0.00</span>
         </div>
       </div>
-
       <button onclick="confirmOrder()" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 rounded-xl shadow transition-colors" data-i18n="payNowBtn">
         Pay Now
       </button>
     </div>
   </div>
 
-  <!-- INQUIRE MODAL -->
   <div id="inquireModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 relative shadow-xl">
       <button onclick="closeInquireModal()" class="absolute top-3 right-3 text-stone-400 text-lg font-bold">✕</button>
       <h3 class="text-base font-bold text-stone-900 mb-1" data-i18n="inquireFormTitle">🪑 Request Freight & Inquiry</h3>
       <p class="text-xs text-stone-500 mb-4" id="inquireItemTitle">Antique Item</p>
-
       <form onsubmit="submitInquiry(event)" class="space-y-3 text-xs">
         <div>
           <label class="block text-stone-700 font-medium mb-1" data-i18n="lblEmail">Your Email</label>
@@ -375,13 +225,11 @@
     </div>
   </div>
 
-  <!-- SIZE GUIDE MODAL -->
   <div id="sizeModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 relative shadow-xl">
       <button onclick="toggleSizeGuide()" class="absolute top-3 right-3 text-stone-400 text-lg font-bold">✕</button>
       <h3 class="text-base font-bold text-stone-900 mb-1" data-i18n="sizeModalTitle">📏 How to Measure Your Nail Size</h3>
       <p class="text-xs text-stone-500 mb-4" data-i18n="sizeModalSub">Use a soft measuring tape across the widest part of your nail bed.</p>
-      
       <div class="border border-stone-200 rounded-lg overflow-hidden text-xs mb-4">
         <table class="w-full text-left border-collapse">
           <thead class="bg-stone-100 text-stone-700 font-bold border-b border-stone-200">
@@ -402,16 +250,84 @@
           </tbody>
         </table>
       </div>
-
       <button onclick="toggleSizeGuide()" class="w-full bg-stone-900 text-white text-xs font-bold py-2.5 rounded-xl" data-i18n="gotItBtn">Got It</button>
     </div>
   </div>
 
+  <!-- SCRIPT Core Logic & Dynamic Rendering -->
   <script>
-    // 默认税率设置 (例如 8%)
     const TAX_RATE = 0.08;
 
-    // --- Internationalization (i18n) Dictionary ---
+    // --- 商品数据集（复用 images/ 里的图片，增加显示数量） ---
+    // --- 根据 images/ 文件夹真实图片名配置的商品数据集 ---
+    const productsData = {
+      nails: [
+        {
+          id: 'nail1',
+          tagKey: 'tagSweet',
+          tagClass: 'bg-rose-500',
+          titleKey: 'nail1_title',
+          descKey: 'nail1_desc',
+          price: 22.00,
+          // 对应本地真实图片路径
+          images: ['images/image.png', 'images/strawberry.jpg'],
+          shapes: ['Almond', 'Coffin'],
+          sizes: ['XS', 'S', 'M', 'L']
+        },
+        {
+          id: 'nail2',
+          tagKey: 'tagGoth',
+          tagClass: 'bg-purple-600',
+          titleKey: 'nail2_title',
+          descKey: 'nail2_desc',
+          price: 24.50,
+          images: ['images/image_1.png', 'images/gothic.jpg'],
+          shapes: ['Stiletto', 'Coffin'],
+          sizes: ['XS', 'S', 'M', 'L']
+        },
+        {
+          id: 'nail3',
+          tagKey: 'tagSweet',
+          tagClass: 'bg-amber-600',
+          titleKey: 'nail3_title',
+          descKey: 'nail3_desc',
+          price: 26.00,
+          images: ['images/image_2.png', 'images/image_3.png'],
+          shapes: ['Almond', 'Square'],
+          sizes: ['XS', 'S', 'M', 'L']
+        }
+      ],
+      merch: [
+        {
+          id: 'merch1',
+          tagKey: 'uvTag',
+          titleKey: 'merch1_title',
+          descKey: 'merch1_desc',
+          price: 14.50,
+          image: 'images/image_3.png'
+        },
+        {
+          id: 'merch2',
+          tagKey: 'uvTag',
+          titleKey: 'merch2_title',
+          descKey: 'merch2_desc',
+          price: 18.00,
+          image: 'images/image.png'
+        }
+      ],
+      furniture: [
+        {
+          id: 'ant1',
+          tagKey: 'qingTag',
+          titleKey: 'ant1_title',
+          descKey: 'ant1_desc',
+          price: 1850.00,
+          image: 'images/gothic.jpg'
+        }
+      ]
+    };
+    
+    // --- 国际化字典 Dictionary ---
     const i18n = {
       en: {
         noticeText: "Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques",
@@ -436,6 +352,8 @@
         uvTag: "Double-Sided Print",
         merch1_title: "Custom Anime Acrylic Standee with Base",
         merch1_desc: "High-clarity laser cut acrylic with protective film.",
+        merch2_title: "Limited Edition Acrylic Keyring & Stand Set",
+        merch2_desc: "Vibrant dual-layer acrylic with metallic clasp.",
         secFurnitureTitle: "Antique Chinese Furniture",
         secFurnitureSub: "Authentic 19th & 20th century curated heirlooms",
         qingTag: "Late Qing Dynasty",
@@ -466,7 +384,9 @@
         nail1_title: "Sweet Strawberry French Tip",
         nail1_desc: "Pearl Accents • Hand Crafted",
         nail2_title: "Y2K Celestial Bow & Starburst",
-        nail2_desc: "3D Chrome • Silver Charms"
+        nail2_desc: "3D Chrome • Silver Charms",
+        nail3_title: "Vintage Amber & Gold Leaf Accent",
+        nail3_desc: "Hand-painted Golden Flakes • Translucent Finish"
       },
       zh: {
         noticeText: "穿戴甲与亚克力满$50全美包邮 | 古董家具安排专业专线物流",
@@ -491,6 +411,8 @@
         uvTag: "双面高精印刷",
         merch1_title: "原创动漫亚克力立牌（含底座）",
         merch1_desc: "高透激光切割亚克力，使用前请撕开保护膜。",
+        merch2_title: "限定版亚克力钥匙扣与立牌套组",
+        merch2_desc: "双层透光亚克力，配备精美金属扣件。",
         secFurnitureTitle: "中式典藏古董家具",
         secFurnitureSub: "19-20 世纪北方民间原版传家家具",
         qingTag: "清末民初",
@@ -521,54 +443,155 @@
         nail1_title: "法式甜心草莓手工甲",
         nail1_desc: "手工珍珠装饰 • 软萌甜美",
         nail2_title: "Y2K 璀璨星空与立体蝴蝶结",
-        nail2_desc: "3D 液态金属 Chrome • 银色吊坠"
+        nail2_desc: "3D 液态金属 Chrome • 银色吊坠",
+        nail3_title: "复古琥珀金箔渐变穿戴甲",
+        nail3_desc: "纯手工绘制金箔点缀 • 高透琥珀质感"
       }
     };
 
     let currentLang = 'en';
     let cart = [];
-    let selectedVariants = { 
-      nail1: 'S', shape1: 'Almond',
-      nail2: 'S', shape2: 'Stiletto'
-    };
+    let selectedVariants = {};
 
+    function getI18nText(key) {
+      return i18n[currentLang][key] || key;
+    }
+
+    // --- 动态渲染 UI 界面 ---
+    function renderProducts() {
+      // 1. Render Nails Grid
+      const nailsContainer = document.getElementById('nailsContainer');
+      nailsContainer.innerHTML = productsData.nails.map(item => {
+        // Default selected variant setup
+        if (!selectedVariants[item.id]) {
+          selectedVariants[item.id] = { shape: item.shapes[0], size: item.sizes[1] };
+        }
+
+        const thumbs = item.images.map((img, idx) => `
+          <img src="${img}" onclick="switchMainImg('${item.id}', this.src)" class="w-8 h-8 rounded border ${idx === 0 ? 'border-amber-800 border-2' : 'border-stone-200'} object-cover cursor-pointer">
+        `).join('');
+
+        const shapesHtml = item.shapes.map(s => `
+          <button onclick="selectVariant(this, '${item.id}', 'shape', '${s}')" class="${item.id}-shape-btn text-[8px] border ${selectedVariants[item.id].shape === s ? 'border-stone-900 bg-stone-900 text-white font-bold' : 'border-stone-300 text-stone-600'} rounded px-1.5 py-0.5">${s}</button>
+        `).join('');
+
+        const sizesHtml = item.sizes.map(sz => `
+          <button onclick="selectVariant(this, '${item.id}', 'size', '${sz}')" class="${item.id}-size-btn text-[9px] border ${selectedVariants[item.id].size === sz ? 'border-stone-900 bg-stone-900 text-white font-bold' : 'border-stone-300 text-stone-600'} rounded px-1.5 py-0.5">${sz}</button>
+        `).join('');
+
+        return `
+          <div class="bg-white rounded-xl overflow-hidden border border-stone-200 shadow-sm flex flex-col justify-between">
+            <div class="relative aspect-square bg-stone-100 overflow-hidden group">
+              <img id="main-img-${item.id}" src="${item.images[0]}"
+                   onclick="openImageModal(this.src, getI18nText('${item.titleKey}'))"
+                   class="w-full h-full object-cover transition-all duration-300 cursor-pointer" alt="Nail Item">
+              <span class="absolute top-2 left-2 ${item.tagClass} text-white text-[9px] font-bold px-2 py-0.5 rounded-full" data-i18n="${item.tagKey}">${getI18nText(item.tagKey)}</span>
+              <button onclick="open360Modal(getI18nText('${item.titleKey}'), '${item.images[0]}')" class="absolute bottom-2 right-2 bg-black/75 text-amber-300 text-[9px] font-bold px-2 py-1 rounded-md shadow backdrop-blur-sm">
+                🔄 360°
+              </button>
+            </div>
+            <div class="p-2 pb-0 flex space-x-1.5 overflow-x-auto hide-scrollbar">
+              ${thumbs}
+            </div>
+            <div class="p-2.5">
+              <h3 class="text-xs font-bold text-stone-800 line-clamp-1" data-i18n="${item.titleKey}">${getI18nText(item.titleKey)}</h3>
+              <p class="text-[10px] text-stone-500 mb-2" data-i18n="${item.descKey}">${getI18nText(item.descKey)}</p>
+              <div class="mb-2 space-y-1.5">
+                <div>
+                  <span class="text-[9px] text-stone-400 block" data-i18n="lblShape">${getI18nText('lblShape')}</span>
+                  <div class="flex space-x-1 mt-0.5">${shapesHtml}</div>
+                </div>
+                <div>
+                  <span class="text-[9px] text-stone-400 block" data-i18n="lblSize">${getI18nText('lblSize')}</span>
+                  <div class="flex space-x-1 mt-0.5">${sizesHtml}</div>
+                </div>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-stone-900 text-sm">$${item.price.toFixed(2)}</span>
+                <button onclick="addNailToCart('${item.titleKey}', ${item.price}, '${item.id}')" class="bg-stone-900 text-white text-xs px-2.5 py-1 rounded-md font-medium active:scale-95 transition-transform" data-i18n="addBtn">${getI18nText('addBtn')}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 2. Render Merch List
+      const merchContainer = document.getElementById('merchContainer');
+      merchContainer.innerHTML = productsData.merch.map(item => `
+        <div class="bg-white border border-stone-200 rounded-xl p-3 flex space-x-3 items-center shadow-sm">
+          <div class="w-24 h-24 bg-stone-100 rounded-lg flex-none overflow-hidden relative cursor-pointer" onclick="openImageModal('${item.image}', getI18nText('${item.titleKey}'))">
+            <img src="${item.image}" class="w-full h-full object-cover" alt="Merch">
+            <span class="absolute bottom-1 left-1 bg-indigo-600 text-white text-[8px] font-bold px-1 rounded" data-i18n="zoomBadge">${getI18nText('zoomBadge')}</span>
+          </div>
+          <div class="flex-1">
+            <span class="bg-indigo-100 text-indigo-800 text-[9px] font-bold px-2 py-0.5 rounded" data-i18n="${item.tagKey}">${getI18nText(item.tagKey)}</span>
+            <h3 class="text-xs font-bold text-stone-800 mt-1" data-i18n="${item.titleKey}">${getI18nText(item.titleKey)}</h3>
+            <p class="text-[10px] text-stone-500 mt-0.5" data-i18n="${item.descKey}">${getI18nText(item.descKey)}</p>
+            <div class="flex justify-between items-center mt-2">
+              <span class="font-bold text-stone-900 text-sm">$${item.price.toFixed(2)}</span>
+              <button onclick="addToCart(getI18nText('${item.titleKey}'), ${item.price}, 'One Size')" class="bg-stone-900 text-white text-xs px-2.5 py-1 rounded-md font-medium" data-i18n="addBtn">${getI18nText('addBtn')}</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // 3. Render Furniture List
+      const furnitureContainer = document.getElementById('furnitureContainer');
+      furnitureContainer.innerHTML = productsData.furniture.map(item => `
+        <div class="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+          <div class="relative h-56 bg-stone-900 cursor-pointer group">
+            <img src="${item.image}" onclick="openImageModal(this.src, getI18nText('${item.titleKey}'))" class="w-full h-full object-cover opacity-90 transition-transform duration-300 group-hover:scale-105" alt="Furniture">
+            <span class="absolute top-3 left-3 bg-amber-900/90 text-amber-100 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm" data-i18n="${item.tagKey}">${getI18nText(item.tagKey)}</span>
+            <button onclick="open360Modal(getI18nText('${item.titleKey}'), '${item.image}')" class="absolute bottom-3 right-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow backdrop-blur-sm flex items-center space-x-1">
+              <span>🔄 360° View</span>
+            </button>
+          </div>
+          <div class="p-4">
+            <h3 class="font-bold text-stone-900 text-sm" data-i18n="${item.titleKey}">${getI18nText(item.titleKey)}</h3>
+            <p class="text-xs text-stone-600 mt-1" data-i18n="${item.descKey}">${getI18nText(item.descKey)}</p>
+            <div class="mt-3 pt-3 border-t border-stone-100 flex justify-between items-center">
+              <div>
+                <span class="text-[10px] text-stone-400 block" data-i18n="lblEstPrice">${getI18nText('lblEstPrice')}</span>
+                <span class="font-bold text-stone-900 text-base">$${item.price.toFixed(2)}</span>
+              </div>
+              <button onclick="openInquireModal(getI18nText('${item.titleKey}'), ${item.price})" class="bg-amber-800 text-white text-xs px-3 py-1.5 rounded-lg font-medium shadow-sm" data-i18n="inquireBtn">${getI18nText('inquireBtn')}</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- Switch Language ---
     function toggleLang() {
       currentLang = currentLang === 'en' ? 'zh' : 'en';
       document.getElementById('langBtnText').innerText = currentLang === 'en' ? "中文" : "EN";
-
-      // Loop through all elements with data-i18n attribute
       document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (i18n[currentLang][key]) {
           el.innerText = i18n[currentLang][key];
         }
       });
-
+      renderProducts();
       updateCartUI();
     }
 
-    function getI18nText(key) {
-      return i18n[currentLang][key] || key;
+    // --- Variant & Image Switchers ---
+    function switchMainImg(itemId, src) {
+      document.getElementById('main-img-' + itemId).src = src;
     }
 
-    // --- Product Gallery Switcher ---
-    function switchMainImg(nailId, src) {
-      document.getElementById('main-img-' + nailId).src = src;
-    }
-
-    // --- Variant Selection (Shape & Size) ---
-    function selectVariant(btn, group, value) {
-      selectedVariants[group] = value;
-      document.querySelectorAll('.' + group + '-btn').forEach(b => {
-        b.className = `${group}-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600`;
+    function selectVariant(btn, itemId, type, value) {
+      selectedVariants[itemId][type] = value;
+      document.querySelectorAll(`.${itemId}-${type}-btn`).forEach(b => {
+        b.className = `${itemId}-${type}-btn text-[9px] border border-stone-300 rounded px-1.5 py-0.5 text-stone-600`;
       });
-      btn.className = `${group}-btn text-[9px] border border-stone-900 bg-stone-900 text-white font-bold rounded px-1.5 py-0.5`;
+      btn.className = `${itemId}-${type}-btn text-[9px] border border-stone-900 bg-stone-900 text-white font-bold rounded px-1.5 py-0.5`;
     }
 
-    function addNailToCart(titleKey, price, sizeGroup, shapeGroup) {
+    function addNailToCart(titleKey, price, itemId) {
       const title = getI18nText(titleKey);
-      const size = selectedVariants[sizeGroup] || 'S';
-      const shape = selectedVariants[shapeGroup] || 'Almond';
+      const size = selectedVariants[itemId].size;
+      const shape = selectedVariants[itemId].shape;
       const variantLabel = `${shape} / ${size}`;
       addToCart(title, price, variantLabel);
     }
@@ -584,7 +607,6 @@
       openCart();
     }
 
-    // --- 购物车与计税逻辑 UI ---
     function updateCartUI() {
       const list = document.getElementById('cartItemsList');
       const count = document.getElementById('cartCount');
@@ -596,7 +618,6 @@
 
       let totalItems = 0;
       let subtotalAmount = 0;
-
       list.innerHTML = '';
 
       if (cart.length === 0) {
@@ -622,7 +643,6 @@
         });
       }
 
-      // 计算税金与最终总价
       const taxAmount = subtotalAmount * TAX_RATE;
       const totalAmount = subtotalAmount + taxAmount;
 
@@ -631,7 +651,6 @@
       taxEl.innerText = `$${taxAmount.toFixed(2)}`;
       totalEl.innerText = `$${totalAmount.toFixed(2)}`;
 
-      // 满50免邮进度条
       if (subtotalAmount >= 50) {
         freeShipText.innerText = currentLang === 'en' ? "🎉 You've unlocked FREE US Shipping!" : "🎉 已成功满足全美免运费！";
         freeShipBar.style.width = "100%";
@@ -648,7 +667,7 @@
       updateCartUI();
     }
 
-    // --- Image Zoom Lightbox Logic ---
+    // --- Image Zoom Lightbox ---
     let currentZoomScale = 1;
     function openImageModal(src, title) {
       currentZoomScale = 1;
@@ -668,14 +687,15 @@
       document.getElementById('zoomTargetImg').style.transform = `scale(${currentZoomScale})`;
     }
 
-    // --- 360 Degree Viewer Logic ---
+    // --- 360 Viewer ---
     let isDragging360 = false;
     let startX360 = 0;
     let currentAngle = 0;
     let autoRotateTimer = null;
 
-    function open360Modal(title) {
+    function open360Modal(title, imgSrc) {
       document.getElementById('threeSixtyTitle').innerText = title + ' (360° View)';
+      if (imgSrc) document.getElementById('img360').src = imgSrc;
       document.getElementById('threeSixtyModal').classList.remove('hidden');
       currentAngle = 0;
       update360Angle(0);
@@ -713,17 +733,14 @@
       }
     }
 
-    // Modal Control Functions
+    // --- Modal Controls ---
     function openCart() { document.getElementById('cartModal').classList.remove('hidden'); }
     function closeCart() { document.getElementById('cartModal').classList.add('hidden'); }
-    
-    // --- 结账逻辑与弹窗控制 ---
     function checkout() {
       if (cart.length === 0) {
         alert(currentLang === 'en' ? 'Your cart is empty!' : '购物车是空的！');
         return;
       }
-      
       let subtotal = 0;
       cart.forEach(item => subtotal += item.price * item.qty);
       const tax = subtotal * TAX_RATE;
@@ -737,21 +754,14 @@
       closeCart();
       document.getElementById('checkoutModal').classList.remove('hidden');
     }
-
-    function closeCheckoutModal() {
-      document.getElementById('checkoutModal').classList.add('hidden');
-    }
-
+    function closeCheckoutModal() { document.getElementById('checkoutModal').classList.add('hidden'); }
     function confirmOrder() {
       const totalText = document.getElementById('chkTotal').innerText;
-      alert(currentLang === 'en' 
-        ? `Payment Successful! Charged ${totalText}. Thank you for shopping with Aesthetic East!` 
-        : `支付成功！已按最终价（含税）扣款 ${totalText}。感谢您的购买！`);
+      alert(currentLang === 'en' ? `Payment Successful! Charged ${totalText}.` : `支付成功！已扣款 ${totalText}。`);
       cart = [];
       updateCartUI();
       closeCheckoutModal();
     }
-
     function openInquireModal(title, price) {
       document.getElementById('inquireItemTitle').innerText = `${title} ($${price.toFixed(2)})`;
       document.getElementById('inquireModal').classList.remove('hidden');
@@ -759,12 +769,17 @@
     function closeInquireModal() { document.getElementById('inquireModal').classList.add('hidden'); }
     function submitInquiry(e) {
       e.preventDefault();
-      alert(currentLang === 'en' ? 'Inquiry submitted! We will email you within 24 hours.' : '询价已提交！我们将在24小时内与您联系。');
+      alert(currentLang === 'en' ? 'Inquiry submitted!' : '询价已提交！');
       closeInquireModal();
     }
     function toggleSizeGuide() {
       document.getElementById('sizeModal').classList.toggle('hidden');
     }
+
+    // --- 初始化页面渲染 ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderProducts();
+    });
   </script>
 </body>
 </html>
