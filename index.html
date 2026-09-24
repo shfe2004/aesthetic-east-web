@@ -1,60 +1,37 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="siteTitle">Aesthetic East | 东方美学手作</title>
-  <!-- Tailwind CSS CDN -->
+  <title data-i18n="siteTitle">Aesthetic East | Handcrafted Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome 图标库 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    /* 自定义美化滚动条 */
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #ccc;
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #999;
-    }
-  </style>
 </head>
-<body class="bg-stone-50 text-stone-800 font-sans antialiased min-h-screen flex flex-col justify-between">
+<body class="bg-stone-50 text-stone-900 font-sans antialiased min-h-screen flex flex-col justify-between">
 
-  <!-- 顶栏导航 -->
-  <header class="sticky top-0 z-40 bg-stone-900 text-stone-100 shadow-md">
+  <!-- 顶部公告栏 -->
+  <div class="bg-stone-950 text-amber-200 text-xs py-2 px-4 text-center font-medium tracking-wide" data-i18n="bannerAnnouncement">
+    ✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques
+  </div>
+
+  <!-- 顶栏 Header -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-200/80">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <!-- 品牌 Logo -->
-      <div class="flex items-center space-x-3">
-        <span class="text-xl sm:text-2xl font-serif font-bold tracking-wider text-amber-200" data-i18n="siteTitle">
-          Aesthetic East
-        </span>
-      </div>
+      <a href="#" class="text-xl font-serif font-bold tracking-wider text-stone-900" data-i18n="siteTitle">
+        Aesthetic East
+      </a>
 
-      <!-- 导航链接与功能按钮 -->
-      <div class="flex items-center space-x-6">
-        <nav class="hidden md:flex space-x-8 text-sm font-medium">
-          <a href="#nails-section" class="hover:text-amber-200 transition-colors" data-i18n="navNails">手工穿戴甲</a>
-          <a href="#merch-section" class="hover:text-amber-200 transition-colors" data-i18n="navMerch">亚克力周边</a>
-          <a href="#furniture-section" class="hover:text-amber-200 transition-colors" data-i18n="navFurniture">古董家具</a>
-        </nav>
-
-        <!-- 多语言切换按钮 -->
-        <button onclick="toggleLanguage()" class="p-2 rounded-full hover:bg-stone-800 text-stone-300 hover:text-white transition-colors flex items-center gap-1 text-sm">
-          <i class="fa-solid font-bold fa-globe"></i>
-          <span id="lang-btn-text">EN</span>
+      <div class="flex items-center gap-3 sm:gap-5">
+        <!-- 语言切换器 -->
+        <button onclick="toggleLanguage()" class="px-3 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-800 transition-colors flex items-center gap-1.5 text-xs font-semibold">
+          <i class="fa-solid fa-globe text-stone-500"></i>
+          <span id="lang-btn-text">中文</span>
         </button>
 
-        <!-- 购物车图标按钮 -->
-        <button onclick="toggleCartDrawer()" class="relative p-2 text-stone-300 hover:text-white transition-colors">
-          <i class="fa-solid fa-bag-shopping text-xl"></i>
-          <span id="cart-count-badge" class="absolute -top-1 -right-1 bg-amber-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold hidden">
+        <!-- 购物车入口 -->
+        <button onclick="toggleCartDrawer()" class="relative p-2 text-stone-700 hover:text-stone-900 transition-colors">
+          <i class="fa-solid fa-cart-shopping text-lg"></i>
+          <span id="cart-badge" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden">
             0
           </span>
         </button>
@@ -62,398 +39,148 @@
     </div>
   </header>
 
-  <!-- 主体内容区 -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full space-y-16">
+  <!-- Hero 介绍区 -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4 w-full">
+    <div class="bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
+      <div class="max-w-xl space-y-4 relative z-10">
+        <span class="inline-block bg-amber-600/30 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase" data-i18n="heroBadge">
+          CURATED ASIAN AESTHETICS
+        </span>
+        <h1 class="text-2xl sm:text-4xl font-serif font-bold leading-snug" data-i18n="heroTitle">
+          Handcrafted Press-Ons & Timeless Chinese Antiques
+        </h1>
+        <p class="text-xs sm:text-sm text-stone-300 leading-relaxed" data-i18n="heroDesc">
+          Bringing oriental craftsmanship and pop art into modern American homes.
+        </p>
+      </div>
+    </div>
+  </section>
 
-    <!-- 1. 手工穿戴甲区域 -->
-    <section id="nails-section">
-      <div class="border-b border-stone-200 pb-4 mb-8 flex justify-between items-end">
+  <!-- 主体内容 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-16">
+
+    <!-- 手工穿戴甲 -->
+    <section id="nails">
+      <div class="flex justify-between items-end border-b border-stone-200 pb-4 mb-6">
         <div>
-          <h2 class="text-2xl font-serif font-bold text-stone-900" data-i18n="navNails">手工穿戴甲</h2>
-          <p class="text-xs text-stone-500 mt-1">Handcrafted Premium Press-on Nails</p>
+          <h2 class="text-xl sm:text-2xl font-serif font-bold text-stone-900" data-i18n="categoryNails">Handcrafted Press-On Nails</h2>
+          <p class="text-xs text-stone-400 mt-1">Click gallery thumbnail to switch · 360° Try-On</p>
         </div>
-        <!-- 尺码表弹窗入口 -->
-        <button onclick="openSizeModal()" class="text-sm text-amber-700 hover:text-amber-800 font-medium flex items-center gap-1 underline">
-          <i class="fa-solid fa-ruler"></i>
-          <span data-i18n="sizeGuideTitle">尺码说明</span>
+        <button onclick="openSizeModal()" class="text-xs text-amber-800 hover:text-amber-900 font-bold bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1">
+          <i class="fa-solid fa-ruler-horizontal"></i>
+          <span data-i18n="sizeGuide">Size Guide</span>
         </button>
       </div>
-      <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+      <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"></div>
     </section>
 
-    <!-- 2. 亚克力周边区域 -->
-    <section id="merch-section">
-      <div class="border-b border-stone-200 pb-4 mb-8">
-        <h2 class="text-2xl font-serif font-bold text-stone-900" data-i18n="navMerch">亚克力周边</h2>
-        <p class="text-xs text-stone-500 mt-1">Acrylic Merchandise & Accessories</p>
+    <!-- 亚克力周边 -->
+    <section id="merch">
+      <div class="border-b border-stone-200 pb-4 mb-6">
+        <h2 class="text-xl sm:text-2xl font-serif font-bold text-stone-900" data-i18n="categoryMerch">Original Acrylic Merch</h2>
+        <p class="text-xs text-stone-400 mt-1">Double-sided UV printed anime standees & charms</p>
       </div>
-      <div id="merch-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+      <div id="merch-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"></div>
     </section>
 
-    <!-- 3. 古董家具区域 -->
-    <section id="furniture-section">
-      <div class="border-b border-stone-200 pb-4 mb-8">
-        <h2 class="text-2xl font-serif font-bold text-stone-900" data-i18n="navFurniture">古董家具</h2>
-        <p class="text-xs text-stone-500 mt-1">Antique & Heritage Furniture Pieces</p>
+    <!-- 古董家具 -->
+    <section id="furniture">
+      <div class="border-b border-stone-200 pb-4 mb-6">
+        <h2 class="text-xl sm:text-2xl font-serif font-bold text-stone-900" data-i18n="categoryFurniture">Antique Chinese Furniture</h2>
+        <p class="text-xs text-stone-400 mt-1">Authentic 19th & 20th century curated heirlooms</p>
       </div>
-      <div id="furniture-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+      <div id="furniture-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"></div>
     </section>
 
   </main>
 
   <!-- 页脚 -->
-  <footer class="bg-stone-900 text-stone-400 py-8 border-t border-stone-800 text-center text-sm">
-    <p>&copy; 2026 Aesthetic East Handcrafted. All rights reserved.</p>
+  <footer class="bg-stone-950 text-stone-400 py-10 border-t border-stone-800 text-center text-xs space-y-2">
+    <p class="font-serif font-semibold text-stone-300">Aesthetic East Studio</p>
+    <p>&copy; 2026 Aesthetic East. All rights reserved.</p>
   </footer>
 
   <!-- 侧滑购物车 Drawer -->
-  <div id="cart-drawer" class="fixed inset-0 z-50 overflow-hidden pointer-events-none transition-opacity duration-300 opacity-0">
-    <!-- 遮罩背景 -->
-    <div id="cart-backdrop" onclick="toggleCartDrawer()" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300 pointer-events-none"></div>
+  <div id="cart-drawer" class="fixed inset-0 z-50 pointer-events-none transition-all duration-300">
+    <div id="cart-overlay" onclick="closeCartDrawer()" class="absolute inset-0 bg-black/60 backdrop-blur-xs opacity-0 transition-opacity duration-300"></div>
+    <div id="cart-panel" class="absolute inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 pointer-events-auto">
+      <div class="p-5 bg-stone-950 text-white flex items-center justify-between">
+        <h3 class="text-base font-serif font-bold flex items-center gap-2">
+          <i class="fa-solid fa-bag-shopping text-amber-400"></i>
+          <span data-i18n="cartTitle">Your Cart</span>
+        </h3>
+        <button onclick="closeCartDrawer()" class="text-stone-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
 
-    <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
-      <div id="cart-panel" class="w-screen max-w-md bg-white shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 pointer-events-auto">
-        <!-- Drawer 头部 -->
-        <div class="p-6 bg-stone-900 text-white flex items-center justify-between">
-          <h2 class="text-lg font-serif font-bold flex items-center gap-2">
-            <i class="fa-solid fa-bag-shopping text-amber-400"></i>
-            <span data-i18n="cartTitle">您的购物袋</span>
-          </h2>
-          <button onclick="toggleCartDrawer()" class="text-stone-400 hover:text-white p-2">
-            <i class="fa-solid fa-xmark text-xl"></i>
-          </button>
+      <div id="cart-items" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
+
+      <div class="p-5 border-t border-stone-100 bg-stone-50/80 space-y-3">
+        <div class="flex justify-between text-xs text-stone-500">
+          <span data-i18n="cartShipping">Shipping</span>
+          <span class="text-emerald-600 font-bold" data-i18n="cartFree">Free</span>
         </div>
-
-        <!-- 购物车商品列表列表 -->
-        <div id="cart-items-container" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
-
-        <!-- Drawer 底部结算区域 -->
-        <div class="p-6 border-t border-stone-200 bg-stone-50 space-y-4">
-          <div class="flex justify-between text-base font-bold text-stone-900">
-            <span data-i18n="total">合计:</span>
-            <span id="cart-total-price" class="text-amber-700">$0.00</span>
-          </div>
-          <button onclick="checkout()" class="w-full py-3 bg-stone-900 text-white rounded font-medium hover:bg-stone-800 transition-colors flex items-center justify-center gap-2">
-            <i class="fa-solid fa-lock text-sm"></i>
-            <span data-i18n="checkoutBtn">去结算</span>
-          </button>
+        <div class="flex justify-between text-base font-extrabold text-stone-900 pt-1 border-t border-stone-200">
+          <span data-i18n="cartTotal">Total</span>
+          <span id="cart-total" class="text-amber-800">$0.00</span>
         </div>
+        <button onclick="alert('Redirecting to Stripe/PayPal Checkout...')" class="w-full py-3.5 bg-stone-950 hover:bg-stone-800 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-lock text-xs"></i>
+          <span data-i18n="checkoutBtn">Proceed to Checkout</span>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- 尺码指南 Modal -->
-  <div id="size-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative space-y-4">
-      <button onclick="closeSizeModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-700">
+  <!-- 360° 视图 Modal -->
+  <div id="modal-360" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 text-center relative shadow-2xl">
+      <button onclick="close360Modal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
         <i class="fa-solid fa-xmark text-xl"></i>
       </button>
-      <h3 class="text-xl font-serif font-bold text-stone-900" data-i18n="sizeGuideTitle">穿戴甲尺码选择指南</h3>
-      <div class="text-sm text-stone-600 space-y-2">
-        <p>用软尺测量大拇指、食指、中指、无名指和小指的最宽处毫米数：</p>
-        <ul class="list-disc pl-5 space-y-1">
-          <li><strong>XS:</strong> 14mm / 10mm / 11mm / 10mm / 7mm</li>
-          <li><strong>S:</strong> 15mm / 11mm / 12mm / 11mm / 8mm</li>
-          <li><strong>M:</strong> 16mm / 12mm / 13mm / 12mm / 9mm</li>
-          <li><strong>L:</strong> 17mm / 13mm / 14mm / 13mm / 10mm</li>
-        </ul>
+      <h3 class="text-base font-bold text-stone-900">360° Interactive Preview</h3>
+      <div class="aspect-square bg-stone-100 rounded-xl overflow-hidden flex items-center justify-center">
+        <img id="modal-img-360" src="" class="w-full h-full object-cover">
       </div>
-      <button onclick="closeSizeModal()" class="w-full py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded font-medium text-sm transition-colors" data-i18n="close">
-        关闭
-      </button>
+      <p class="text-xs text-stone-400">Drag to view from all angles (3D Model preview)</p>
     </div>
   </div>
 
-  <!-- 引入拆分后的 JS 数据文件 -->
+  <!-- Zoom Modal -->
+  <div id="modal-zoom" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 text-center relative shadow-2xl">
+      <button onclick="closeZoomModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+      <h3 class="text-base font-bold text-stone-900">HD Detail View</h3>
+      <div class="aspect-square bg-stone-100 rounded-xl overflow-hidden">
+        <img id="modal-img-zoom" src="" class="w-full h-full object-cover">
+      </div>
+    </div>
+  </div>
+
+  <!-- Size Guide Modal -->
+  <div id="modal-size" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 relative shadow-2xl">
+      <button onclick="closeSizeModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+      <h3 class="text-lg font-serif font-bold text-stone-900" data-i18n="sizeGuide">Size Guide</h3>
+      <div class="text-xs text-stone-600 space-y-2">
+        <p>Measure the widest part of your nail bed in millimeters:</p>
+        <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-1 font-mono text-[11px]">
+          <p><strong>XS:</strong> 14mm | 10mm | 11mm | 10mm | 7mm</p>
+          <p><strong>S:</strong> 15mm | 11mm | 12mm | 11mm | 8mm</p>
+          <p><strong>M:</strong> 16mm | 12mm | 13mm | 12mm | 9mm</p>
+          <p><strong>L:</strong> 17mm | 13mm | 14mm | 13mm | 10mm</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引用模块化的 JS 脚本 -->
   <script src="js/data.js"></script>
-
-  <!-- 页面交互与渲染逻辑脚本 -->
-  <script>
-    let currentLang = 'zh';
-    let cart = [];
-
-    // 初始化页面
-    document.addEventListener('DOMContentLoaded', () => {
-      renderPage();
-    });
-
-    // 切换语言
-    function toggleLanguage() {
-      currentLang = currentLang === 'zh' ? 'en' : 'zh';
-      document.getElementById('lang-btn-text').innerText = currentLang === 'zh' ? 'EN' : '中文';
-      renderPage();
-    }
-
-    // 渲染页面内容
-    function renderPage() {
-      // 更新静态词条
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (i18n[currentLang] && i18n[currentLang][key]) {
-          el.innerText = i18n[currentLang][key];
-        }
-      });
-
-      renderProducts();
-      updateCartUI();
-    }
-
-    // 渲染商品网格
-    function renderProducts() {
-      // 1. 穿戴甲列表渲染
-      const nailsGrid = document.getElementById('nails-grid');
-      nailsGrid.innerHTML = productsData.nails.map(item => `
-        <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-stone-100 flex flex-col justify-between">
-          <div>
-            <div class="relative bg-stone-100 aspect-square overflow-hidden group">
-              <img id="main-img-${item.id}" src="${item.images[0]}" alt="Product Image" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-              <span class="absolute top-3 left-3 ${item.tagClass} text-white text-xs px-2.5 py-1 rounded-full font-medium">
-                ${i18n[currentLang][item.tagKey]}
-              </span>
-            </div>
-
-            <!-- 缩略图切换 -->
-            <div class="flex gap-2 p-3 bg-stone-50 border-b border-stone-100 overflow-x-auto">
-              ${item.images.map((img, idx) => `
-                <button onclick="switchProductImage('${item.id}', '${img}')" class="w-12 h-12 rounded border border-stone-200 overflow-hidden hover:border-amber-600 focus:border-amber-600 transition-colors flex-shrink-0">
-                  <img src="${img}" class="w-full h-full object-cover">
-                </button>
-              `).join('')}
-            </div>
-
-            <div class="p-5 space-y-3">
-              <h3 class="text-lg font-bold text-stone-900">${i18n[currentLang][item.titleKey]}</h3>
-              <p class="text-xs text-stone-500 line-clamp-2">${i18n[currentLang][item.descKey]}</p>
-
-              <!-- 甲型与尺码选择 -->
-              <div class="space-y-2 text-xs text-stone-600">
-                <div>
-                  <span class="font-medium text-stone-700">Shape:</span>
-                  <select id="shape-${item.id}" class="ml-2 bg-stone-50 border border-stone-200 rounded px-2 py-1 focus:outline-none focus:border-amber-600">
-                    ${item.shapes.map(s => `<option value="${s}">${s}</option>`).join('')}
-                  </select>
-                </div>
-                <div>
-                  <span class="font-medium text-stone-700">Size:</span>
-                  <select id="size-${item.id}" class="ml-2 bg-stone-50 border border-stone-200 rounded px-2 py-1 focus:outline-none focus:border-amber-600">
-                    ${item.sizes.map(s => `<option value="${s}">${s}</option>`).join('')}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-5 pt-0 flex items-center justify-between mt-2">
-            <span class="text-xl font-bold text-amber-700">$${item.price.toFixed(2)}</span>
-            <button onclick="addNailToCart('${item.id}')" class="bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2.5 rounded transition-colors flex items-center gap-1.5">
-              <i class="fa-solid fa-cart-plus"></i> Add
-            </button>
-          </div>
-        </div>
-      `).join('');
-
-      // 2. 亚克力周边渲染
-      const merchGrid = document.getElementById('merch-grid');
-      merchGrid.innerHTML = productsData.merch.map(item => `
-        <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-stone-100 flex flex-col justify-between">
-          <div>
-            <div class="relative bg-stone-100 aspect-square overflow-hidden group">
-              <img src="${item.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-              <span class="absolute top-3 left-3 bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-medium">
-                ${i18n[currentLang][item.tagKey]}
-              </span>
-            </div>
-            <div class="p-5 space-y-2">
-              <h3 class="text-lg font-bold text-stone-900">${i18n[currentLang][item.titleKey]}</h3>
-              <p class="text-xs text-stone-500">${i18n[currentLang][item.descKey]}</p>
-            </div>
-          </div>
-          <div class="p-5 pt-0 flex items-center justify-between mt-2">
-            <span class="text-xl font-bold text-amber-700">$${item.price.toFixed(2)}</span>
-            <button onclick="addSimpleToCart('merch', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2.5 rounded transition-colors flex items-center gap-1.5">
-              <i class="fa-solid fa-cart-plus"></i> Add
-            </button>
-          </div>
-        </div>
-      `).join('');
-
-      // 3. 古董家具渲染
-      const furnitureGrid = document.getElementById('furniture-grid');
-      furnitureGrid.innerHTML = productsData.furniture.map(item => `
-        <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-stone-100 flex flex-col justify-between">
-          <div>
-            <div class="relative bg-stone-100 aspect-square overflow-hidden group">
-              <img src="${item.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-              <span class="absolute top-3 left-3 bg-amber-800 text-white text-xs px-2.5 py-1 rounded-full font-medium">
-                ${i18n[currentLang][item.tagKey]}
-              </span>
-            </div>
-            <div class="p-5 space-y-2">
-              <h3 class="text-lg font-bold text-stone-900">${i18n[currentLang][item.titleKey]}</h3>
-              <p class="text-xs text-stone-500">${i18n[currentLang][item.descKey]}</p>
-            </div>
-          </div>
-          <div class="p-5 pt-0 flex items-center justify-between mt-2">
-            <span class="text-xl font-bold text-amber-700">$${item.price.toFixed(2)}</span>
-            <button onclick="addSimpleToCart('furniture', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2.5 rounded transition-colors flex items-center gap-1.5">
-              <i class="fa-solid fa-cart-plus"></i> Add
-            </button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // 主图缩略图切换
-    function switchProductImage(productId, newSrc) {
-      const imgEl = document.getElementById(`main-img-${productId}`);
-      if (imgEl) imgEl.src = newSrc;
-    }
-
-    // 添加穿戴甲到购物车
-    function addNailToCart(id) {
-      const item = productsData.nails.find(n => n.id === id);
-      const shape = document.getElementById(`shape-${id}`).value;
-      const size = document.getElementById(`size-${id}`).value;
-
-      const cartItemId = `${id}-${shape}-${size}`;
-      const existing = cart.find(c => c.cartItemId === cartItemId);
-
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        cart.push({
-          cartItemId,
-          id: item.id,
-          titleKey: item.titleKey,
-          price: item.price,
-          image: item.images[0],
-          shape,
-          size,
-          qty: 1
-        });
-      }
-      updateCartUI();
-      openCartDrawer();
-    }
-
-    // 添加通用商品到购物车
-    function addSimpleToCart(category, id) {
-      const item = productsData[category].find(i => i.id === id);
-      const cartItemId = id;
-      const existing = cart.find(c => c.cartItemId === cartItemId);
-
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        cart.push({
-          cartItemId,
-          id: item.id,
-          titleKey: item.titleKey,
-          price: item.price,
-          image: item.image,
-          qty: 1
-        });
-      }
-      updateCartUI();
-      openCartDrawer();
-    }
-
-    // 购物车 UI 渲染
-    function updateCartUI() {
-      const container = document.getElementById('cart-items-container');
-      const badge = document.getElementById('cart-count-badge');
-      const totalPriceEl = document.getElementById('cart-total-price');
-
-      const totalCount = cart.reduce((sum, item) => sum + item.qty, 0);
-      const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-
-      badge.innerText = totalCount;
-      if (totalCount > 0) {
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
-      }
-
-      totalPriceEl.innerText = `$${totalPrice.toFixed(2)}`;
-
-      if (cart.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-12 text-stone-400 space-y-3">
-            <i class="fa-solid fa-bag-shopping text-4xl"></i>
-            <p data-i18n="cartEmpty">${i18n[currentLang].cartEmpty}</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = cart.map(item => `
-        <div class="flex items-center gap-4 bg-stone-50 p-3 rounded-lg border border-stone-100">
-          <img src="${item.image}" class="w-16 h-16 object-cover rounded bg-white">
-          <div class="flex-1 min-w-0">
-            <h4 class="text-sm font-bold text-stone-800 truncate">${i18n[currentLang][item.titleKey]}</h4>
-            ${item.shape ? `<p class="text-xs text-stone-500">${item.shape} /${item.size}</p>` : ''}
-            <p class="text-xs font-semibold text-amber-700 mt-1">$${item.price.toFixed(2)}</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="changeQty('${item.cartItemId}', -1)" class="w-6 h-6 rounded bg-stone-200 text-stone-700 hover:bg-stone-300 flex items-center justify-center font-bold text-xs">-</button>
-            <span class="text-xs font-bold w-4 text-center">${item.qty}</span>
-            <button onclick="changeQty('${item.cartItemId}', 1)" class="w-6 h-6 rounded bg-stone-200 text-stone-700 hover:bg-stone-300 flex items-center justify-center font-bold text-xs">+</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // 购物车加减数量
-    function changeQty(cartItemId, delta) {
-      const item = cart.find(c => c.cartItemId === cartItemId);
-      if (!item) return;
-      item.qty += delta;
-      if (item.qty <= 0) {
-        cart = cart.filter(c => c.cartItemId !== cartItemId);
-      }
-      updateCartUI();
-    }
-
-    // 侧滑购物车控制
-    function toggleCartDrawer() {
-      const drawer = document.getElementById('cart-drawer');
-      const backdrop = document.getElementById('cart-backdrop');
-      const panel = document.getElementById('cart-panel');
-
-      if (drawer.classList.contains('pointer-events-none')) {
-        drawer.classList.remove('pointer-events-none');
-        backdrop.classList.remove('opacity-0', 'pointer-events-none');
-        panel.classList.remove('translate-x-full');
-      } else {
-        drawer.classList.add('pointer-events-none');
-        backdrop.classList.add('opacity-0', 'pointer-events-none');
-        panel.classList.add('translate-x-full');
-      }
-    }
-
-    function openCartDrawer() {
-      const drawer = document.getElementById('cart-drawer');
-      if (drawer.classList.contains('pointer-events-none')) {
-        toggleCartDrawer();
-      }
-    }
-
-    // 尺码 Modal 控制
-    function openSizeModal() {
-      document.getElementById('size-modal').classList.remove('hidden');
-    }
-    function closeSizeModal() {
-      document.getElementById('size-modal').classList.add('hidden');
-    }
-
-    // 结算逻辑
-    function checkout() {
-      if (cart.length === 0) {
-        alert(currentLang === 'zh' ? '您的购物袋是空的！' : 'Your cart is empty!');
-        return;
-      }
-      alert(currentLang === 'zh' ? '即将跳转至 Stripe / PayPal 结账页面...' : 'Redirecting to checkout...');
-    }
-  </script>
+  <script src="js/app.js"></script>
 </body>
 </html>
