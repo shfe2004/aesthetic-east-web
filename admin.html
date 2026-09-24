@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aesthetic East - 后台管理系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen p-6">
+  <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md p-8">
+    <div class="flex justify-between items-center pb-6 mb-6 border-b">
+      <h1 class="text-2xl font-bold text-gray-900">Aesthetic East - 商品后台管理</h1>
+      <a href="index.html" target="_blank" class="text-amber-700 hover:underline font-medium">查看前台首页 ↗</a>
+    </div>
+
+    <!-- 上架新商品表单 -->
+    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
+      <h2 class="text-lg font-semibold mb-4 text-gray-700">添加 / 上架新商品</h2>
+      <form id="add-product-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">商品 ID (唯一编码, 如 nail3)</label>
+          <input type="text" id="prod-id" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">商品分类</label>
+          <select id="prod-category" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <option value="nails">穿戴甲 (Nails)</option>
+            <option value="merch">周边 (Merch)</option>
+            <option value="furniture">古董家具 (Furniture)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">英文名称 (Title EN)</label>
+          <input type="text" id="prod-title-en" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">英文副标题 (Subtitle EN)</label>
+          <input type="text" id="prod-subtitle-en" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">价格 ($ USD)</label>
+          <input type="number" step="0.01" id="prod-price" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">标签名称 (如 Sweet, Late Qing)</label>
+          <input type="text" id="prod-tag-key" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">主图 / 360° 图片 URL 地址</label>
+          <input type="url" id="prod-spin-image" required placeholder="https://..." class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div class="md:col-span-2 mt-2">
+          <button type="submit" class="bg-amber-800 text-white px-6 py-2 rounded hover:bg-amber-900 font-medium transition">
+            保存并发布商品
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 已有商品列表 -->
+    <div>
+      <h2 class="text-lg font-semibold mb-4 text-gray-700">在线商品列表</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse border border-gray-200 text-sm">
+          <thead>
+            <tr class="bg-gray-100 border-b border-gray-200">
+              <th class="p-3 border-r">图片</th>
+              <th class="p-3 border-r">ID</th>
+              <th class="p-3 border-r">分类</th>
+              <th class="p-3 border-r">商品名称</th>
+              <th class="p-3 border-r">价格</th>
+              <th class="p-3">操作</th>
+            </tr>
+          </thead>
+          <tbody id="admin-product-list">
+            <tr>
+              <td colspan="6" class="p-4 text-center text-gray-500">正在加载数据...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/supabase-client.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
