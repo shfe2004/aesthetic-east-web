@@ -1,4 +1,3 @@
-// UTF-8
 const i18n = {
   zh: {
     siteTitle: "Aesthetic East",
@@ -17,7 +16,7 @@ const i18n = {
     cartTotal: "合计",
     checkoutBtn: "前往结算",
     zoomHint: "滚轮缩放 · 双击重置 · 拖拽移动",
-    spinHint: "按住鼠标左右拖拽查看 360° 全景"
+    spinHint: "左右拖拽控制图片 360° 旋转"
   },
   en: {
     siteTitle: "Aesthetic East",
@@ -36,7 +35,7 @@ const i18n = {
     cartTotal: "Total",
     checkoutBtn: "Proceed to Checkout",
     zoomHint: "Scroll wheel to zoom · Double click to reset · Drag to move",
-    spinHint: "Click and drag horizontally to spin 360°"
+    spinHint: "Drag horizontally to spin 360°"
   }
 };
 
@@ -50,6 +49,8 @@ const productsData = {
       subtitle: 'Pearl Accents · Hand Crafted',
       price: 22.00,
       images: ['images/image.png', 'images/strawberry.jpg', 'images/image_1.png', 'images/image_2.png'],
+      // 专用于 360 度展示的同一张图片（若无多角度序列图，使用单图 3D 模拟）
+      spinImage: 'images/image.png',
       shapes: ['Almond', 'Coffin'],
       sizes: ['XS', 'S', 'M', 'L']
     },
@@ -61,6 +62,7 @@ const productsData = {
       subtitle: '3D Chrome · Silver Charms',
       price: 24.50,
       images: ['images/image_1.png', 'images/gothic.jpg', 'images/image.png'],
+      spinImage: 'images/image_1.png',
       shapes: ['Stiletto', 'Coffin'],
       sizes: ['XS', 'S', 'M', 'L']
     },
@@ -72,6 +74,7 @@ const productsData = {
       subtitle: 'Hand-painted Gradient · Gold Accent',
       price: 26.00,
       images: ['images/image_2.png', 'images/image_3.png', 'images/image.png'],
+      spinImage: 'images/image_2.png',
       shapes: ['Almond', 'Square'],
       sizes: ['XS', 'S', 'M', 'L']
     }
@@ -84,7 +87,8 @@ const productsData = {
       title: 'Custom Anime Acrylic Standee with Base',
       subtitle: 'High-clarity laser cut acrylic with protective film.',
       price: 14.50,
-      images: ['images/image_3.png', 'images/image_2.png']
+      images: ['images/image_3.png', 'images/image_2.png'],
+      spinImage: 'images/image_3.png'
     }
   ],
   furniture: [
@@ -95,7 +99,8 @@ const productsData = {
       title: '19th Century Antique Elm Console Table & Cabinet',
       subtitle: 'Sourced from Northern China with authentic natural patina, brass fittings.',
       price: 1850.00,
-      images: ['images/gothic.jpg', 'images/image_1.png']
+      images: ['images/gothic.jpg', 'images/image_1.png'],
+      spinImage: 'images/gothic.jpg'
     }
   ]
 };
