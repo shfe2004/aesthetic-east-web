@@ -48,8 +48,19 @@ async function loadAdminProducts() {
 
     tbody.innerHTML = products.map(item => {
       const nailOpt = item.nail_options?.[0] || {};
-      const shapesText = nailOpt.shapes ? JSON.parse(nailOpt.shapes).join(", ") : "-";
-      const sizesText = nailOpt.sizes ? JSON.parse(nailOpt.sizes).join(", ") : "-";
+
+      // 安全解析 shapes 和 sizes（兼容数组或 JSON 字符串）
+      let shapesArr = [];
+      let sizesArr = [];
+      if (nailOpt.shapes) {
+        shapesArr = typeof nailOpt.shapes === 'string' ? JSON.parse(nailOpt.shapes) : nailOpt.shapes;
+      }
+      if (nailOpt.sizes) {
+        sizesArr = typeof nailOpt.sizes === 'string' ? JSON.parse(nailOpt.sizes) : nailOpt.sizes;
+      }
+
+      const shapesText = shapesArr.length > 0 ? shapesArr.join(", ") : "-";
+      const sizesText = sizesArr.length > 0 ? sizesArr.join(", ") : "-";
 
       return `
         <tr class="border-b hover:bg-gray-50">
@@ -211,10 +222,11 @@ async function handleAddProduct(e) {
       const selectedShapes = Array.from(document.querySelectorAll(".shape-checkbox:checked")).map(cb => cb.value);
       const selectedSizes = Array.from(document.querySelectorAll(".size-checkbox:checked")).map(cb => cb.value);
 
+      // 直接存入数组，由 Supabase 转化为 jsonb
       await supabaseClient.from("nail_options").insert([{
         product_id: id,
-        shapes: JSON.stringify(selectedShapes),
-        sizes: JSON.stringify(selectedSizes)
+        shapes: selectedShapes.length > 0 ? selectedShapes : ["Almond", "Coffin"],
+        sizes: selectedSizes.length > 0 ? selectedSizes : ["XS", "S", "M", "L"]
       }]);
     }
 
