@@ -163,14 +163,14 @@
     </div>
   </div>
 
-  <!-- 升级版结算 Modal（包含电话号码及严格必填校验，城市自由手填，全美50州按A-Z排序） -->
+  <!-- 升级版结算 Modal（带电话10位限制、邮编5位限制及全美50州按A-Z排序） -->
   <div id="modal-checkout" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeCheckoutModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
 
-      <!-- 用 form 包裹以便原生必填校验生效 -->
+      <!-- 用 form 包裹以便原生必填与格式校验生效 -->
       <form id="checkout-form" onsubmit="processPayment(event)" class="space-y-3">
         <h3 class="text-lg font-bold text-stone-900 border-b pb-2">Shipping & Checkout</h3>
 
@@ -181,13 +181,14 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input type="email" id="cust-email" placeholder="Email Address *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
-          <input type="tel" id="cust-phone" placeholder="Phone Number (for shipping) *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
+          <!-- 电话：限制必须为10位数字 -->
+          <input type="tel" id="cust-phone" placeholder="Phone (10 digits) *" pattern="[0-9]{10}" maxlength="10" title="Please enter a valid 10-digit phone number (digits only)" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
         </div>
 
         <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St) *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
 
         <div class="grid grid-cols-3 gap-2">
-          <!-- 城市：美国标准自由手填，支持任意城市名 -->
+          <!-- 城市：美国标准自由手填 -->
           <input type="text" id="cust-city" placeholder="City *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
 
           <!-- 州：包含全美所有50个州及属地，严格按A-Z字母排序 -->
@@ -245,7 +246,8 @@
             <option value="WY">Wyoming (WY)</option>
           </select>
 
-          <input type="text" id="cust-zip" placeholder="Zip Code *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
+          <!-- 邮编：限制必须为5位数字 -->
+          <input type="text" id="cust-zip" placeholder="Zip (5 digits) *" pattern="[0-9]{5}" maxlength="5" title="Please enter a valid 5-digit US Zip Code" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
         </div>
         <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2.5 rounded-xl text-sm w-full text-stone-500 font-medium">
 
