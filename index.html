@@ -24,24 +24,26 @@
   </div>
 
   <!-- 顶部 Header 导航 -->
-  <header class="bg-white/80 backdrop-blur-md border-b border-stone-200/80 sticky top-8 z-40">
+  <header class="bg-white/85 backdrop-blur-md border-b border-stone-200/80 sticky top-8 z-40">
     <div class="max-w-6xl mx-auto px-4 py-3.5 flex justify-between items-center">
 
       <a href="index.html" class="flex items-center gap-2">
         <span id="site-logo-text" class="text-xl font-extrabold tracking-tight text-stone-900 font-serif">Aesthetic East</span>
       </a>
 
-      <div class="flex items-center gap-4">
-        <!-- 管理后台入口（已加入多语言绑定 data-i18n="adminBtn"） -->
-        <a href="admin.html" class="text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 transition-colors flex items-center gap-1">
+      <div class="flex items-center gap-3">
+        <!-- 管理后台入口（支持多语言自动切换） -->
+        <a href="admin.html" class="text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200 transition-colors flex items-center gap-1.5 shadow-sm">
           <i class="fa-solid fa-gear"></i> <span data-i18n="adminBtn">管理后台</span>
         </a>
 
-        <button onclick="toggleLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1 flex items-center gap-1 transition-colors">
+        <!-- 语言切换按钮 -->
+        <button onclick="toggleLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
           <i class="fa-solid fa-globe"></i>
           <span id="lang-btn-text">EN</span>
         </button>
 
+        <!-- 购物车入口 -->
         <button onclick="toggleCartDrawer()" class="relative p-2 text-stone-800 hover:text-amber-800 transition-colors">
           <i class="fa-solid fa-bag-shopping text-xl"></i>
           <span id="cart-badge" class="absolute -top-1 -right-1 bg-amber-800 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm" style="display: none;">0</span>
@@ -69,12 +71,13 @@
 
   <!-- 主体内容：三大分类专区 -->
   <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full space-y-12">
-    <!-- 1. 穿戴甲 -->
+
+    <!-- 1. 穿戴甲专区 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
           <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="nailsSectionTitle">Handcrafted Press-On Nails</h2>
-          <p class="text-xs text-stone-400 mt-0.5">Click image to enlarge · View custom size specs inside</p>
+          <p class="text-xs text-stone-400 mt-0.5" data-i18n="nailsSubTitle">Click image to enlarge · View custom size specs inside</p>
         </div>
       </div>
       <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -82,12 +85,12 @@
       </div>
     </section>
 
-    <!-- 2. 亚克力周边 -->
+    <!-- 2. 亚克力周边专区 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
           <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="merchSectionTitle">Original Acrylic Merch</h2>
-          <p class="text-xs text-stone-400 mt-0.5">High definition printing & standees</p>
+          <p class="text-xs text-stone-400 mt-0.5" data-i18n="merchSubTitle">High definition printing & standees</p>
         </div>
       </div>
       <div id="merch-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -95,18 +98,19 @@
       </div>
     </section>
 
-    <!-- 3. 中式古董家具 -->
+    <!-- 3. 古董家具专区 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
           <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="furnitureSectionTitle">Restored Antique Furniture</h2>
-          <p class="text-xs text-stone-400 mt-0.5">Authentic 19th-century craftsmanship</p>
+          <p class="text-xs text-stone-400 mt-0.5" data-i18n="furnitureSubTitle">Authentic 19th-century craftsmanship</p>
         </div>
       </div>
       <div id="furniture-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div class="col-span-full text-center py-12 text-stone-400">Loading Furniture...</div>
       </div>
     </section>
+
   </main>
 
   <!-- 购物车抽屉 -->
@@ -138,7 +142,7 @@
   <!-- Zoom 图片放大 Modal -->
   <div id="modal-zoom" onclick="closeZoomModal()" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4 cursor-pointer">
     <div class="relative max-w-4xl max-h-[85vh] flex items-center justify-center" onclick="event.stopPropagation()">
-      <button onclick="closeZoomModal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/20 hover:bg-white/40 rounded-full w-8 h-8 flex items-center justify-center transition-all z-20">
+      <button onclick="closeZoomModal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/25 hover:bg-white/40 rounded-full w-8 h-8 flex items-center justify-center transition-all z-20">
         <i class="fa-solid fa-xmark"></i>
       </button>
       <div id="zoom-container" class="relative overflow-hidden cursor-grab">
@@ -150,7 +154,7 @@
   <!-- 360° Modal -->
   <div id="modal-360" onclick="close360Modal()" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4 cursor-pointer">
     <div class="relative w-full max-w-lg aspect-square flex items-center justify-center" onclick="event.stopPropagation()">
-      <button onclick="close360Modal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/20 rounded-full w-8 h-8 flex items-center justify-center z-20">
+      <button onclick="close360Modal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/25 rounded-full w-8 h-8 flex items-center justify-center z-20">
         <i class="fa-solid fa-xmark"></i>
       </button>
       <div id="spin-360-container" class="w-full h-full flex items-center justify-center cursor-grab select-none">
@@ -159,46 +163,36 @@
     </div>
   </div>
 
-  <!-- 升级版结算 Modal（全美50州按字母排序 + 城市支持下拉选择或自由手填） -->
+  <!-- 升级版结算 Modal（包含电话号码及严格必填校验，城市自由手填，全美50州按A-Z排序） -->
   <div id="modal-checkout" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeCheckoutModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
 
-      <div id="checkout-form" class="space-y-3">
+      <!-- 用 form 包裹以便原生必填校验生效 -->
+      <form id="checkout-form" onsubmit="processPayment(event)" class="space-y-3">
         <h3 class="text-lg font-bold text-stone-900 border-b pb-2">Shipping & Checkout</h3>
 
         <div class="grid grid-cols-2 gap-3">
-          <input type="text" id="cust-first-name" placeholder="First Name" required class="border p-2 rounded-lg text-sm w-full">
-          <input type="text" id="cust-last-name" placeholder="Last Name" required class="border p-2 rounded-lg text-sm w-full">
+          <input type="text" id="cust-first-name" placeholder="First Name *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
+          <input type="text" id="cust-last-name" placeholder="Last Name *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
         </div>
-        <input type="email" id="cust-email" placeholder="Email Address" required class="border p-2 rounded-lg text-sm w-full">
 
-        <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St)" required class="border p-2 rounded-lg text-sm w-full">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input type="email" id="cust-email" placeholder="Email Address *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
+          <input type="tel" id="cust-phone" placeholder="Phone Number (for shipping) *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
+        </div>
+
+        <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St) *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
 
         <div class="grid grid-cols-3 gap-2">
-          <!-- 城市：支持下拉常用城市，也允许用户自由键入特殊城市名称 -->
-          <input type="text" id="cust-city" list="common-cities" placeholder="City" required class="border p-2 rounded-lg text-sm w-full">
-          <datalist id="common-cities">
-            <option value="Seattle">
-              <option value="Bellevue">
-              <option value="Los Angeles">
-              <option value="San Francisco">
-              <option value="New York">
-              <option value="Chicago">
-              <option value="Houston">
-              <option value="Phoenix">
-              <option value="Philadelphia">
-              <option value="San Diego">
-              <option value="Portland">
-              <option value="Las Vegas">
-              <option value="Austin">
-          </datalist>
+          <!-- 城市：美国标准自由手填，支持任意城市名 -->
+          <input type="text" id="cust-city" placeholder="City *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
 
-          <!-- 州：包含全美所有50个州及属地，按字母严格A-Z排序 -->
-          <select id="cust-state" required class="border p-2 rounded-lg text-sm w-full bg-white">
-            <option value="">Select State</option>
+          <!-- 州：包含全美所有50个州及属地，严格按A-Z字母排序 -->
+          <select id="cust-state" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
+            <option value="">Select State *</option>
             <option value="AL">Alabama (AL)</option>
             <option value="AK">Alaska (AK)</option>
             <option value="AZ">Arizona (AZ)</option>
@@ -251,19 +245,19 @@
             <option value="WY">Wyoming (WY)</option>
           </select>
 
-          <input type="text" id="cust-zip" placeholder="Zip Code" required class="border p-2 rounded-lg text-sm w-full">
+          <input type="text" id="cust-zip" placeholder="Zip Code *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
         </div>
-        <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2 rounded-lg text-sm w-full text-stone-500">
+        <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2.5 rounded-xl text-sm w-full text-stone-500 font-medium">
 
-        <div class="bg-stone-50 p-3 rounded-lg text-xs space-y-1 text-stone-600 mt-2">
+        <div class="bg-stone-50 p-3.5 rounded-xl text-xs space-y-1.5 text-stone-600 mt-2 border">
           <div class="flex justify-between"><span>Subtotal:</span><span id="checkout-subtotal">$0.00</span></div>
           <div class="flex justify-between"><span>Est. Tax (8%):</span><span id="checkout-tax">$0.00</span></div>
-          <div class="flex justify-between font-bold text-stone-900 pt-1 border-t"><span>Total:</span><span id="checkout-total">$0.00</span></div>
+          <div class="flex justify-between font-bold text-stone-900 pt-1.5 border-t"><span>Total:</span><span id="checkout-total">$0.00</span></div>
         </div>
-        <button onclick="processPayment(event)" id="pay-submit-btn" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 rounded-xl transition">
+        <button type="submit" id="pay-submit-btn" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl transition shadow-md">
           Complete Payment (Test Mode)
         </button>
-      </div>
+      </form>
 
       <div id="checkout-success" class="hidden text-center py-6 space-y-3">
         <i class="fa-solid fa-circle-check text-5xl text-emerald-600"></i>
@@ -283,7 +277,36 @@
     </div>
   </footer>
 
+  <!-- 引入外部控制脚本 -->
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- 动态同步后台基本设置 -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
+
+      if (cfg.logo && document.getElementById("site-logo-text")) {
+        document.getElementById("site-logo-text").innerText = cfg.logo;
+      }
+      if (cfg.banner && document.getElementById("site-banner-text")) {
+        document.getElementById("site-banner-text").innerText = cfg.banner;
+      }
+      if (cfg.heroTitle && document.getElementById("site-hero-title")) {
+        document.getElementById("site-hero-title").innerText = cfg.heroTitle;
+      }
+      if (cfg.heroDesc && document.getElementById("site-hero-desc")) {
+        document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
+      }
+      if (cfg.heroBg) {
+        const heroBanner = document.getElementById("site-hero-banner");
+        if (heroBanner) {
+          heroBanner.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${cfg.heroBg}')`;
+          heroBanner.style.backgroundSize = 'cover';
+          heroBanner.style.backgroundPosition = 'center';
+        }
+      }
+    });
+  </script>
 </body>
 </html>
