@@ -1,4 +1,4 @@
-// 后台全功能控制脚本 (使用标准 Upsert 杜绝主键冲突)
+// 后台控制脚本 (采用严谨的 Update-then-Insert 逻辑，杜绝主键冲突)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -92,7 +92,7 @@ async function loadAdminProducts() {
         ? `<div class="space-y-1">
              <div><b>Shapes:</b> ${shapesText}</div>
              <div><b>Sizes:</b> ${sizesText}</div>
-             <button onclick="openEditSpecModal('${item.id}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}')" class="mt-1 px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-[11px] font-bold border border-amber-300">
+             <button onclick="openEditSpecModal('${item.id}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}')" class="mt-1 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-xs font-bold border border-amber-300 shadow-sm">
                <i class="fa-solid fa-pen-to-square"></i> 修改规格
              </button>
            </div>`
@@ -200,12 +200,11 @@ async function handleAddProduct(e) {
     if (prodError) throw prodError;
 
     if (categoryId === "nails") {
-      // 使用 upsert，如果存在 product_id 则自动覆盖更新
-      await supabaseClient.from("nail_options").upsert([{
+      await supabaseClient.from("nail_options").insert([{
         product_id: id,
         shapes: selectedShapes,
         sizes: selectedSizes
-      }], { onConflict: 'product_id' });
+      }]);
     }
 
     alert("🎉 商品发布成功！唯一编码: " + id);
@@ -227,7 +226,7 @@ async function handleAddProduct(e) {
   }
 }
 
-// 5. 修改已有商品的规格（使用标准 upsert 彻底解决主键冲突）
+// 规格修改弹窗与安全更新逻辑
 let currentEditingProdId = null;
 
 function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
@@ -305,21 +304,28 @@ async function saveProductSpec() {
   const newSizes = Array.from(document.querySelectorAll(".edit-size-cb:checked")).map(cb => cb.value);
 
   if (newShapes.length === 0 || newSizes.length === 0) {
-    alert("⚠️ 必须勾选至少 1 个甲型和 1 个尺寸！");
+    alert("⚠️ 必须至少勾选 1 个甲型和 1 个尺寸！");
     return;
   }
 
   try {
-    // 采用 Supabase 的 upsert 机制：基于 product_id 键，存在则直接更新，不存在则插入
-    const { error } = await supabaseClient
+    // 采用两步安全更新法：先尝试 update，如果该商品在 nail_options 中没有记录则执行 insert
+    const { data: updateData, error: updateError } = await supabaseClient
       .from("nail_options")
-      .upsert([
-        { product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }
-      ], { onConflict: 'product_id' });
+      .update({ shapes: newShapes, sizes: newSizes })
+      .eq("product_id", currentEditingProdId)
+      .select();
 
-    if (error) throw error;
+    if (updateError) throw updateError;
 
-    alert("✨ 规格修改成功！前台将即刻更新生效。");
+    if (!updateData || updateData.length === 0) {
+      const { error: insertError } = await supabaseClient
+        .from("nail_options")
+        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }]);
+      if (insertError) throw insertError;
+    }
+
+    alert("✨ 规格修改成功！");
     closeEditSpecModal();
     loadAdminProducts();
 
