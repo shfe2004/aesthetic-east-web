@@ -1,4 +1,4 @@
-// 后台全功能控制脚本 (包含规格强校验与已发布商品规格快捷修改)
+// 后台全功能控制脚本 (使用标准 Upsert 杜绝主键冲突)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -33,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// 1. 生成递增 ID
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
   const category = categorySelect ? categorySelect.value : "nails";
@@ -63,7 +62,6 @@ async function generateSmartId() {
   }
 }
 
-// 2. 加载商品列表（含规格修改按钮）
 async function loadAdminProducts() {
   const tbody = document.getElementById("admin-product-list");
   if (!tbody) return;
@@ -137,7 +135,6 @@ function robustParseSpec(input) {
   return [];
 }
 
-// 3. 发布商品逻辑（严格校验）
 async function handleAddProduct(e) {
   e.preventDefault();
   const submitBtn = document.getElementById("submit-btn");
@@ -203,11 +200,12 @@ async function handleAddProduct(e) {
     if (prodError) throw prodError;
 
     if (categoryId === "nails") {
-      await supabaseClient.from("nail_options").insert([{
+      // 使用 upsert，如果存在 product_id 则自动覆盖更新
+      await supabaseClient.from("nail_options").upsert([{
         product_id: id,
         shapes: selectedShapes,
         sizes: selectedSizes
-      }]);
+      }], { onConflict: 'product_id' });
     }
 
     alert("🎉 商品发布成功！唯一编码: " + id);
@@ -229,7 +227,7 @@ async function handleAddProduct(e) {
   }
 }
 
-// 4. 修改已有商品的规格（原生 Upsert 机制，不触发 RLS 错误）
+// 5. 修改已有商品的规格（使用标准 upsert 彻底解决主键冲突）
 let currentEditingProdId = null;
 
 function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
@@ -312,28 +310,14 @@ async function saveProductSpec() {
   }
 
   try {
-    // 先尝试查询是否已有关联记录
-    const { data: existing } = await supabaseClient
+    // 采用 Supabase 的 upsert 机制：基于 product_id 键，存在则直接更新，不存在则插入
+    const { error } = await supabaseClient
       .from("nail_options")
-      .select("id")
-      .eq("product_id", currentEditingProdId);
+      .upsert([
+        { product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }
+      ], { onConflict: 'product_id' });
 
-    if (existing && existing.length > 0) {
-      // 存在则更新
-      const { error } = await supabaseClient
-        .from("nail_options")
-        .update({ shapes: newShapes, sizes: newSizes })
-        .eq("product_id", currentEditingProdId);
-
-      if (error) throw error;
-    } else {
-      // 不存在则插入
-      const { error } = await supabaseClient
-        .from("nail_options")
-        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }]);
-
-      if (error) throw error;
-    }
+    if (error) throw error;
 
     alert("✨ 规格修改成功！前台将即刻更新生效。");
     closeEditSpecModal();
