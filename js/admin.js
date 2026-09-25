@@ -1,4 +1,4 @@
-// 后台控制脚本 (采用严谨的 Update-then-Insert 逻辑，杜绝主键冲突)
+// 后台控制脚本 (配合 product_id 主键约束，实现秒级精准 Upsert 更新)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -85,8 +85,8 @@ async function loadAdminProducts() {
       let shapesArr = robustParseSpec(nailOpt.shapes);
       let sizesArr = robustParseSpec(nailOpt.sizes);
 
-      const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : "<span class='text-red-400'>未设置</span>";
-      const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : "<span class='text-red-400'>未设置</span>";
+      const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : "<span class='text-red-500 font-bold'>未设置规格</span>";
+      const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : "<span class='text-red-500 font-bold'>未设置规格</span>";
 
       const specContent = item.category_id === 'nails'
         ? `<div class="space-y-1">
@@ -200,11 +200,11 @@ async function handleAddProduct(e) {
     if (prodError) throw prodError;
 
     if (categoryId === "nails") {
-      await supabaseClient.from("nail_options").insert([{
+      await supabaseClient.from("nail_options").upsert([{
         product_id: id,
         shapes: selectedShapes,
         sizes: selectedSizes
-      }]);
+      }], { onConflict: 'product_id' });
     }
 
     alert("🎉 商品发布成功！唯一编码: " + id);
@@ -226,7 +226,7 @@ async function handleAddProduct(e) {
   }
 }
 
-// 规格修改弹窗与安全更新逻辑
+// 规格修改弹窗与 Upsert 更新逻辑
 let currentEditingProdId = null;
 
 function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
@@ -309,21 +309,14 @@ async function saveProductSpec() {
   }
 
   try {
-    // 采用两步安全更新法：先尝试 update，如果该商品在 nail_options 中没有记录则执行 insert
-    const { data: updateData, error: updateError } = await supabaseClient
+    // 基于 product_id 主键进行安全的 Upsert 写入
+    const { error } = await supabaseClient
       .from("nail_options")
-      .update({ shapes: newShapes, sizes: newSizes })
-      .eq("product_id", currentEditingProdId)
-      .select();
+      .upsert([
+        { product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }
+      ], { onConflict: 'product_id' });
 
-    if (updateError) throw updateError;
-
-    if (!updateData || updateData.length === 0) {
-      const { error: insertError } = await supabaseClient
-        .from("nail_options")
-        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }]);
-      if (insertError) throw insertError;
-    }
+    if (error) throw error;
 
     alert("✨ 规格修改成功！");
     closeEditSpecModal();
@@ -357,7 +350,7 @@ function handleImagePreview(e) {
 
   if (file && previewImg && previewContainer) {
     previewImg.src = URL.createObjectURL(file);
-    previewContainer.classList.remove("hidden");
+    previewContainer.classList.add("hidden");
   }
 }
 
