@@ -1,202 +1,250 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aesthetic East - Handcrafted Press-Ons & Oriental Antiques</title>
-  <!-- Tailwind CSS -->
+  <title>Aesthetic East - Handcrafted Press-Ons & Antiques</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome 图标库 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .line-clamp-1 {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased min-h-screen flex flex-col justify-between">
+<body class="bg-stone-50 text-stone-800 min-h-screen flex flex-col antialiased">
 
-  <div>
-    <!-- 1. 顶部固定促销横幅 (Sticky Announcement) -->
-    <div id="site-announcement" class="bg-amber-900 text-amber-100 text-xs py-2 px-4 text-center font-medium tracking-wide">
-      ✨ Free US Shipping on Nails & Merch over $50
-    </div>
+  <!-- 1. 始终固定在屏幕最顶部的促销横幅（支持后台动态修改） -->
+  <div class="sticky top-0 z-50 bg-black text-amber-200 text-xs py-2 px-4 text-center font-medium shadow-md flex items-center justify-center gap-2">
+    <span id="site-banner-text">✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques</span>
+  </div>
 
-    <!-- 2. 导航栏 Header -->
-    <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-stone-200">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <a href="index.html" id="site-logo-text" class="text-xl font-serif font-bold tracking-wider text-stone-900">
-          Aesthetic East
+  <!-- 顶部 Header 导航 -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-stone-200/80 sticky top-8 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex justify-between items-center">
+
+      <a href="index.html" class="flex items-center gap-2">
+        <span id="site-logo-text" class="text-xl font-extrabold tracking-tight text-stone-900 font-serif">Aesthetic East</span>
+      </a>
+
+      <div class="flex items-center gap-4">
+        <!-- 管理后台入口快捷按钮 -->
+        <a href="admin.html" class="text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 transition-colors flex items-center gap-1">
+          <i class="fa-solid fa-gear"></i> 管理后台
         </a>
-        <nav class="hidden md:flex items-center space-x-8 text-sm font-medium">
-          <a href="#products-section" class="text-stone-600 hover:text-amber-800 transition">Collection</a>
-          <a href="admin.html" class="text-amber-800 hover:text-amber-900 font-semibold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 transition">
-            <i class="fa-solid fa-gear mr-1"></i> 管理后台
-          </a>
-        </nav>
-      </div>
-    </header>
 
-    <!-- 3. Hero 顶部大图区域 (已绑定 id，支持后台自定义背景图与文案动态渲染) -->
-    <section id="site-hero-banner" class="relative bg-stone-900 text-white py-24 px-4 md:px-8 bg-cover bg-center transition-all duration-500" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1604654894610-df63bc536371?w=1600');">
-      <div class="max-w-4xl mx-auto text-center space-y-4">
-        <h1 id="hero-title" class="text-3xl md:text-5xl font-serif font-bold tracking-tight leading-tight">
+        <button onclick="toggleLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1 flex items-center gap-1 transition-colors">
+          <i class="fa-solid fa-globe"></i>
+          <span id="lang-btn-text">EN</span>
+        </button>
+
+        <button onclick="openSizeModal()" class="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors hidden sm:block">
+          Size Guide
+        </button>
+
+        <button onclick="toggleCartDrawer()" class="relative p-2 text-stone-800 hover:text-amber-800 transition-colors">
+          <i class="fa-solid fa-bag-shopping text-xl"></i>
+          <span id="cart-badge" class="absolute -top-1 -right-1 bg-amber-800 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm" style="display: none;">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Banner (支持后台动态读取自定义背景图、标题与副标题) -->
+  <section class="max-w-6xl mx-auto px-4 pt-8 pb-4 w-full">
+    <div id="site-hero-banner" class="bg-gradient-to-r from-stone-900 via-stone-800 to-amber-950 text-amber-50 rounded-3xl p-8 md:p-12 shadow-xl relative overflow-hidden bg-cover bg-center transition-all duration-500">
+      <div class="max-w-xl relative z-10 space-y-3">
+        <span class="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full inline-block">
+          Curated Asian Aesthetics
+        </span>
+        <h1 id="site-hero-title" class="text-2xl md:text-4xl font-extrabold font-serif leading-tight">
           Handcrafted Press-Ons & Timeless Chinese Antiques
         </h1>
-        <p id="hero-desc" class="text-stone-200 text-base md:text-lg max-w-2xl mx-auto font-light">
+        <p id="site-hero-desc" class="text-xs md:text-sm text-stone-300 leading-relaxed">
           Bringing oriental craftsmanship and pop art into modern American homes.
         </p>
       </div>
+    </div>
+  </section>
+
+  <!-- 主体内容：完整保留三大分类专区 -->
+  <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full space-y-12">
+
+    <!-- 1. 穿戴甲专区 -->
+    <section>
+      <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="nailsSectionTitle">Handcrafted Press-On Nails</h2>
+          <p class="text-xs text-stone-400 mt-0.5">Click image to enlarge · Scroll wheel to zoom · Drag to move</p>
+        </div>
+      </div>
+      <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-12 text-stone-400">Loading Nails...</div>
+      </div>
     </section>
 
-    <!-- 4. 商品展示区 -->
-    <main id="products-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-stone-200 pb-4 gap-4">
+    <!-- 2. 周边 (亚克力立牌) 专区 -->
+    <section>
+      <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
-          <h2 class="text-2xl font-serif font-bold text-stone-900">Curated Collection</h2>
-          <p class="text-xs text-stone-500 mt-0.5">Explore our hand-selected items, crafted with care.</p>
+          <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="merchSectionTitle">Original Acrylic Merch</h2>
+          <p class="text-xs text-stone-400 mt-0.5">High definition printing & standees</p>
         </div>
-        <!-- 分类切换标签 -->
-        <div id="category-tabs" class="flex flex-wrap gap-2 text-sm">
-          <button onclick="filterCategory('all')" class="cat-btn px-4 py-2 rounded-xl bg-stone-900 text-white font-medium transition shadow-sm">All</button>
-          <button onclick="filterCategory('nails')" class="cat-btn px-4 py-2 rounded-xl bg-white text-stone-600 border hover:bg-stone-100 transition">穿戴甲 (Nails)</button>
-          <button onclick="filterCategory('merch')" class="cat-btn px-4 py-2 rounded-xl bg-white text-stone-600 border hover:bg-stone-100 transition">周边 (Merch)</button>
-          <button onclick="filterCategory('furniture')" class="cat-btn px-4 py-2 rounded-xl bg-white text-stone-600 border hover:bg-stone-100 transition">古董家具 (Furniture)</button>
+      </div>
+      <div id="merch-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-12 text-stone-400">Loading Merch...</div>
+      </div>
+    </section>
+
+    <!-- 3. 古董家具专区 -->
+    <section>
+      <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
+        <div>
+          <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="furnitureSectionTitle">Restored Antique Furniture</h2>
+          <p class="text-xs text-stone-400 mt-0.5">Authentic 19th-century craftsmanship</p>
         </div>
+      </div>
+      <div id="furniture-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-12 text-stone-400">Loading Furniture...</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 购物车抽屉 -->
+  <div id="cart-drawer" class="fixed inset-0 z-50 pointer-events-none transition-all duration-300">
+    <div id="cart-overlay" onclick="closeCartDrawer()" class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300"></div>
+    <div id="cart-panel" class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl flex flex-col translate-x-full transition-transform duration-300 pointer-events-auto">
+
+      <div class="p-5 border-b border-stone-100 flex items-center justify-between">
+        <h3 class="font-bold text-stone-900 text-base flex items-center gap-2">
+          <i class="fa-solid fa-bag-shopping text-amber-800"></i> Shopping Bag
+        </h3>
+        <button onclick="closeCartDrawer()" class="text-stone-400 hover:text-stone-800 text-lg p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
 
-      <!-- 商品网格容器 -->
-      <div id="public-product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <!-- 动态渲染数据载入中状态 -->
-        <div class="col-span-full py-16 text-center text-stone-400">
-          <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
-          <p class="text-sm">正在从云端加载精选商品...</p>
+      <div id="cart-items" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
+
+      <div class="p-5 border-t border-stone-100 bg-stone-50/50 space-y-4">
+        <div class="flex items-center justify-between text-base font-extrabold text-stone-900">
+          <span>Subtotal</span>
+          <span id="cart-total">$0.00</span>
         </div>
+        <button onclick="openCheckoutModal()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-xl transition shadow-md flex items-center justify-center gap-2">
+          <span>Proceed to Checkout</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
       </div>
-    </main>
+    </div>
   </div>
 
-  <!-- 页脚 Footer -->
-  <footer class="bg-white border-t border-stone-200 py-8 text-center text-xs text-stone-500 mt-16">
-    <p>&copy; 2026 Aesthetic East. All rights reserved. Crafted for Seattle & Beyond.</p>
+  <!-- Zoom 图片放大 Modal -->
+  <div id="modal-zoom" onclick="closeZoomModal()" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div class="relative max-w-4xl max-h-[85vh] flex items-center justify-center" onclick="event.stopPropagation()">
+      <button onclick="closeZoomModal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/20 hover:bg-white/40 rounded-full w-8 h-8 flex items-center justify-center transition-all z-20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="zoom-container" class="relative overflow-hidden cursor-grab">
+        <img id="modal-img-zoom" src="" class="max-w-full max-h-[80vh] object-contain transition-transform duration-75 select-none rounded-lg shadow-2xl">
+      </div>
+    </div>
+  </div>
+
+  <!-- 360° Modal -->
+  <div id="modal-360" onclick="close360Modal()" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div class="relative w-full max-w-lg aspect-square flex items-center justify-center" onclick="event.stopPropagation()">
+      <button onclick="close360Modal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/20 rounded-full w-8 h-8 flex items-center justify-center z-20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="spin-360-container" class="w-full h-full flex items-center justify-center cursor-grab select-none">
+        <img id="modal-img-360" src="" class="max-w-full max-h-full object-contain">
+      </div>
+    </div>
+  </div>
+
+  <!-- 模拟结算 Modal -->
+  <div id="modal-checkout" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 relative shadow-2xl">
+      <button onclick="closeCheckoutModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div id="checkout-form" class="space-y-4">
+        <h3 class="text-lg font-bold text-stone-900 border-b pb-2">Checkout Details</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <input type="text" id="cust-first-name" placeholder="First Name" required class="border p-2 rounded-lg text-sm w-full">
+          <input type="text" id="cust-last-name" placeholder="Last Name" required class="border p-2 rounded-lg text-sm w-full">
+        </div>
+        <input type="email" id="cust-email" placeholder="Email Address" required class="border p-2 rounded-lg text-sm w-full">
+        <div class="bg-stone-50 p-3 rounded-lg text-xs space-y-1 text-stone-600">
+          <div class="flex justify-between"><span>Subtotal:</span><span id="checkout-subtotal">$0.00</span></div>
+          <div class="flex justify-between"><span>Est. Tax (8%):</span><span id="checkout-tax">$0.00</span></div>
+          <div class="flex justify-between font-bold text-stone-900 pt-1 border-t"><span>Total:</span><span id="checkout-total">$0.00</span></div>
+        </div>
+        <button onclick="processPayment(event)" id="pay-submit-btn" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 rounded-xl transition">
+          Complete Payment (Test Mode)
+        </button>
+      </div>
+
+      <div id="checkout-success" class="hidden text-center py-6 space-y-3">
+        <i class="fa-solid fa-circle-check text-5xl text-emerald-600"></i>
+        <h3 class="text-xl font-bold text-stone-900">Thank You for Your Order!</h3>
+        <p class="text-xs text-stone-500">Order confirmation has been generated for <span id="success-cust-name" class="font-bold"></span>.</p>
+        <button onclick="closeCheckoutModal()" class="mt-4 bg-stone-900 text-white text-xs px-6 py-2.5 rounded-xl font-bold">
+          Continue Shopping
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-stone-900 text-stone-400 text-xs py-8 border-t border-stone-800">
+    <div class="max-w-6xl mx-auto px-4 text-center space-y-2">
+      <p>© 2026 Aesthetic East. All rights reserved.</p>
+      <p class="text-stone-500">Mobile-First Dynamic E-Commerce Storefront</p>
+    </div>
   </footer>
 
-  <!-- 引入 Supabase 初始化脚本 -->
+  <!-- 引入脚本 -->
   <script src="js/supabase-client.js"></script>
-  <!-- 前台渲染与后台配置同步脚本 -->
+  <script src="js/app.js"></script>
+
+  <!-- 动态同步后台配置的脚本（支持自定义 Hero 大图、Logo 及公告文案，不影响任何原有功能） -->
   <script>
-    let allPublicProducts = [];
-
     document.addEventListener("DOMContentLoaded", () => {
-      loadDynamicSiteSettings();
-      loadPublicProducts();
-    });
-
-    // 1. 读取并应用后台保存的全局配置（Logo、公告、Hero 背景图及文案）
-    function loadDynamicSiteSettings() {
       const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
 
-      // Logo 文本
+      // 同步 Logo 文本
       if (cfg.logo && document.getElementById("site-logo-text")) {
         document.getElementById("site-logo-text").innerText = cfg.logo;
       }
-
-      // 顶部公告横幅
-      if (cfg.banner && document.getElementById("site-announcement")) {
-        document.getElementById("site-announcement").innerText = cfg.banner;
+      // 同步顶部固定促销公告
+      if (cfg.banner && document.getElementById("site-banner-text")) {
+        document.getElementById("site-banner-text").innerText = cfg.banner;
       }
-
-      // Hero 大图背景
+      // 同步 Hero 标题
+      if (cfg.heroTitle && document.getElementById("site-hero-title")) {
+        document.getElementById("site-hero-title").innerText = cfg.heroTitle;
+      }
+      // 同步 Hero 描述
+      if (cfg.heroDesc && document.getElementById("site-hero-desc")) {
+        document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
+      }
+      // 同步 Hero 自定义背景图
       if (cfg.heroBg) {
-        const heroSection = document.getElementById("site-hero-banner");
-        if (heroSection) {
-          heroSection.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${cfg.heroBg}')`;
-          heroSection.style.backgroundSize = 'cover';
-          heroSection.style.backgroundPosition = 'center';
+        const heroBanner = document.getElementById("site-hero-banner");
+        if (heroBanner) {
+          heroBanner.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${cfg.heroBg}')`;
+          heroBanner.style.backgroundSize = 'cover';
+          heroBanner.style.backgroundPosition = 'center';
         }
       }
-
-      // Hero 标题
-      if (cfg.heroTitle && document.getElementById("hero-title")) {
-        document.getElementById("hero-title").innerText = cfg.heroTitle;
-      }
-
-      // Hero 描述
-      if (cfg.heroDesc && document.getElementById("hero-desc")) {
-        document.getElementById("hero-desc").innerText = cfg.heroDesc;
-      }
-    }
-
-    // 2. 从 Supabase 加载所有商品并在前台展示
-    async function loadPublicProducts() {
-      const grid = document.getElementById("public-product-grid");
-      if (!grid) return;
-
-      try {
-        const { data: products, error } = await supabaseClient
-          .from("products")
-          .select("*, nail_options (*)")
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        allPublicProducts = products || [];
-        renderProducts(allPublicProducts);
-
-      } catch (err) {
-        console.error("加载商品出错:", err);
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500 text-sm">无法加载商品数据，请检查网络或 Supabase 连接。</div>`;
-      }
-    }
-
-    // 3. 渲染商品卡片列表
-    function renderProducts(list) {
-      const grid = document.getElementById("public-product-grid");
-      if (!grid) return;
-
-      if (list.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-16 text-center text-stone-400 text-sm">暂无相关分类商品。</div>`;
-        return;
-      }
-
-      grid.innerHTML = list.map(item => {
-        return `
-          <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden shadow-sm hover:shadow-md transition group flex flex-col justify-between">
-            <div>
-              <div class="relative aspect-square overflow-hidden bg-stone-100">
-                <img src="${item.spin_image || 'https://via.placeholder.com/400'}" alt="${item.title_en}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium bg-stone-900/80 text-white backdrop-blur-sm">
-                  ${item.tag_key || 'Featured'}
-                </span>
-              </div>
-              <div class="p-4 space-y-1">
-                <h3 class="font-serif font-bold text-stone-900 text-base truncate">${item.title_en}</h3>
-                <p class="text-xs text-stone-500 line-clamp-1">${item.subtitle_en || ''}</p>
-              </div>
-            </div>
-            <div class="p-4 pt-0 flex items-center justify-between border-t border-stone-100 mt-2 pt-3">
-              <span class="text-amber-900 font-bold font-mono text-base">$${parseFloat(item.price).toFixed(2)}</span>
-              <button onclick="alert('商品详情或加购功能可在此拓展！ID: ${item.id}')" class="px-3 py-1.5 rounded-xl bg-stone-900 text-white text-xs font-medium hover:bg-stone-800 transition">
-                查看详情
-              </button>
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    // 4. 分类筛选
-    function filterCategory(cat) {
-      // 切换按钮高亮状态
-      document.querySelectorAll(".cat-btn").forEach(btn => {
-        btn.className = "cat-btn px-4 py-2 rounded-xl bg-white text-stone-600 border hover:bg-stone-100 transition";
-      });
-      event.target.className = "cat-btn px-4 py-2 rounded-xl bg-stone-900 text-white font-medium transition shadow-sm";
-
-      if (cat === 'all') {
-        renderProducts(allPublicProducts);
-      } else {
-        const filtered = allPublicProducts.filter(p => p.category_id === cat);
-        renderProducts(filtered);
-      }
-    }
+    });
   </script>
 </body>
 </html>
