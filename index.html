@@ -18,7 +18,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 min-h-screen flex flex-col antialiased">
 
-  <!-- 促销横幅 -->
+  <!-- 始终固定在屏幕最顶部的促销横幅 -->
   <div class="sticky top-0 z-50 bg-black text-amber-200 text-xs py-2 px-4 text-center font-medium shadow-md flex items-center justify-center gap-2">
     <span id="site-banner-text" data-i18n="topBanner">✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques</span>
   </div>
@@ -26,6 +26,7 @@
   <!-- 顶部 Header 导航 -->
   <header class="bg-white/85 backdrop-blur-md border-b border-stone-200/80 sticky top-8 z-40">
     <div class="max-w-6xl mx-auto px-4 py-3.5 flex justify-between items-center">
+
       <a href="index.html" class="flex items-center gap-2">
         <span id="site-logo-text" class="text-xl font-extrabold tracking-tight text-stone-900 font-serif">Aesthetic East</span>
       </a>
@@ -150,6 +151,18 @@
     </div>
   </div>
 
+  <!-- 360° Modal -->
+  <div id="modal-360" onclick="close360Modal()" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div class="relative w-full max-w-lg aspect-square flex items-center justify-center" onclick="event.stopPropagation()">
+      <button onclick="close360Modal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/25 rounded-full w-8 h-8 flex items-center justify-center z-20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="spin-360-container" class="w-full h-full flex items-center justify-center cursor-grab select-none">
+        <img id="modal-img-360" src="" class="max-w-full max-h-full object-contain">
+      </div>
+    </div>
+  </div>
+
   <!-- 尺寸/规格指南弹窗 (毫米mm与英寸in实时双向换算) -->
   <div id="modal-dimensions" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full mx-4 overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -168,7 +181,7 @@
           </div>
         </div>
         <div id="dim-modal-values" class="bg-stone-50 p-4 rounded-xl border border-stone-100 text-sm space-y-2">
-          <!-- 动态填充的长宽高/尺寸数据 -->
+          <!-- 动态填充的长宽高数据 -->
         </div>
       </div>
       <div class="px-6 py-4 bg-stone-50 border-t border-stone-100 flex justify-end">
@@ -194,20 +207,69 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input type="email" id="cust-email" placeholder="Email Address *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderEmail">
-          <input type="tel" id="cust-phone" placeholder="Phone (10 digits) *" pattern="[0-9]{10}" maxlength="10" title="Please enter a valid 10-digit phone number" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderPhone">
+          <input type="tel" id="cust-phone" placeholder="Phone (10 digits) *" pattern="[0-9]{10}" maxlength="10" title="Please enter a valid 10-digit phone number (digits only)" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderPhone">
         </div>
 
-        <input type="text" id="cust-address" placeholder="Street Address *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderAddress">
+        <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St) *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderAddress">
 
         <div class="grid grid-cols-3 gap-2">
           <input type="text" id="cust-city" placeholder="City *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderCity">
 
           <select id="cust-state" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50">
             <option value="" data-i18n="selectState">Select State *</option>
-            <option value="AL">Alabama (AL)</option><option value="AK">Alaska (AK)</option><option value="AZ">Arizona (AZ)</option><option value="AR">Arkansas (AR)</option><option value="CA">California (CA)</option><option value="CO">Colorado (CO)</option><option value="CT">Connecticut (CT)</option><option value="DE">Delaware (DE)</option><option value="FL">Florida (FL)</option><option value="GA">Georgia (GA)</option><option value="HI">Hawaii (HI)</option><option value="ID">Idaho (ID)</option><option value="IL">Illinois (IL)</option><option value="IN">Indiana (IN)</option><option value="IA">Iowa (IA)</option><option value="KS">Kansas (KS)</option><option value="KY">Kentucky (KY)</option><option value="LA">Louisiana (LA)</option><option value="ME">Maine (ME)</option><option value="MD">Maryland (MD)</option><option value="MA">Massachusetts (MA)</option><option value="MI">Michigan (MI)</option><option value="MN">Minnesota (MN)</option><option value="MS">Mississippi (MS)</option><option value="MO">Missouri (MO)</option><option value="MT">Montana (MT)</option><option value="NE">Nebraska (NE)</option><option value="NV">Nevada (NV)</option><option value="NH">New Hampshire (NH)</option><option value="NJ">New Jersey (NJ)</option><option value="NM">New Mexico (NM)</option><option value="NY">New York (NY)</option><option value="NC">North Carolina (NC)</option><option value="ND">North Dakota (ND)</option><option value="OH">Ohio (OH)</option><option value="OK">Oklahoma (OK)</option><option value="OR">Oregon (OR)</option><option value="PA">Pennsylvania (PA)</option><option value="RI">Rhode Island (RI)</option><option value="SC">South Carolina (SC)</option><option value="SD">South Dakota (SD)</option><option value="TN">Tennessee (TN)</option><option value="TX">Texas (TX)</option><option value="UT">Utah (UT)</option><option value="VT">Vermont (VT)</option><option value="VA">Virginia (VA)</option><option value="WA">Washington (WA)</option><option value="WV">West Virginia (WV)</option><option value="WI">Wisconsin (WI)</option><option value="WY">Wyoming (WY)</option>
+            <option value="AL">Alabama (AL)</option>
+            <option value="AK">Alaska (AK)</option>
+            <option value="AZ">Arizona (AZ)</option>
+            <option value="AR">Arkansas (AR)</option>
+            <option value="CA">California (CA)</option>
+            <option value="CO">Colorado (CO)</option>
+            <option value="CT">Connecticut (CT)</option>
+            <option value="DE">Delaware (DE)</option>
+            <option value="FL">Florida (FL)</option>
+            <option value="GA">Georgia (GA)</option>
+            <option value="HI">Hawaii (HI)</option>
+            <option value="ID">Idaho (ID)</option>
+            <option value="IL">Illinois (IL)</option>
+            <option value="IN">Indiana (IN)</option>
+            <option value="IA">Iowa (IA)</option>
+            <option value="KS">Kansas (KS)</option>
+            <option value="KY">Kentucky (KY)</option>
+            <option value="LA">Louisiana (LA)</option>
+            <option value="ME">Maine (ME)</option>
+            <option value="MD">Maryland (MD)</option>
+            <option value="MA">Massachusetts (MA)</option>
+            <option value="MI">Michigan (MI)</option>
+            <option value="MN">Minnesota (MN)</option>
+            <option value="MS">Mississippi (MS)</option>
+            <option value="MO">Missouri (MO)</option>
+            <option value="MT">Montana (MT)</option>
+            <option value="NE">Nebraska (NE)</option>
+            <option value="NV">Nevada (NV)</option>
+            <option value="NH">New Hampshire (NH)</option>
+            <option value="NJ">New Jersey (NJ)</option>
+            <option value="NM">New Mexico (NM)</option>
+            <option value="NY">New York (NY)</option>
+            <option value="NC">North Carolina (NC)</option>
+            <option value="ND">North Dakota (ND)</option>
+            <option value="OH">Ohio (OH)</option>
+            <option value="OK">Oklahoma (OK)</option>
+            <option value="OR">Oregon (OR)</option>
+            <option value="PA">Pennsylvania (PA)</option>
+            <option value="RI">Rhode Island (RI)</option>
+            <option value="SC">South Carolina (SC)</option>
+            <option value="SD">South Dakota (SD)</option>
+            <option value="TN">Tennessee (TN)</option>
+            <option value="TX">Texas (TX)</option>
+            <option value="UT">Utah (UT)</option>
+            <option value="VT">Vermont (VT)</option>
+            <option value="VA">Virginia (VA)</option>
+            <option value="WA">Washington (WA)</option>
+            <option value="WV">West Virginia (WV)</option>
+            <option value="WI">Wisconsin (WI)</option>
+            <option value="WY">Wyoming (WY)</option>
           </select>
 
-          <input type="text" id="cust-zip" placeholder="Zip (5 digits) *" pattern="[0-9]{5}" maxlength="5" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderZip">
+          <input type="text" id="cust-zip" placeholder="Zip (5 digits) *" pattern="[0-9]{5}" maxlength="5" title="Please enter a valid 5-digit US Zip Code" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderZip">
         </div>
         <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2.5 rounded-xl text-sm w-full text-stone-500 font-medium">
 
@@ -239,9 +301,12 @@
     </div>
   </footer>
 
-  <!-- 前端核心控制与渲染逻辑脚本 -->
+  <!-- 引入外部控制脚本 -->
+  <script src="js/supabase-client.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- 全套内置双语翻译字典与实时切换逻辑 -->
   <script>
-    // 翻译词条字典
     const translations = {
       en: {
         topBanner: "✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques",
@@ -259,17 +324,15 @@
         cartTitle: "Shopping Bag",
         subtotalLabel: "Subtotal",
         checkoutBtn: "Proceed to Checkout",
-        dimModalTitle: "Product Dimensions & Specs",
+        dimModalTitle: "Product Dimensions",
         unitConversionLabel: "Unit Conversion:",
         closeBtn: "Close",
-        sizeGuideBtn: "Size & Specs",
-        addToCartBtn: "Add to Bag",
         shippingCheckoutTitle: "Shipping & Checkout",
         placeholderFirstName: "First Name *",
         placeholderLastName: "Last Name *",
         placeholderEmail: "Email Address *",
         placeholderPhone: "Phone (10 digits) *",
-        placeholderAddress: "Street Address *",
+        placeholderAddress: "Street Address (e.g., 123 Main St) *",
         placeholderCity: "City *",
         selectState: "Select State *",
         placeholderZip: "Zip (5 digits) *",
@@ -297,11 +360,9 @@
         cartTitle: "购物袋",
         subtotalLabel: "小计",
         checkoutBtn: "前往结账",
-        dimModalTitle: "商品尺寸与规格指南",
+        dimModalTitle: "商品尺寸与规格",
         unitConversionLabel: "单位换算：",
         closeBtn: "关闭",
-        sizeGuideBtn: "尺寸规格",
-        addToCartBtn: "加入购物袋",
         shippingCheckoutTitle: "配送与结算信息",
         placeholderFirstName: "名 (First Name) *",
         placeholderLastName: "姓 (Last Name) *",
@@ -322,33 +383,29 @@
     };
 
     let currentLang = localStorage.getItem("site_lang") || "en";
-    let cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    let currentDimData = null;
-    let currentDimUnit = 'mm';
-
-    // 默认测试商品数据（如果后台或Supabase未录入时自动垫底，确保全分类都有完美展示）
-    const defaultProducts = [
-      { id: 1, category: 'nails', name_en: 'Mystic Blossom Press-On Nails', name_zh: '幻彩繁花手工穿戴甲', price: 28.00, image: 'https://images.unsplash.com/photo-1632345031435-877ff6c2ae08?auto=format&fit=crop&w=600&q=80', dims: { width: 14, length: 22, thickness: 1, note: 'Available in XS, S, M, L / 包含XS至L全尺寸' } },
-      { id: 2, category: 'merch', name_en: 'Cyber Kyoto Acrylic Standee', name_zh: '赛博京都亚克力立牌', price: 22.00, image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=600&q=80', dims: { height: 160, width: 100, thickness: 4, material: 'High-definition UV Print / 高清UV双面夹层印刷' } },
-      { id: 3, category: 'furniture', name_en: '19thC. Elm Wood Scholar Desk', name_zh: '十九世纪老榆木文人书案', price: 1280.00, image: 'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=600&q=80', dims: { length: 1200, width: 600, height: 780, material: 'Solid Elm with Traditional Mortise / 纯老榆木榫卯结构' } }
-    ];
 
     function updateLanguageUI() {
       const t = translations[currentLang] || translations.en;
+
+      // 更新语言切换按钮显示
       const langBtn = document.getElementById("lang-btn-text");
       if (langBtn) langBtn.innerText = currentLang === "en" ? "中文" : "EN";
 
+      // 遍历所有带有 data-i18n 的普通文本标签
       document.querySelectorAll("[data-i18n]").forEach(el => {
         const key = el.getAttribute("data-i18n");
-        if (t[key]) el.innerText = t[key];
+        if (t[key]) {
+          el.innerText = t[key];
+        }
       });
 
+      // 遍历所有带有 data-i18n-placeholder 的输入框占位符
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
         const key = el.getAttribute("data-i18n-placeholder");
-        if (t[key]) el.placeholder = t[key];
+        if (t[key]) {
+          el.placeholder = t[key];
+        }
       });
-
-      loadProducts();
     }
 
     function toggleLanguage() {
@@ -357,259 +414,29 @@
       updateLanguageUI();
     }
 
-    // 渲染商品列表（支持从后台配置/LocalStorage读取，并为所有分类统一加载尺寸按钮）
-    function loadProducts() {
-      const storedProducts = JSON.parse(localStorage.getItem("admin_products") || "null") || defaultProducts;
-
-      const nailsContainer = document.getElementById("nails-grid");
-      const merchContainer = document.getElementById("merch-grid");
-      const furnitureContainer = document.getElementById("furniture-grid");
-
-      const nailsList = storedProducts.filter(p => p.category === 'nails');
-      const merchList = storedProducts.filter(p => p.category === 'merch');
-      const furnitureList = storedProducts.filter(p => p.category === 'furniture');
-
-      if (nailsContainer) nailsList.length ? nailsContainer.innerHTML = nailsList.map(p => renderProductCard(p)).join('') : nailsContainer.innerHTML = `<p class="col-span-full text-center text-stone-400 py-8">No items found.</p>`;
-      if (merchContainer) merchList.length ? merchContainer.innerHTML = merchList.map(p => renderProductCard(p)).join('') : merchContainer.innerHTML = `<p class="col-span-full text-center text-stone-400 py-8">No items found.</p>`;
-      if (furnitureContainer) furnitureList.length ? furnitureList.innerHTML = furnitureList.map(p => renderProductCard(p)).join('') : furnitureContainer.innerHTML = `<p class="col-span-full text-center text-stone-400 py-8">No items found.</p>`;
-    }
-
-    function renderProductCard(p) {
-      const name = currentLang === 'zh' ? (p.name_zh || p.name_en) : (p.name_en || p.name_zh);
-      const t = translations[currentLang];
-
-      return `
-        <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col group">
-          <div class="aspect-square bg-stone-100 overflow-hidden relative cursor-pointer" onclick="openZoomModal('${p.image}')">
-            <img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-          </div>
-          <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
-            <div>
-              <h3 class="font-bold text-stone-900 text-sm line-clamp-1 mb-1">${name}</h3>
-              <p class="text-amber-800 font-extrabold text-base">$${Number(p.price).toFixed(2)}</p>
-            </div>
-            <div class="flex items-center gap-2 pt-2 border-t border-stone-100">
-              <button onclick='openDimensionsModal(${JSON.stringify(p.dims || {width: 10, height: 10, length: 10})}, "${name}")' class="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
-                <i class="fa-solid fa-ruler-combined text-stone-500"></i> ${t.sizeGuideBtn}
-              </button>
-              <button onclick='addToCart(${JSON.stringify(p)})' class="flex-1 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
-                <i class="fa-solid fa-bag-shopping"></i> ${t.addToCartBtn}
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // 尺寸弹窗逻辑 (支持MM与INCH双向动态转换)
-    function openDimensionsModal(dims, productName) {
-      currentDimData = dims || { width: 10, height: 10, length: 10 };
-      document.getElementById("dim-modal-title").innerText = productName + " - " + (translations[currentLang].dimModalTitle);
-      currentDimUnit = 'mm';
-      updateDimButtonStyles();
-      renderDimValues();
-      document.getElementById("modal-dimensions").classList.remove("hidden");
-    }
-
-    function closeDimensionsModal() {
-      document.getElementById("modal-dimensions").classList.add("hidden");
-    }
-
-    function switchDimensionsUnit(unit) {
-      currentDimUnit = unit;
-      updateDimButtonStyles();
-      renderDimValues();
-    }
-
-    function updateDimButtonStyles() {
-      const btnMm = document.getElementById("dim-btn-mm");
-      const btnIn = document.getElementById("dim-btn-in");
-      if (currentDimUnit === 'mm') {
-        btnMm.className = "px-3 py-1 rounded-md bg-stone-900 text-white text-xs font-semibold transition-all";
-        btnIn.className = "px-3 py-1 rounded-md text-stone-600 hover:text-stone-900 text-xs font-semibold transition-all";
-      } else {
-        btnIn.className = "px-3 py-1 rounded-md bg-stone-900 text-white text-xs font-semibold transition-all";
-        btnMm.className = "px-3 py-1 rounded-md text-stone-600 hover:text-stone-900 text-xs font-semibold transition-all";
-      }
-    }
-
-    function renderDimValues() {
-      const container = document.getElementById("dim-modal-values");
-      if (!currentDimData) return;
-
-      let html = "";
-      const isInch = currentDimUnit === 'in';
-      const unitLabel = isInch ? "in" : "mm";
-      const factor = isInch ? 0.0393701 : 1;
-
-      for (const [key, val] of Object.entries(currentDimData)) {
-        if (typeof val === 'number') {
-          const convertedVal = (val * factor).toFixed(isInch ? 2 : 1);
-          html += `<div class="flex justify-between items-center py-1 border-b border-stone-200/50 last:border-0">
-            <span class="capitalize text-stone-500 font-medium">${key}:</span>
-            <span class="font-bold text-stone-900">${convertedVal} ${unitLabel}</span>
-          </div>`;
-        } else {
-          html += `<div class="py-1 text-xs text-stone-600 italic">${val}</div>`;
-        }
-      }
-      container.innerHTML = html;
-    }
-
-    // 购物车与结算逻辑
-    function addToCart(product) {
-      const name = currentLang === 'zh' ? (product.name_zh || product.name_en) : (product.name_en || product.name_zh);
-      const existing = cart.find(item => item.id === product.id);
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        cart.push({ ...product, name, qty: 1 });
-      }
-      saveCart();
-      toggleCartDrawer(true);
-    }
-
-    function saveCart() {
-      localStorage.setItem("cart", JSON.stringify(cart));
-      updateCartBadge();
-    }
-
-    function updateCartBadge() {
-      const badge = document.getElementById("cart-badge");
-      const totalCount = cart.reduce((sum, item) => sum + item.qty, 0);
-      if (totalCount > 0) {
-        badge.innerText = totalCount;
-        badge.style.display = "flex";
-      } else {
-        badge.style.display = "none";
-      }
-    }
-
-    function toggleCartDrawer(open = false) {
-      const drawer = document.getElementById("cart-drawer");
-      const overlay = document.getElementById("cart-overlay");
-      const panel = document.getElementById("cart-panel");
-
-      if (open) {
-        drawer.classList.remove("pointer-events-none");
-        overlay.classList.remove("opacity-0");
-        panel.classList.remove("translate-x-full");
-        renderCartItems();
-      } else {
-        drawer.classList.add("pointer-events-none");
-        overlay.classList.add("opacity-0");
-        panel.classList.add("translate-x-full");
-      }
-    }
-
-    function closeCartDrawer() { toggleCartDrawer(false); }
-
-    function renderCartItems() {
-      const container = document.getElementById("cart-items");
-      const totalEl = document.getElementById("cart-total");
-
-      if (cart.length === 0) {
-        container.innerHTML = `<p class="text-center text-stone-400 py-12 text-sm">${currentLang === 'zh' ? '购物袋是空的' : 'Your bag is empty'}</p>`;
-        totalEl.innerText = "$0.00";
-        return;
-      }
-
-      let subtotal = 0;
-      container.innerHTML = cart.map((item, idx) => {
-        subtotal += item.price * item.qty;
-        return `
-          <div class="flex items-center gap-3 bg-stone-50 p-3 rounded-xl border border-stone-100">
-            <img src="${item.image}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0">
-            <div class="flex-1 min-w-0">
-              <h4 class="font-bold text-stone-900 text-xs truncate">${item.name}</h4>
-              <p class="text-amber-800 font-bold text-xs mt-1">$${item.price.toFixed(2)}</p>
-              <div class="flex items-center gap-2 mt-2">
-                <button onclick="updateQty(${idx}, -1)" class="w-6 h-6 bg-white border rounded flex items-center justify-center text-xs font-bold">-</button>
-                <span class="text-xs font-semibold">${item.qty}</span>
-                <button onclick="updateQty(${idx}, 1)" class="w-6 h-6 bg-white border rounded flex items-center justify-center text-xs font-bold">+</button>
-              </div>
-            </div>
-            <button onclick="removeItem(${idx})" class="text-stone-400 hover:text-red-600 p-2"><i class="fa-solid fa-trash-can text-xs"></i></button>
-          </div>
-        `;
-      }).join('');
-
-      totalEl.innerText = `$${subtotal.toFixed(2)}`;
-    }
-
-    function updateQty(index, change) {
-      cart[index].qty += change;
-      if (cart[index].qty <= 0) cart.splice(index, 1);
-      saveCart();
-      renderCartItems();
-    }
-
-    function removeItem(index) {
-      cart.splice(index, 1);
-      saveCart();
-      renderCartItems();
-    }
-
-    function openCheckoutModal() {
-      if (cart.length === 0) return;
-      closeCartDrawer();
-      const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-      const tax = subtotal * 0.08;
-      const total = subtotal + tax;
-
-      document.getElementById("checkout-subtotal").innerText = `$${subtotal.toFixed(2)}`;
-      document.getElementById("checkout-tax").innerText = `$${tax.toFixed(2)}`;
-      document.getElementById("checkout-total").innerText = `$${total.toFixed(2)}`;
-
-      document.getElementById("checkout-form").reset();
-      document.getElementById("checkout-form").classList.remove("hidden");
-      document.getElementById("checkout-success").classList.add("hidden");
-      document.getElementById("modal-checkout").classList.remove("hidden");
-    }
-
-    function closeCheckoutModal() {
-      document.getElementById("modal-checkout").classList.add("hidden");
-    }
-
-    function processPayment(e) {
-      e.preventDefault();
-      const firstName = document.getElementById("cust-first-name").value;
-      const lastName = document.getElementById("cust-last-name").value;
-
-      document.getElementById("success-cust-name").innerText = `${firstName} ${lastName}`;
-      document.getElementById("checkout-form").classList.add("hidden");
-      document.getElementById("checkout-success").classList.remove("hidden");
-
-      cart = [];
-      saveCart();
-    }
-
-    // 图片全屏放大
-    function openZoomModal(imgSrc) {
-      document.getElementById("modal-img-zoom").src = imgSrc;
-      document.getElementById("modal-zoom").classList.remove("hidden");
-    }
-    function closeZoomModal() {
-      document.getElementById("modal-zoom").classList.add("hidden");
-    }
-
-    // 页面初始化
+    // 页面加载完成后初始化语言与后台基础设置
     document.addEventListener("DOMContentLoaded", () => {
       updateLanguageUI();
-      updateCartBadge();
 
-      // 同步管理后台的基础外观配置
       const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
-      if (cfg.logo && document.getElementById("site-logo-text")) document.getElementById("site-logo-text").innerText = cfg.logo;
-      if (cfg.banner && document.getElementById("site-banner-text")) document.getElementById("site-banner-text").innerText = cfg.banner;
-      if (cfg.heroTitle && document.getElementById("site-hero-title")) document.getElementById("site-hero-title").innerText = cfg.heroTitle;
-      if (cfg.heroDesc && document.getElementById("site-hero-desc")) document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
+      if (cfg.logo && document.getElementById("site-logo-text")) {
+        document.getElementById("site-logo-text").innerText = cfg.logo;
+      }
+      if (cfg.banner && document.getElementById("site-banner-text")) {
+        document.getElementById("site-banner-text").innerText = cfg.banner;
+      }
+      if (cfg.heroTitle && document.getElementById("site-hero-title")) {
+        document.getElementById("site-hero-title").innerText = cfg.heroTitle;
+      }
+      if (cfg.heroDesc && document.getElementById("site-hero-desc")) {
+        document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
+      }
       if (cfg.heroBg) {
-        const hb = document.getElementById("site-hero-banner");
-        if (hb) {
-          hb.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${cfg.heroBg}')`;
-          hb.style.backgroundSize = 'cover';
-          hb.style.backgroundPosition = 'center';
+        const heroBanner = document.getElementById("site-hero-banner");
+        if (heroBanner) {
+          heroBanner.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${cfg.heroBg}')`;
+          heroBanner.style.backgroundSize = 'cover';
+          heroBanner.style.backgroundPosition = 'center';
         }
       }
     });
