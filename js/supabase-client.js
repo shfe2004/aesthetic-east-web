@@ -1,36 +1,28 @@
-// Supabase 客户端与健壮数据拉取适配器
+// Supabase 客户端配置与通用解包解析器
 
 const SUPABASE_URL = 'https://hptnyyxpxvpyyhrrutds.supabase.co'; // 替换为你的 Project URL
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwdG55eXhweHZweXlocnJ1dGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMDgwNjQsImV4cCI6MjEwNTc4NDA2NH0.-CUuIFQ6J7GzUbAkZfY8e5sqSEwBznhX1yQLcju6MVo';                 // 替换为你的 anon public Key
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 核心：深度容错解析函数（无论数据库传回何种嵌套格式，精准解析出真实数组）
-function robustParseSpec(input) {
-  if (!input) return [];
-  if (Array.isArray(input)) return input;
+// 万能强力解包函数（解决一切字符串/JSON/数组嵌套问题）
+function parseUniversalSpec(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.map(item => typeof item === 'string' ? item.replace(/^["']|["']$/g, '') : item);
+  }
+  if (typeof raw === 'string') {
+    let s = raw.trim();
+    try {
+      let parsed = JSON.parse(s);
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed); // 双重转义二次解包
+      if (Array.isArray(parsed)) return parsed.map(item => String(item).replace(/^["']|["']$/g, ''));
+    } catch(e) {}
 
-  if (typeof input === 'string') {
-    let str = input.trim();
-    // 循环剥离可能存在的双重转义引号与 JSON 字符串
-    for (let i = 0; i < 3; i++) {
-      if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('"') && str.endsWith('"'))) {
-        try {
-          const parsed = JSON.parse(str);
-          if (Array.isArray(parsed)) return parsed;
-          if (typeof parsed === 'string') str = parsed.trim();
-        } catch (e) {
-          break;
-        }
-      }
+    if (s.includes(',')) {
+      return s.split(',').map(x => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
     }
-    // 逗号分隔兜底
-    if (str.includes(',')) {
-      return str.split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-    }
-    if (str.length > 0 && !str.startsWith('[')) {
-      return [str.replace(/^["']|["']$/g, '')];
-    }
+    if (s.length > 0) return [s.replace(/^["']|["']$/g, '')];
   }
   return [];
 }
@@ -53,9 +45,8 @@ async function fetchProductsFromSupabase() {
     products.forEach(p => {
       const nailOpt = (p.nail_options && p.nail_options.length > 0) ? p.nail_options[0] : {};
 
-      // 使用深度容错解析引擎，精准提取 shapes 和 sizes
-      const shapes = robustParseSpec(nailOpt.shapes);
-      const sizes = robustParseSpec(nailOpt.sizes);
+      const shapes = parseUniversalSpec(nailOpt.shapes);
+      const sizes = parseUniversalSpec(nailOpt.sizes);
 
       let imgList = [];
       if (p.product_images && p.product_images.length > 0) {
@@ -89,7 +80,7 @@ async function fetchProductsFromSupabase() {
     return result;
 
   } catch (err) {
-    console.error("Supabase 读取失败:", err);
+    console.error("Supabase 数据读取失败:", err);
     return null;
   }
 }

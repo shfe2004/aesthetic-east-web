@@ -1,4 +1,4 @@
-// 后台控制脚本 (纯粹 JSON 规范格式写入)
+// 后台控制脚本 (直接传入原生 Array，保障 Supabase jsonb 原生存储)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -115,7 +115,6 @@ async function loadAdminProducts() {
   }
 }
 
-// 辅助解析函数
 function robustParseSpec(input) {
   if (!input) return [];
   if (Array.isArray(input)) return input;
@@ -180,11 +179,11 @@ async function handleAddProduct(e) {
       const selectedShapes = Array.from(document.querySelectorAll(".shape-checkbox:checked")).map(cb => cb.value);
       const selectedSizes = Array.from(document.querySelectorAll(".size-checkbox:checked")).map(cb => cb.value);
 
-      // 强转换为 JSON 格式文本存入，杜绝数据结构模糊
+      // 修正：直接传入 JavaScript 原生 Array，Supabase SDK 会自动转为 JSON/jsonb 数组！
       await supabaseClient.from("nail_options").insert([{
         product_id: id,
-        shapes: JSON.stringify(selectedShapes),
-        sizes: JSON.stringify(selectedSizes)
+        shapes: selectedShapes,
+        sizes: selectedSizes
       }]);
     }
 
