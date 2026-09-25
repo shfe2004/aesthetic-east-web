@@ -1,4 +1,4 @@
-// 后台全功能控制脚本 (精准递增 ID + 标准化规格保存 + 本地图片压缩)
+// 后台控制脚本 (纯粹 JSON 规范格式写入)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -33,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// 1. 生成递增 ID (如 nail-04-06)
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
   const category = categorySelect ? categorySelect.value : "nails";
@@ -63,7 +62,6 @@ async function generateSmartId() {
   }
 }
 
-// 2. 加载商品列表
 async function loadAdminProducts() {
   const tbody = document.getElementById("admin-product-list");
   if (!tbody) return;
@@ -84,15 +82,8 @@ async function loadAdminProducts() {
     tbody.innerHTML = products.map(item => {
       const nailOpt = (item.nail_options && item.nail_options.length > 0) ? item.nail_options[0] : {};
 
-      let shapesArr = [];
-      let sizesArr = [];
-
-      if (nailOpt.shapes) {
-        shapesArr = typeof nailOpt.shapes === 'string' ? JSON.parse(nailOpt.shapes) : nailOpt.shapes;
-      }
-      if (nailOpt.sizes) {
-        sizesArr = typeof nailOpt.sizes === 'string' ? JSON.parse(nailOpt.sizes) : nailOpt.sizes;
-      }
+      let shapesArr = robustParseSpec(nailOpt.shapes);
+      let sizesArr = robustParseSpec(nailOpt.sizes);
 
       const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : "-";
       const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : "-";
@@ -124,7 +115,21 @@ async function loadAdminProducts() {
   }
 }
 
-// 3. 发布商品逻辑
+// 辅助解析函数
+function robustParseSpec(input) {
+  if (!input) return [];
+  if (Array.isArray(input)) return input;
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) return parsed;
+    } catch(e){}
+    if (input.includes(',')) return input.split(',').map(s=>s.trim());
+    return [input];
+  }
+  return [];
+}
+
 async function handleAddProduct(e) {
   e.preventDefault();
   const submitBtn = document.getElementById("submit-btn");
@@ -175,11 +180,11 @@ async function handleAddProduct(e) {
       const selectedShapes = Array.from(document.querySelectorAll(".shape-checkbox:checked")).map(cb => cb.value);
       const selectedSizes = Array.from(document.querySelectorAll(".size-checkbox:checked")).map(cb => cb.value);
 
-      // 将数组格式强转换保存，保障后端解析无误
+      // 强转换为 JSON 格式文本存入，杜绝数据结构模糊
       await supabaseClient.from("nail_options").insert([{
         product_id: id,
-        shapes: selectedShapes.length > 0 ? selectedShapes : ["Almond", "Coffin"],
-        sizes: selectedSizes.length > 0 ? selectedSizes : ["XS", "S", "M", "L"]
+        shapes: JSON.stringify(selectedShapes),
+        sizes: JSON.stringify(selectedSizes)
       }]);
     }
 
@@ -202,7 +207,6 @@ async function handleAddProduct(e) {
   }
 }
 
-// 4. 图片压缩与预览
 function compressImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -236,7 +240,6 @@ async function deleteProduct(productId) {
   generateSmartId();
 }
 
-// 5. 站点配置保存与加载
 function loadSiteSettings() {
   const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
   if (cfg.logo && document.getElementById("cfg-site-logo")) {
@@ -262,5 +265,5 @@ function handleSaveSettings(e) {
     heroDesc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
   };
   localStorage.setItem("site_settings", JSON.stringify(cfg));
-  alert("✨ 站点文案与配置已保存，刷新前台网页即可生效！");
+  alert("✨ 站点文案已保存，刷新前台即可生效！");
 }
