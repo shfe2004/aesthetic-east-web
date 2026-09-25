@@ -1,4 +1,4 @@
-// 后台控制脚本 (配合 product_id 主键约束，实现秒级精准 Upsert 更新)
+// 后台控制脚本 (强制联动写入：确保每创建一个穿戴甲商品，必同时写入 nail_options 规格表)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -186,6 +186,7 @@ async function handleAddProduct(e) {
       imageUrl = publicUrlData.publicUrl;
     }
 
+    // 1. 写入商品主表
     const { error: prodError } = await supabaseClient.from("products").insert([{
       id: id,
       category_id: categoryId,
@@ -199,12 +200,15 @@ async function handleAddProduct(e) {
 
     if (prodError) throw prodError;
 
+    // 2. 强制写入规格表（使用 upsert 确保万无一失）
     if (categoryId === "nails") {
-      await supabaseClient.from("nail_options").upsert([{
+      const { error: optError } = await supabaseClient.from("nail_options").upsert([{
         product_id: id,
         shapes: selectedShapes,
         sizes: selectedSizes
       }], { onConflict: 'product_id' });
+
+      if (optError) throw optError;
     }
 
     alert("🎉 商品发布成功！唯一编码: " + id);
@@ -309,7 +313,6 @@ async function saveProductSpec() {
   }
 
   try {
-    // 基于 product_id 主键进行安全的 Upsert 写入
     const { error } = await supabaseClient
       .from("nail_options")
       .upsert([
@@ -350,7 +353,7 @@ function handleImagePreview(e) {
 
   if (file && previewImg && previewContainer) {
     previewImg.src = URL.createObjectURL(file);
-    previewContainer.classList.add("hidden");
+    previewContainer.classList.remove("hidden");
   }
 }
 
