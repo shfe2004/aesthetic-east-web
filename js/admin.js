@@ -229,7 +229,7 @@ async function handleAddProduct(e) {
   }
 }
 
-// 4. 修改已有商品的规格（快捷更新引擎）
+// 4. 修改已有商品的规格（原生 Upsert 机制，不触发 RLS 错误）
 let currentEditingProdId = null;
 
 function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
@@ -312,23 +312,35 @@ async function saveProductSpec() {
   }
 
   try {
-    // 1. 删除旧规格
-    await supabaseClient.from("nail_options").delete().eq("product_id", currentEditingProdId);
+    // 先尝试查询是否已有关联记录
+    const { data: existing } = await supabaseClient
+      .from("nail_options")
+      .select("id")
+      .eq("product_id", currentEditingProdId);
 
-    // 2. 插入新规格
-    const { error } = await supabaseClient.from("nail_options").insert([{
-      product_id: currentEditingProdId,
-      shapes: newShapes,
-      sizes: newSizes
-    }]);
+    if (existing && existing.length > 0) {
+      // 存在则更新
+      const { error } = await supabaseClient
+        .from("nail_options")
+        .update({ shapes: newShapes, sizes: newSizes })
+        .eq("product_id", currentEditingProdId);
 
-    if (error) throw error;
+      if (error) throw error;
+    } else {
+      // 不存在则插入
+      const { error } = await supabaseClient
+        .from("nail_options")
+        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }]);
+
+      if (error) throw error;
+    }
 
     alert("✨ 规格修改成功！前台将即刻更新生效。");
     closeEditSpecModal();
     loadAdminProducts();
 
   } catch(err) {
+    console.error("保存失败:", err);
     alert("更新失败: " + err.message);
   }
 }
