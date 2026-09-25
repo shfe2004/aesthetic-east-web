@@ -18,7 +18,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 min-h-screen flex flex-col antialiased">
 
-  <!-- 1. 始终固定在屏幕最顶部的促销横幅 -->
+  <!-- 始终固定在屏幕最顶部的促销横幅 -->
   <div class="sticky top-0 z-50 bg-black text-amber-200 text-xs py-2 px-4 text-center font-medium shadow-md flex items-center justify-center gap-2">
     <span id="site-banner-text">✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques</span>
   </div>
@@ -32,19 +32,14 @@
       </a>
 
       <div class="flex items-center gap-4">
-        <!-- 管理后台入口 -->
+        <!-- 管理后台入口（已加入多语言绑定 data-i18n="adminBtn"） -->
         <a href="admin.html" class="text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 transition-colors flex items-center gap-1">
-          <i class="fa-solid fa-gear"></i> 管理后台
+          <i class="fa-solid fa-gear"></i> <span data-i18n="adminBtn">管理后台</span>
         </a>
 
         <button onclick="toggleLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1 flex items-center gap-1 transition-colors">
           <i class="fa-solid fa-globe"></i>
           <span id="lang-btn-text">EN</span>
-        </button>
-
-        <!-- 已修复：点击正常打开 Size Guide 弹窗 -->
-        <button onclick="openSizeModal()" class="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors hidden sm:block">
-          Size Guide
         </button>
 
         <button onclick="toggleCartDrawer()" class="relative p-2 text-stone-800 hover:text-amber-800 transition-colors">
@@ -74,13 +69,12 @@
 
   <!-- 主体内容：三大分类专区 -->
   <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full space-y-12">
-
-    <!-- 1. 穿戴甲专区 -->
+    <!-- 1. 穿戴甲 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
           <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="nailsSectionTitle">Handcrafted Press-On Nails</h2>
-          <p class="text-xs text-stone-400 mt-0.5">Click image to enlarge · Scroll wheel to zoom · Drag to move</p>
+          <p class="text-xs text-stone-400 mt-0.5">Click image to enlarge · View custom size specs inside</p>
         </div>
       </div>
       <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -88,7 +82,7 @@
       </div>
     </section>
 
-    <!-- 2. 周边 (亚克力立牌) 专区 -->
+    <!-- 2. 亚克力周边 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
@@ -101,7 +95,7 @@
       </div>
     </section>
 
-    <!-- 3. 古董家具专区 -->
+    <!-- 3. 中式古董家具 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
@@ -113,14 +107,12 @@
         <div class="col-span-full text-center py-12 text-stone-400">Loading Furniture...</div>
       </div>
     </section>
-
   </main>
 
   <!-- 购物车抽屉 -->
   <div id="cart-drawer" class="fixed inset-0 z-50 pointer-events-none transition-all duration-300">
     <div id="cart-overlay" onclick="closeCartDrawer()" class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300"></div>
     <div id="cart-panel" class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl flex flex-col translate-x-full transition-transform duration-300 pointer-events-auto">
-
       <div class="p-5 border-b border-stone-100 flex items-center justify-between">
         <h3 class="font-bold text-stone-900 text-base flex items-center gap-2">
           <i class="fa-solid fa-bag-shopping text-amber-800"></i> Shopping Bag
@@ -129,9 +121,7 @@
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-
       <div id="cart-items" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
-
       <div class="p-5 border-t border-stone-100 bg-stone-50/50 space-y-4">
         <div class="flex items-center justify-between text-base font-extrabold text-stone-900">
           <span>Subtotal</span>
@@ -142,38 +132,6 @@
           <i class="fa-solid fa-arrow-right text-xs"></i>
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- Size Guide 弹窗 (新增：完美解决按钮无效问题) -->
-  <div id="modal-size-guide" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 relative shadow-2xl">
-      <button onclick="closeSizeModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800 text-lg">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-      <h3 class="text-xl font-serif font-bold text-stone-900 border-b pb-2">Press-On Nails Size Guide</h3>
-      <p class="text-xs text-stone-500">Measure the widest part of your natural nails using soft tape measure (in millimeters).</p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs text-left border border-stone-200">
-          <thead class="bg-stone-100 text-stone-700">
-            <tr>
-              <th class="p-2 border">Size</th>
-              <th class="p-2 border">XS (mm)</th>
-              <th class="p-2 border">S (mm)</th>
-              <th class="p-2 border">M (mm)</th>
-              <th class="p-2 border">L (mm)</th>
-            </tr>
-          </thead>
-          <tbody class="text-stone-600">
-            <tr><td class="p-2 border font-bold">Thumb</td><td class="p-2 border">14mm</td><td class="p-2 border">15mm</td><td class="p-2 border">16mm</td><td class="p-2 border">18mm</td></tr>
-            <tr><td class="p-2 border font-bold">Index</td><td class="p-2 border">10mm</td><td class="p-2 border">11mm</td><td class="p-2 border">12mm</td><td class="p-2 border">13mm</td></tr>
-            <tr><td class="p-2 border font-bold">Middle</td><td class="p-2 border">11mm</td><td class="p-2 border">12mm</td><td class="p-2 border">13mm</td><td class="p-2 border">14mm</td></tr>
-            <tr><td class="p-2 border font-bold">Ring</td><td class="p-2 border">10mm</td><td class="p-2 border">11mm</td><td class="p-2 border">12mm</td><td class="p-2 border">13mm</td></tr>
-            <tr><td class="p-2 border font-bold">Pinky</td><td class="p-2 border">7mm</td><td class="p-2 border">8mm</td><td class="p-2 border">9mm</td><td class="p-2 border">10mm</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <button onclick="closeSizeModal()" class="w-full bg-stone-900 text-white py-2.5 rounded-xl text-xs font-bold">Got It</button>
     </div>
   </div>
 
@@ -201,7 +159,7 @@
     </div>
   </div>
 
-  <!-- 升级版结算 Modal (包含美国标准地址下拉栏，减少手写负担) -->
+  <!-- 升级版结算 Modal（全美50州按字母排序 + 城市支持下拉选择或自由手填） -->
   <div id="modal-checkout" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeCheckoutModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
@@ -217,22 +175,82 @@
         </div>
         <input type="email" id="cust-email" placeholder="Email Address" required class="border p-2 rounded-lg text-sm w-full">
 
-        <!-- 美国邮寄地址栏（包含州下拉菜单） -->
         <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St)" required class="border p-2 rounded-lg text-sm w-full">
+
         <div class="grid grid-cols-3 gap-2">
-          <input type="text" id="cust-city" placeholder="City" required class="border p-2 rounded-lg text-sm w-full">
-          <!-- 美国州选择下拉框，减少手写 -->
+          <!-- 城市：支持下拉常用城市，也允许用户自由键入特殊城市名称 -->
+          <input type="text" id="cust-city" list="common-cities" placeholder="City" required class="border p-2 rounded-lg text-sm w-full">
+          <datalist id="common-cities">
+            <option value="Seattle">
+              <option value="Bellevue">
+              <option value="Los Angeles">
+              <option value="San Francisco">
+              <option value="New York">
+              <option value="Chicago">
+              <option value="Houston">
+              <option value="Phoenix">
+              <option value="Philadelphia">
+              <option value="San Diego">
+              <option value="Portland">
+              <option value="Las Vegas">
+              <option value="Austin">
+          </datalist>
+
+          <!-- 州：包含全美所有50个州及属地，按字母严格A-Z排序 -->
           <select id="cust-state" required class="border p-2 rounded-lg text-sm w-full bg-white">
             <option value="">Select State</option>
-            <option value="WA">Washington (WA)</option>
+            <option value="AL">Alabama (AL)</option>
+            <option value="AK">Alaska (AK)</option>
+            <option value="AZ">Arizona (AZ)</option>
+            <option value="AR">Arkansas (AR)</option>
             <option value="CA">California (CA)</option>
-            <option value="NY">New York (NY)</option>
-            <option value="TX">Texas (TX)</option>
-            <option value="OR">Oregon (OR)</option>
+            <option value="CO">Colorado (CO)</option>
+            <option value="CT">Connecticut (CT)</option>
+            <option value="DE">Delaware (DE)</option>
             <option value="FL">Florida (FL)</option>
+            <option value="GA">Georgia (GA)</option>
+            <option value="HI">Hawaii (HI)</option>
+            <option value="ID">Idaho (ID)</option>
             <option value="IL">Illinois (IL)</option>
-            <!-- 可按需增减，默认包含常见州 -->
+            <option value="IN">Indiana (IN)</option>
+            <option value="IA">Iowa (IA)</option>
+            <option value="KS">Kansas (KS)</option>
+            <option value="KY">Kentucky (KY)</option>
+            <option value="LA">Louisiana (LA)</option>
+            <option value="ME">Maine (ME)</option>
+            <option value="MD">Maryland (MD)</option>
+            <option value="MA">Massachusetts (MA)</option>
+            <option value="MI">Michigan (MI)</option>
+            <option value="MN">Minnesota (MN)</option>
+            <option value="MS">Mississippi (MS)</option>
+            <option value="MO">Missouri (MO)</option>
+            <option value="MT">Montana (MT)</option>
+            <option value="NE">Nebraska (NE)</option>
+            <option value="NV">Nevada (NV)</option>
+            <option value="NH">New Hampshire (NH)</option>
+            <option value="NJ">New Jersey (NJ)</option>
+            <option value="NM">New Mexico (NM)</option>
+            <option value="NY">New York (NY)</option>
+            <option value="NC">North Carolina (NC)</option>
+            <option value="ND">North Dakota (ND)</option>
+            <option value="OH">Ohio (OH)</option>
+            <option value="OK">Oklahoma (OK)</option>
+            <option value="OR">Oregon (OR)</option>
+            <option value="PA">Pennsylvania (PA)</option>
+            <option value="RI">Rhode Island (RI)</option>
+            <option value="SC">South Carolina (SC)</option>
+            <option value="SD">South Dakota (SD)</option>
+            <option value="TN">Tennessee (TN)</option>
+            <option value="TX">Texas (TX)</option>
+            <option value="UT">Utah (UT)</option>
+            <option value="VT">Vermont (VT)</option>
+            <option value="VA">Virginia (VA)</option>
+            <option value="WA">Washington (WA)</option>
+            <option value="WV">West Virginia (WV)</option>
+            <option value="WI">Wisconsin (WI)</option>
+            <option value="WY">Wyoming (WY)</option>
           </select>
+
           <input type="text" id="cust-zip" placeholder="Zip Code" required class="border p-2 rounded-lg text-sm w-full">
         </div>
         <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2 rounded-lg text-sm w-full text-stone-500">
@@ -265,46 +283,7 @@
     </div>
   </footer>
 
-  <!-- 引入脚本 -->
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
-
-  <!-- 动态同步后台配置与 Size Guide 弹窗控制脚本 -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
-
-      if (cfg.logo && document.getElementById("site-logo-text")) {
-        document.getElementById("site-logo-text").innerText = cfg.logo;
-      }
-      if (cfg.banner && document.getElementById("site-banner-text")) {
-        document.getElementById("site-banner-text").innerText = cfg.banner;
-      }
-      if (cfg.heroTitle && document.getElementById("site-hero-title")) {
-        document.getElementById("site-hero-title").innerText = cfg.heroTitle;
-      }
-      if (cfg.heroDesc && document.getElementById("site-hero-desc")) {
-        document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
-      }
-      if (cfg.heroBg) {
-        const heroBanner = document.getElementById("site-hero-banner");
-        if (heroBanner) {
-          heroBanner.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${cfg.heroBg}')`;
-          heroBanner.style.backgroundSize = 'cover';
-          heroBanner.style.backgroundPosition = 'center';
-        }
-      }
-    });
-
-    // Size Guide 弹窗控制函数
-    function openSizeModal() {
-      const modal = document.getElementById("modal-size-guide");
-      if (modal) modal.classList.remove("hidden");
-    }
-    function closeSizeModal() {
-      const modal = document.getElementById("modal-size-guide");
-      if (modal) modal.classList.add("hidden");
-    }
-  </script>
 </body>
 </html>
