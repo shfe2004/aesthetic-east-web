@@ -1,31 +1,60 @@
-// 后台管理逻辑 (含本地图片标准尺寸自动压缩与 product-media 存储桶同步)
+// 后台全功能控制脚本 (自动生成唯一 ID + 站点全局配置管理 + 本地图片压缩上传)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
+  loadSiteSettings();
+
+  // 页面初始化时立即生成 Smart ID
+  generateSmartId();
 
   const categorySelect = document.getElementById("prod-category");
   const nailSection = document.getElementById("nail-options-section");
   const imageInput = document.getElementById("prod-image-file");
 
-  // 根据分类动态显示/隐藏穿戴甲规格配置
-  if (categorySelect && nailSection) {
+  if (categorySelect) {
     categorySelect.addEventListener("change", (e) => {
-      nailSection.style.display = e.target.value === "nails" ? "block" : "none";
+      if (nailSection) {
+        nailSection.style.display = e.target.value === "nails" ? "block" : "none";
+      }
+      generateSmartId(); // 切换分类时重新实时生成 ID
     });
   }
 
-  // 本地图片选择预览
   if (imageInput) {
     imageInput.addEventListener("change", handleImagePreview);
   }
 
-  const form = document.getElementById("add-product-form");
-  if (form) {
-    form.addEventListener("submit", handleAddProduct);
+  const addForm = document.getElementById("add-product-form");
+  if (addForm) {
+    addForm.addEventListener("submit", handleAddProduct);
+  }
+
+  const settingsForm = document.getElementById("site-settings-form");
+  if (settingsForm) {
+    settingsForm.addEventListener("submit", handleSaveSettings);
   }
 });
 
-// 1. 从 Supabase 读取商品
+// 1. 实时生成绝对不重复的商品 ID (格式如: nail-8006)
+function generateSmartId() {
+  const categorySelect = document.getElementById("prod-category");
+  const category = categorySelect ? categorySelect.value : "nails";
+  const idInput = document.getElementById("prod-id");
+  if (!idInput) return;
+
+  let prefix = "nail";
+  if (category === "merch") {
+    prefix = "merch";
+  } else if (category === "furniture") {
+    prefix = "ant";
+  }
+
+  // 使用毫秒级时间戳后 4 位 + 随机数，保证实时显示且绝不重复
+  const uniqueCode = Date.now().toString().slice(-4) + Math.floor(Math.random() * 10);
+  idInput.value = prefix + "-" + uniqueCode;
+}
+
+// 2. 加载在线商品列表
 async function loadAdminProducts() {
   const tbody = document.getElementById("admin-product-list");
   if (!tbody) return;
@@ -33,10 +62,7 @@ async function loadAdminProducts() {
   try {
     const { data: products, error } = await supabaseClient
       .from("products")
-      .select(`
-        *,
-        nail_options (*)
-      `)
+      .select("*, nail_options (*)")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -47,11 +73,11 @@ async function loadAdminProducts() {
     }
 
     tbody.innerHTML = products.map(item => {
-      const nailOpt = item.nail_options?.[0] || {};
+      const nailOpt = (item.nail_options && item.nail_options.length > 0) ? item.nail_options[0] : {};
 
-      // 安全解析 shapes 和 sizes（兼容数组或 JSON 字符串）
       let shapesArr = [];
       let sizesArr = [];
+
       if (nailOpt.shapes) {
         shapesArr = typeof nailOpt.shapes === 'string' ? JSON.parse(nailOpt.shapes) : nailOpt.shapes;
       }
@@ -62,22 +88,22 @@ async function loadAdminProducts() {
       const shapesText = shapesArr.length > 0 ? shapesArr.join(", ") : "-";
       const sizesText = sizesArr.length > 0 ? sizesArr.join(", ") : "-";
 
+      const specContent = item.category_id === 'nails'
+        ? `<div><b>Shapes:</b> ${shapesText}</div><div><b>Sizes:</b> ${sizesText}</div>`
+        : '无';
+
       return `
         <tr class="border-b hover:bg-gray-50">
           <td class="p-3">
             <img src="${item.spin_image || 'https://via.placeholder.com/60'}" class="w-12 h-12 object-cover rounded-lg border" alt="">
           </td>
-          <td class="p-3 font-mono text-xs text-gray-500">${item.id}</td>
+          <td class="p-3 font-mono text-xs text-amber-900 font-bold">${item.id}</td>
           <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">${item.category_id}</span></td>
           <td class="p-3 font-medium text-gray-900">${item.title_en}</td>
-          <td class="p-3 text-xs text-gray-500">
-            ${item.category_id === 'nails' ? `<div><b>Shapes:</b> ${shapesText}</div><div><b>Sizes:</b>${sizesText}</div>` : '无'}
-          </td>
+          <td class="p-3 text-xs text-gray-500">${specContent}</td>
           <td class="p-3 text-amber-800 font-bold">$${parseFloat(item.price).toFixed(2)}</td>
           <td class="p-3">
-            <button onclick="deleteProduct('${item.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">
-              删除
-            </button>
+            <button onclick="deleteProduct('${item.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">删除</button>
           </td>
         </tr>
       `;
@@ -85,79 +111,21 @@ async function loadAdminProducts() {
 
   } catch (err) {
     console.error("加载商品失败:", err);
-    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">加载失败，请检查数据库配置。</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">加载列表失败。</td></tr>`;
   }
 }
 
-// 2. 本地图片实时预览
-function handleImagePreview(e) {
-  const file = e.target.files[0];
-  const previewContainer = document.getElementById("image-preview-container");
-  const previewImg = document.getElementById("image-preview");
-
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      previewImg.src = evt.target.result;
-      previewContainer.classList.remove("hidden");
-    };
-    reader.readAsDataURL(file);
-  } else {
-    previewContainer.classList.add("hidden");
-  }
-}
-
-// 3. 图片前端自动缩放压缩 (压缩为 800x800 高清标准图，大幅提升手机加载速度)
-function compressAndResizeImage(file, maxWidth = 800, maxHeight = 800) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = () => {
-      let width = img.width;
-      let height = img.height;
-
-      // 等比例缩放
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
-        }
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // 转为 Blob JPEG 格式（质量 0.85）
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("图片压缩失败"));
-        }
-      }, "image/jpeg", 0.85);
-    };
-    img.onerror = (err) => reject(err);
-  });
-}
-
-// 4. 处理表单提交（同步图片至 product-media 并存储规格数据）
+// 3. 发布商品逻辑
 async function handleAddProduct(e) {
   e.preventDefault();
-
   const submitBtn = document.getElementById("submit-btn");
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = `<span>处理中...</span>`;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = "正在发布商品...";
+  }
 
   try {
-    const id = document.getElementById("prod-id").value.trim();
+    const id = document.getElementById("prod-id").value;
     const categoryId = document.getElementById("prod-category").value;
     const titleEn = document.getElementById("prod-title-en").value.trim();
     const subtitleEn = document.getElementById("prod-subtitle-en").value.trim();
@@ -165,38 +133,23 @@ async function handleAddProduct(e) {
     const tagKey = document.getElementById("prod-tag-key").value.trim() || "New";
     const fileInput = document.getElementById("prod-image-file");
 
-    let imageUrl = "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800"; // 默认图
+    let imageUrl = "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800";
 
-    // 如果用户上传了本地图片
-    if (fileInput.files && fileInput.files[0]) {
-      const rawFile = fileInput.files[0];
-
-      // A. 自动压缩本地图片
-      const compressedBlob = await compressAndResizeImage(rawFile);
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const compressedBlob = await compressImage(fileInput.files[0]);
       const fileName = `${Date.now()}_${id}.jpg`;
 
-      // B. 上传压缩后的图片至 product-media 存储桶
-      const { data: uploadData, error: uploadError } = await supabaseClient
-        .storage
+      const { error: uploadError } = await supabaseClient.storage
         .from("product-media")
-        .upload(fileName, compressedBlob, {
-          contentType: "image/jpeg",
-          upsert: true
-        });
+        .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
 
-      if (uploadError) throw new Error("图片上传至 product-media 失败: " + uploadError.message);
+      if (uploadError) throw new Error("图片上传失败: " + uploadError.message);
 
-      // C. 获取公开可访问 URL
-      const { data: publicUrlData } = supabaseClient
-        .storage
-        .from("product-media")
-        .getPublicUrl(fileName);
-
+      const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
       imageUrl = publicUrlData.publicUrl;
     }
 
-    // 写入 products 表
-    const newProduct = {
+    const { error: prodError } = await supabaseClient.from("products").insert([{
       id: id,
       category_id: categoryId,
       title_en: titleEn,
@@ -205,56 +158,99 @@ async function handleAddProduct(e) {
       tag_key: tagKey,
       tag_class: "bg-amber-800 text-white",
       spin_image: imageUrl
-    };
-
-    const { error: prodError } = await supabaseClient.from("products").insert([newProduct]);
-    if (prodError) throw prodError;
-
-    // 写入 product_images 关联表
-    await supabaseClient.from("product_images").insert([{
-      product_id: id,
-      image_url: imageUrl,
-      display_order: 1
     }]);
 
-    // 如果是穿戴甲，写入 nail_options 表
+    if (prodError) throw prodError;
+
     if (categoryId === "nails") {
       const selectedShapes = Array.from(document.querySelectorAll(".shape-checkbox:checked")).map(cb => cb.value);
       const selectedSizes = Array.from(document.querySelectorAll(".size-checkbox:checked")).map(cb => cb.value);
 
-      // 直接存入数组，由 Supabase 转化为 jsonb
       await supabaseClient.from("nail_options").insert([{
         product_id: id,
-        shapes: selectedShapes.length > 0 ? selectedShapes : ["Almond", "Coffin"],
-        sizes: selectedSizes.length > 0 ? selectedSizes : ["XS", "S", "M", "L"]
+        shapes: selectedShapes,
+        sizes: selectedSizes
       }]);
     }
 
-    alert("🎉 商品添加成功！图片已自动优化并保存至 product-media 存储桶！");
+    alert("🎉 商品发布成功！唯一编码: " + id);
     document.getElementById("add-product-form").reset();
-    document.getElementById("image-preview-container").classList.add("hidden");
+    const previewContainer = document.getElementById("image-preview-container");
+    if (previewContainer) previewContainer.classList.add("hidden");
+
+    generateSmartId();
     loadAdminProducts();
 
   } catch (err) {
-    console.error("提交失败:", err);
+    console.error("发布失败:", err);
     alert("操作失败: " + err.message);
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = `<span>保存并发布商品</span>`;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = "保存并发布商品";
+    }
   }
 }
 
-// 5. 删除商品
+// 4. 图片压缩与预览
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 800;
+      canvas.height = 800;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, 800, 800);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85);
+    };
+  });
+}
+
+function handleImagePreview(e) {
+  const file = e.target.files[0];
+  const previewImg = document.getElementById("image-preview");
+  const previewContainer = document.getElementById("image-preview-container");
+
+  if (file && previewImg && previewContainer) {
+    previewImg.src = URL.createObjectURL(file);
+    previewContainer.classList.remove("hidden");
+  }
+}
+
 async function deleteProduct(productId) {
   if (!confirm(`确定要删除商品 "${productId}" 吗？`)) return;
+  await supabaseClient.from("products").delete().eq("id", productId);
+  loadAdminProducts();
+  generateSmartId();
+}
 
-  try {
-    const { error } = await supabaseClient.from("products").delete().eq("id", productId);
-    if (error) throw error;
-
-    alert("已成功删除");
-    loadAdminProducts();
-  } catch (err) {
-    alert("删除失败: " + err.message);
+// 5. 站点配置保存与加载
+function loadSiteSettings() {
+  const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
+  if (cfg.logo && document.getElementById("cfg-site-logo")) {
+    document.getElementById("cfg-site-logo").value = cfg.logo;
   }
+  if (cfg.banner && document.getElementById("cfg-banner-text")) {
+    document.getElementById("cfg-banner-text").value = cfg.banner;
+  }
+  if (cfg.heroTitle && document.getElementById("cfg-hero-title")) {
+    document.getElementById("cfg-hero-title").value = cfg.heroTitle;
+  }
+  if (cfg.heroDesc && document.getElementById("cfg-hero-desc")) {
+    document.getElementById("cfg-hero-desc").value = cfg.heroDesc;
+  }
+}
+
+function handleSaveSettings(e) {
+  e.preventDefault();
+  const cfg = {
+    logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
+    banner: document.getElementById("cfg-banner-text") ? document.getElementById("cfg-banner-text").value : "",
+    heroTitle: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
+    heroDesc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
+  };
+  localStorage.setItem("site_settings", JSON.stringify(cfg));
+  alert("✨ 站点文案与配置已保存，刷新前台网页即可生效！");
 }

@@ -18,7 +18,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 min-h-screen flex flex-col antialiased">
 
-  <!-- 1. 始终固定在屏幕最顶部的促销横幅 (Sticky Announcement Bar) -->
+  <!-- 1. 始终固定在屏幕最顶部的促销横幅 -->
   <div class="sticky top-0 z-50 bg-black text-amber-200 text-xs py-2 px-4 text-center font-medium shadow-md flex items-center justify-center gap-2">
     <span id="site-banner-text">✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques</span>
   </div>
@@ -27,12 +27,10 @@
   <header class="bg-white/80 backdrop-blur-md border-b border-stone-200/80 sticky top-8 z-40">
     <div class="max-w-6xl mx-auto px-4 py-3.5 flex justify-between items-center">
 
-      <!-- 动态品牌 Logo -->
       <a href="index.html" class="flex items-center gap-2">
         <span id="site-logo-text" class="text-xl font-extrabold tracking-tight text-stone-900 font-serif">Aesthetic East</span>
       </a>
 
-      <!-- 导航功能按钮 -->
       <div class="flex items-center gap-4">
         <button onclick="toggleLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1 flex items-center gap-1 transition-colors">
           <i class="fa-solid fa-globe"></i>
@@ -43,7 +41,6 @@
           Size Guide
         </button>
 
-        <!-- 购物车悬浮按钮Trigger -->
         <button onclick="toggleCartDrawer()" class="relative p-2 text-stone-800 hover:text-amber-800 transition-colors">
           <i class="fa-solid fa-bag-shopping text-xl"></i>
           <span id="cart-badge" class="absolute -top-1 -right-1 bg-amber-800 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm" style="display: none;">0</span>
@@ -52,7 +49,7 @@
     </div>
   </header>
 
-  <!-- Hero Banner 区域 -->
+  <!-- Hero Banner -->
   <section class="max-w-6xl mx-auto px-4 pt-8 pb-4 w-full">
     <div class="bg-gradient-to-r from-stone-900 via-stone-800 to-amber-950 text-amber-50 rounded-3xl p-8 md:p-12 shadow-xl relative overflow-hidden">
       <div class="max-w-xl relative z-10 space-y-3">
@@ -72,12 +69,12 @@
   <!-- 主体内容 -->
   <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full space-y-12">
 
-    <!-- 分类一：穿戴甲 (Nails) -->
+    <!-- 穿戴甲 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
           <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="nailsSectionTitle">Handcrafted Press-On Nails</h2>
-          <p class="text-xs text-stone-400 mt-0.5">Scroll wheel to zoom · Double click to reset · Drag to move</p>
+          <p class="text-xs text-stone-400 mt-0.5">Click image to enlarge · Scroll wheel to zoom · Drag to move</p>
         </div>
       </div>
       <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -85,7 +82,7 @@
       </div>
     </section>
 
-    <!-- 分类二：周边 (Merch) -->
+    <!-- 周边 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
@@ -98,7 +95,7 @@
       </div>
     </section>
 
-    <!-- 分类三：古董家具 (Furniture) -->
+    <!-- 古董家具 -->
     <section>
       <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
         <div>
@@ -113,7 +110,7 @@
 
   </main>
 
-  <!-- 购物车抽屉 (Drawer) -->
+  <!-- 购物车抽屉 -->
   <div id="cart-drawer" class="fixed inset-0 z-50 pointer-events-none transition-all duration-300">
     <div id="cart-overlay" onclick="closeCartDrawer()" class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300"></div>
     <div id="cart-panel" class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl flex flex-col translate-x-full transition-transform duration-300 pointer-events-auto">
@@ -127,9 +124,7 @@
         </button>
       </div>
 
-      <div id="cart-items" class="flex-1 overflow-y-auto p-5 space-y-4">
-        <!-- 购物车项模板渲染 -->
-      </div>
+      <div id="cart-items" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
 
       <div class="p-5 border-t border-stone-100 bg-stone-50/50 space-y-4">
         <div class="flex items-center justify-between text-base font-extrabold text-stone-900">
@@ -144,23 +139,28 @@
     </div>
   </div>
 
-  <!-- Zoom 图片放大 Modal -->
-  <div id="modal-zoom" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4">
-    <button onclick="closeZoomModal()" class="absolute top-5 right-5 text-white text-2xl hover:text-amber-400 z-10">
-      <i class="fa-solid fa-xmark"></i>
-    </button>
-    <div id="zoom-container" class="relative w-full h-full max-w-4xl max-h-[85vh] flex items-center justify-center overflow-hidden cursor-grab">
-      <img id="modal-img-zoom" src="" class="max-w-full max-h-full object-contain transition-transform duration-75 select-none">
+  <!-- Zoom 图片放大 Modal (支持点击背景直接退出 & 紧贴角部的 X 按钮) -->
+  <div id="modal-zoom" onclick="closeZoomModal()" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div class="relative max-w-4xl max-h-[85vh] flex items-center justify-center" onclick="event.stopPropagation()">
+      <!-- X 按钮紧贴图片右上角，极其醒目 -->
+      <button onclick="closeZoomModal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/20 hover:bg-white/40 rounded-full w-8 h-8 flex items-center justify-center transition-all z-20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="zoom-container" class="relative overflow-hidden cursor-grab">
+        <img id="modal-img-zoom" src="" class="max-w-full max-h-[80vh] object-contain transition-transform duration-75 select-none rounded-lg shadow-2xl">
+      </div>
     </div>
   </div>
 
-  <!-- 360° 旋转 Modal -->
-  <div id="modal-360" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4">
-    <button onclick="close360Modal()" class="absolute top-5 right-5 text-white text-2xl hover:text-amber-400 z-10">
-      <i class="fa-solid fa-xmark"></i>
-    </button>
-    <div id="spin-360-container" class="relative w-full max-w-lg aspect-square flex items-center justify-center cursor-grab select-none">
-      <img id="modal-img-360" src="" class="max-w-full max-h-full object-contain">
+  <!-- 360° Modal -->
+  <div id="modal-360" onclick="close360Modal()" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div class="relative w-full max-w-lg aspect-square flex items-center justify-center" onclick="event.stopPropagation()">
+      <button onclick="close360Modal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/20 rounded-full w-8 h-8 flex items-center justify-center z-20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="spin-360-container" class="w-full h-full flex items-center justify-center cursor-grab select-none">
+        <img id="modal-img-360" src="" class="max-w-full max-h-full object-contain">
+      </div>
     </div>
   </div>
 
