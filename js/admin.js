@@ -1,10 +1,8 @@
-// 后台全功能控制脚本 (精确分类递增 ID + 规格强兼容保存 + 本地图片压缩上传)
+// 后台全功能控制脚本 (精准递增 ID + 标准化规格保存 + 本地图片压缩)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
   loadSiteSettings();
-
-  // 页面初始化时根据数据库现有数据生成递增 ID
   generateSmartId();
 
   const categorySelect = document.getElementById("prod-category");
@@ -16,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (nailSection) {
         nailSection.style.display = e.target.value === "nails" ? "block" : "none";
       }
-      generateSmartId(); // 切换分类时重新实时生成递增 ID
+      generateSmartId();
     });
   }
 
@@ -35,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// 1. 生成体现“分类数量”与“商品总数”的递增 ID (如 nail-04-06)
+// 1. 生成递增 ID (如 nail-04-06)
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
   const category = categorySelect ? categorySelect.value : "nails";
@@ -43,35 +41,29 @@ async function generateSmartId() {
   if (!idInput) return;
 
   try {
-    // 从 Supabase 查询全站商品
     const { data: allProducts } = await supabaseClient
       .from("products")
       .select("id, category_id");
 
-    const totalCount = (allProducts ? allProducts.length : 0) + 1; // 全站总数 + 1
+    const totalCount = (allProducts ? allProducts.length : 0) + 1;
     const categoryProducts = allProducts ? allProducts.filter(p => p.category_id === category) : [];
-    const categoryCount = categoryProducts.length + 1; // 该分类总数 + 1
+    const categoryCount = categoryProducts.length + 1;
 
     let prefix = "nail";
-    if (category === "merch") {
-      prefix = "merch";
-    } else if (category === "furniture") {
-      prefix = "ant";
-    }
+    if (category === "merch") prefix = "merch";
+    if (category === "furniture") prefix = "ant";
 
-    // 格式: 分类前缀-分类序号-全站序号 (如 nail-04-06)
     const catSeq = String(categoryCount).padStart(2, '0');
     const totalSeq = String(totalCount).padStart(2, '0');
 
     idInput.value = `${prefix}-${catSeq}-${totalSeq}`;
 
   } catch (err) {
-    console.error("生成 ID 失败，使用基础序列:", err);
     idInput.value = `${category}-01-01`;
   }
 }
 
-// 2. 加载在线商品列表
+// 2. 加载商品列表
 async function loadAdminProducts() {
   const tbody = document.getElementById("admin-product-list");
   if (!tbody) return;
@@ -102,8 +94,8 @@ async function loadAdminProducts() {
         sizesArr = typeof nailOpt.sizes === 'string' ? JSON.parse(nailOpt.sizes) : nailOpt.sizes;
       }
 
-      const shapesText = shapesArr.length > 0 ? shapesArr.join(", ") : "-";
-      const sizesText = sizesArr.length > 0 ? sizesArr.join(", ") : "-";
+      const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : "-";
+      const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : "-";
 
       const specContent = item.category_id === 'nails'
         ? `<div><b>Shapes:</b> ${shapesText}</div><div><b>Sizes:</b> ${sizesText}</div>`
@@ -132,7 +124,7 @@ async function loadAdminProducts() {
   }
 }
 
-// 3. 发布商品逻辑（高可靠性保存规格）
+// 3. 发布商品逻辑
 async function handleAddProduct(e) {
   e.preventDefault();
   const submitBtn = document.getElementById("submit-btn");
@@ -166,7 +158,6 @@ async function handleAddProduct(e) {
       imageUrl = publicUrlData.publicUrl;
     }
 
-    // 写入 products 主表
     const { error: prodError } = await supabaseClient.from("products").insert([{
       id: id,
       category_id: categoryId,
@@ -180,18 +171,16 @@ async function handleAddProduct(e) {
 
     if (prodError) throw prodError;
 
-    // 如果是穿戴甲，写入 nail_options 表（确保格式为完整可转换的 JSONB）
     if (categoryId === "nails") {
       const selectedShapes = Array.from(document.querySelectorAll(".shape-checkbox:checked")).map(cb => cb.value);
       const selectedSizes = Array.from(document.querySelectorAll(".size-checkbox:checked")).map(cb => cb.value);
 
-      const { error: optionError } = await supabaseClient.from("nail_options").insert([{
+      // 将数组格式强转换保存，保障后端解析无误
+      await supabaseClient.from("nail_options").insert([{
         product_id: id,
         shapes: selectedShapes.length > 0 ? selectedShapes : ["Almond", "Coffin"],
         sizes: selectedSizes.length > 0 ? selectedSizes : ["XS", "S", "M", "L"]
       }]);
-
-      if (optionError) console.error("规格保存警告:", optionError);
     }
 
     alert("🎉 商品发布成功！唯一编码: " + id);
