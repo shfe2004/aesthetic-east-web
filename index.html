@@ -18,7 +18,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 min-h-screen flex flex-col antialiased">
 
-  <!-- 1. 始终固定在屏幕最顶部的促销横幅（支持后台动态修改） -->
+  <!-- 1. 始终固定在屏幕最顶部的促销横幅 -->
   <div class="sticky top-0 z-50 bg-black text-amber-200 text-xs py-2 px-4 text-center font-medium shadow-md flex items-center justify-center gap-2">
     <span id="site-banner-text">✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques</span>
   </div>
@@ -32,7 +32,7 @@
       </a>
 
       <div class="flex items-center gap-4">
-        <!-- 管理后台入口快捷按钮 -->
+        <!-- 管理后台入口 -->
         <a href="admin.html" class="text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 transition-colors flex items-center gap-1">
           <i class="fa-solid fa-gear"></i> 管理后台
         </a>
@@ -42,6 +42,7 @@
           <span id="lang-btn-text">EN</span>
         </button>
 
+        <!-- 已修复：点击正常打开 Size Guide 弹窗 -->
         <button onclick="openSizeModal()" class="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors hidden sm:block">
           Size Guide
         </button>
@@ -54,7 +55,7 @@
     </div>
   </header>
 
-  <!-- Hero Banner (支持后台动态读取自定义背景图、标题与副标题) -->
+  <!-- Hero Banner -->
   <section class="max-w-6xl mx-auto px-4 pt-8 pb-4 w-full">
     <div id="site-hero-banner" class="bg-gradient-to-r from-stone-900 via-stone-800 to-amber-950 text-amber-50 rounded-3xl p-8 md:p-12 shadow-xl relative overflow-hidden bg-cover bg-center transition-all duration-500">
       <div class="max-w-xl relative z-10 space-y-3">
@@ -71,7 +72,7 @@
     </div>
   </section>
 
-  <!-- 主体内容：完整保留三大分类专区 -->
+  <!-- 主体内容：三大分类专区 -->
   <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full space-y-12">
 
     <!-- 1. 穿戴甲专区 -->
@@ -144,6 +145,38 @@
     </div>
   </div>
 
+  <!-- Size Guide 弹窗 (新增：完美解决按钮无效问题) -->
+  <div id="modal-size-guide" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 relative shadow-2xl">
+      <button onclick="closeSizeModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800 text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 class="text-xl font-serif font-bold text-stone-900 border-b pb-2">Press-On Nails Size Guide</h3>
+      <p class="text-xs text-stone-500">Measure the widest part of your natural nails using soft tape measure (in millimeters).</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left border border-stone-200">
+          <thead class="bg-stone-100 text-stone-700">
+            <tr>
+              <th class="p-2 border">Size</th>
+              <th class="p-2 border">XS (mm)</th>
+              <th class="p-2 border">S (mm)</th>
+              <th class="p-2 border">M (mm)</th>
+              <th class="p-2 border">L (mm)</th>
+            </tr>
+          </thead>
+          <tbody class="text-stone-600">
+            <tr><td class="p-2 border font-bold">Thumb</td><td class="p-2 border">14mm</td><td class="p-2 border">15mm</td><td class="p-2 border">16mm</td><td class="p-2 border">18mm</td></tr>
+            <tr><td class="p-2 border font-bold">Index</td><td class="p-2 border">10mm</td><td class="p-2 border">11mm</td><td class="p-2 border">12mm</td><td class="p-2 border">13mm</td></tr>
+            <tr><td class="p-2 border font-bold">Middle</td><td class="p-2 border">11mm</td><td class="p-2 border">12mm</td><td class="p-2 border">13mm</td><td class="p-2 border">14mm</td></tr>
+            <tr><td class="p-2 border font-bold">Ring</td><td class="p-2 border">10mm</td><td class="p-2 border">11mm</td><td class="p-2 border">12mm</td><td class="p-2 border">13mm</td></tr>
+            <tr><td class="p-2 border font-bold">Pinky</td><td class="p-2 border">7mm</td><td class="p-2 border">8mm</td><td class="p-2 border">9mm</td><td class="p-2 border">10mm</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button onclick="closeSizeModal()" class="w-full bg-stone-900 text-white py-2.5 rounded-xl text-xs font-bold">Got It</button>
+    </div>
+  </div>
+
   <!-- Zoom 图片放大 Modal -->
   <div id="modal-zoom" onclick="closeZoomModal()" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4 cursor-pointer">
     <div class="relative max-w-4xl max-h-[85vh] flex items-center justify-center" onclick="event.stopPropagation()">
@@ -168,21 +201,43 @@
     </div>
   </div>
 
-  <!-- 模拟结算 Modal -->
+  <!-- 升级版结算 Modal (包含美国标准地址下拉栏，减少手写负担) -->
   <div id="modal-checkout" class="fixed inset-0 z-50 bg-black/60 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 relative shadow-2xl">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 relative shadow-2xl max-h-[90vh] overflow-y-auto">
       <button onclick="closeCheckoutModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-800">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
 
-      <div id="checkout-form" class="space-y-4">
-        <h3 class="text-lg font-bold text-stone-900 border-b pb-2">Checkout Details</h3>
+      <div id="checkout-form" class="space-y-3">
+        <h3 class="text-lg font-bold text-stone-900 border-b pb-2">Shipping & Checkout</h3>
+
         <div class="grid grid-cols-2 gap-3">
           <input type="text" id="cust-first-name" placeholder="First Name" required class="border p-2 rounded-lg text-sm w-full">
           <input type="text" id="cust-last-name" placeholder="Last Name" required class="border p-2 rounded-lg text-sm w-full">
         </div>
         <input type="email" id="cust-email" placeholder="Email Address" required class="border p-2 rounded-lg text-sm w-full">
-        <div class="bg-stone-50 p-3 rounded-lg text-xs space-y-1 text-stone-600">
+
+        <!-- 美国邮寄地址栏（包含州下拉菜单） -->
+        <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St)" required class="border p-2 rounded-lg text-sm w-full">
+        <div class="grid grid-cols-3 gap-2">
+          <input type="text" id="cust-city" placeholder="City" required class="border p-2 rounded-lg text-sm w-full">
+          <!-- 美国州选择下拉框，减少手写 -->
+          <select id="cust-state" required class="border p-2 rounded-lg text-sm w-full bg-white">
+            <option value="">Select State</option>
+            <option value="WA">Washington (WA)</option>
+            <option value="CA">California (CA)</option>
+            <option value="NY">New York (NY)</option>
+            <option value="TX">Texas (TX)</option>
+            <option value="OR">Oregon (OR)</option>
+            <option value="FL">Florida (FL)</option>
+            <option value="IL">Illinois (IL)</option>
+            <!-- 可按需增减，默认包含常见州 -->
+          </select>
+          <input type="text" id="cust-zip" placeholder="Zip Code" required class="border p-2 rounded-lg text-sm w-full">
+        </div>
+        <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2 rounded-lg text-sm w-full text-stone-500">
+
+        <div class="bg-stone-50 p-3 rounded-lg text-xs space-y-1 text-stone-600 mt-2">
           <div class="flex justify-between"><span>Subtotal:</span><span id="checkout-subtotal">$0.00</span></div>
           <div class="flex justify-between"><span>Est. Tax (8%):</span><span id="checkout-tax">$0.00</span></div>
           <div class="flex justify-between font-bold text-stone-900 pt-1 border-t"><span>Total:</span><span id="checkout-total">$0.00</span></div>
@@ -214,28 +269,23 @@
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
 
-  <!-- 动态同步后台配置的脚本（支持自定义 Hero 大图、Logo 及公告文案，不影响任何原有功能） -->
+  <!-- 动态同步后台配置与 Size Guide 弹窗控制脚本 -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
 
-      // 同步 Logo 文本
       if (cfg.logo && document.getElementById("site-logo-text")) {
         document.getElementById("site-logo-text").innerText = cfg.logo;
       }
-      // 同步顶部固定促销公告
       if (cfg.banner && document.getElementById("site-banner-text")) {
         document.getElementById("site-banner-text").innerText = cfg.banner;
       }
-      // 同步 Hero 标题
       if (cfg.heroTitle && document.getElementById("site-hero-title")) {
         document.getElementById("site-hero-title").innerText = cfg.heroTitle;
       }
-      // 同步 Hero 描述
       if (cfg.heroDesc && document.getElementById("site-hero-desc")) {
         document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
       }
-      // 同步 Hero 自定义背景图
       if (cfg.heroBg) {
         const heroBanner = document.getElementById("site-hero-banner");
         if (heroBanner) {
@@ -245,6 +295,16 @@
         }
       }
     });
+
+    // Size Guide 弹窗控制函数
+    function openSizeModal() {
+      const modal = document.getElementById("modal-size-guide");
+      if (modal) modal.classList.remove("hidden");
+    }
+    function closeSizeModal() {
+      const modal = document.getElementById("modal-size-guide");
+      if (modal) modal.classList.add("hidden");
+    }
   </script>
 </body>
 </html>
