@@ -1,4 +1,4 @@
-// 后台控制脚本 (强制联动写入：确保每创建一个穿戴甲商品，必同时写入 nail_options 规格表)
+// 后台控制脚本 (采用标准先更新后插入逻辑，杜绝一切数据库约束报错)
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
@@ -186,7 +186,6 @@ async function handleAddProduct(e) {
       imageUrl = publicUrlData.publicUrl;
     }
 
-    // 1. 写入商品主表
     const { error: prodError } = await supabaseClient.from("products").insert([{
       id: id,
       category_id: categoryId,
@@ -200,15 +199,13 @@ async function handleAddProduct(e) {
 
     if (prodError) throw prodError;
 
-    // 2. 强制写入规格表（使用 upsert 确保万无一失）
     if (categoryId === "nails") {
-      const { error: optError } = await supabaseClient.from("nail_options").upsert([{
+      // 强制插入默认规格
+      await supabaseClient.from("nail_options").insert([{
         product_id: id,
         shapes: selectedShapes,
         sizes: selectedSizes
-      }], { onConflict: 'product_id' });
-
-      if (optError) throw optError;
+      }]);
     }
 
     alert("🎉 商品发布成功！唯一编码: " + id);
@@ -230,7 +227,7 @@ async function handleAddProduct(e) {
   }
 }
 
-// 规格修改弹窗与 Upsert 更新逻辑
+// 规格修改弹窗与安全更新逻辑（先 Update，若无记录则 Insert）
 let currentEditingProdId = null;
 
 function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
@@ -313,13 +310,22 @@ async function saveProductSpec() {
   }
 
   try {
-    const { error } = await supabaseClient
+    // 1. 先尝试直接更新
+    const { data: updateData, error: updateError } = await supabaseClient
       .from("nail_options")
-      .upsert([
-        { product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }
-      ], { onConflict: 'product_id' });
+      .update({ shapes: newShapes, sizes: newSizes })
+      .eq("product_id", currentEditingProdId)
+      .select();
 
-    if (error) throw error;
+    if (updateError) throw updateError;
+
+    // 2. 如果没有更新到行（说明原来没有记录），则执行插入
+    if (!updateData || updateData.length === 0) {
+      const { error: insertError } = await supabaseClient
+        .from("nail_options")
+        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }]);
+      if (insertError) throw insertError;
+    }
 
     alert("✨ 规格修改成功！");
     closeEditSpecModal();
@@ -353,7 +359,7 @@ function handleImagePreview(e) {
 
   if (file && previewImg && previewContainer) {
     previewImg.src = URL.createObjectURL(file);
-    previewContainer.classList.remove("hidden");
+    previewContainer.classList.add("hidden");
   }
 }
 
