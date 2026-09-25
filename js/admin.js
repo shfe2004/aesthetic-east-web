@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const categorySelect = document.getElementById("prod-category");
   const nailSection = document.getElementById("nail-options-section");
   const imageInput = document.getElementById("prod-image-file");
+  const heroBgInput = document.getElementById("cfg-hero-bg-file");
 
   if (categorySelect) {
     categorySelect.addEventListener("change", (e) => {
@@ -20,6 +21,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (imageInput) {
     imageInput.addEventListener("change", handleImagePreview);
+  }
+
+  if (heroBgInput) {
+    heroBgInput.addEventListener("change", handleHeroBgPreview);
   }
 
   const addForm = document.getElementById("add-product-form");
@@ -200,7 +205,6 @@ async function handleAddProduct(e) {
     if (prodError) throw prodError;
 
     if (categoryId === "nails") {
-      // 强制插入默认规格
       await supabaseClient.from("nail_options").insert([{
         product_id: id,
         shapes: selectedShapes,
@@ -227,7 +231,7 @@ async function handleAddProduct(e) {
   }
 }
 
-// 规格修改弹窗与安全更新逻辑（先 Update，若无记录则 Insert）
+// 规格修改弹窗与安全更新逻辑
 let currentEditingProdId = null;
 
 function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
@@ -310,7 +314,6 @@ async function saveProductSpec() {
   }
 
   try {
-    // 1. 先尝试直接更新
     const { data: updateData, error: updateError } = await supabaseClient
       .from("nail_options")
       .update({ shapes: newShapes, sizes: newSizes })
@@ -319,7 +322,6 @@ async function saveProductSpec() {
 
     if (updateError) throw updateError;
 
-    // 2. 如果没有更新到行（说明原来没有记录），则执行插入
     if (!updateData || updateData.length === 0) {
       const { error: insertError } = await supabaseClient
         .from("nail_options")
@@ -352,6 +354,7 @@ function compressImage(file) {
   });
 }
 
+// 已修复：商品图片实时预览
 function handleImagePreview(e) {
   const file = e.target.files[0];
   const previewImg = document.getElementById("image-preview");
@@ -359,7 +362,19 @@ function handleImagePreview(e) {
 
   if (file && previewImg && previewContainer) {
     previewImg.src = URL.createObjectURL(file);
-    previewContainer.classList.add("hidden");
+    previewContainer.classList.remove("hidden"); // 修复：移除 hidden 显示预览
+  }
+}
+
+// 新增：Hero 背景图实时预览
+function handleHeroBgPreview(e) {
+  const file = e.target.files[0];
+  const previewImg = document.getElementById("cfg-hero-bg-preview");
+  const previewContainer = document.getElementById("cfg-hero-bg-preview-container");
+
+  if (file && previewImg && previewContainer) {
+    previewImg.src = URL.createObjectURL(file);
+    previewContainer.classList.remove("hidden");
   }
 }
 
@@ -370,6 +385,7 @@ async function deleteProduct(productId) {
   generateSmartId();
 }
 
+// 加载站点配置与回显
 function loadSiteSettings() {
   const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
   if (cfg.logo && document.getElementById("cfg-site-logo")) {
@@ -384,16 +400,61 @@ function loadSiteSettings() {
   if (cfg.heroDesc && document.getElementById("cfg-hero-desc")) {
     document.getElementById("cfg-hero-desc").value = cfg.heroDesc;
   }
+  if (cfg.heroBg && document.getElementById("cfg-hero-bg-preview")) {
+    const prev = document.getElementById("cfg-hero-bg-preview");
+    const container = document.getElementById("cfg-hero-bg-preview-container");
+    prev.src = cfg.heroBg;
+    container.classList.remove("hidden");
+  }
 }
 
-function handleSaveSettings(e) {
+// 保存站点配置并上传自定义 Hero 背景图
+async function handleSaveSettings(e) {
   e.preventDefault();
-  const cfg = {
-    logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
-    banner: document.getElementById("cfg-banner-text") ? document.getElementById("cfg-banner-text").value : "",
-    heroTitle: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
-    heroDesc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
-  };
-  localStorage.setItem("site_settings", JSON.stringify(cfg));
-  alert("✨ 站点文案已保存，刷新前台即可生效！");
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+
+  try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = "正在保存配置...";
+    }
+
+    const fileInput = document.getElementById("cfg-hero-bg-file");
+    let heroBgUrl = JSON.parse(localStorage.getItem("site_settings") || "{}").heroBg || "";
+
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const compressedBlob = await compressImage(fileInput.files[0]);
+      const fileName = `hero_banner_${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from("product-media")
+        .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
+
+      if (uploadError) throw new Error("Hero 背景图上传失败: " + uploadError.message);
+
+      const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
+      heroBgUrl = publicUrlData.publicUrl;
+    }
+
+    const cfg = {
+      logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
+      banner: document.getElementById("cfg-banner-text") ? document.getElementById("cfg-banner-text").value : "",
+      heroTitle: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
+      heroDesc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
+      heroBg: heroBgUrl
+    };
+
+    localStorage.setItem("site_settings", JSON.stringify(cfg));
+    alert("✨ 站点文案与背景配置已保存，刷新前台即可完美生效！");
+    loadSiteSettings();
+
+  } catch (err) {
+    console.error("保存设置出错:", err);
+    alert("保存失败: " + err.message);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = "保存站点配置";
+    }
+  }
 }

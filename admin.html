@@ -43,6 +43,16 @@
             <input type="text" id="cfg-hero-desc" placeholder="Bringing oriental craftsmanship and pop art into modern American homes." class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
         </div>
+
+        <!-- 新增：Hero 背景图上传与预览 -->
+        <div class="space-y-2 pt-2 border-t border-gray-100">
+          <label class="block text-sm font-medium text-gray-700">Hero 顶部横幅背景图 (自定义上传)</label>
+          <input type="file" id="cfg-hero-bg-file" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
+          <div id="cfg-hero-bg-preview-container" class="mt-2 hidden">
+            <img id="cfg-hero-bg-preview" src="" class="w-full h-32 object-cover rounded-lg border shadow-sm">
+          </div>
+        </div>
+
         <button type="submit" class="bg-stone-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-stone-800 transition">
           保存站点配置
         </button>
