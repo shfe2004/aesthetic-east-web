@@ -81,6 +81,12 @@ const ADMIN_I18N = {
     hasCustomChart: "Includes custom size chart",
     usesStandardChart: "Size chart: using industry standard",
     editSpecBtn: "Edit Options",
+    editInfoBtn: "Edit Info",
+    editInfoModalTitlePrefix: "Edit Product Info - ",
+    currentImageLabel: "Current Main Image",
+    replaceImageLabel: "Replace with a new image (optional)",
+    infoSaveSuccess: "✨ Product info updated successfully!",
+    alertNeedTitle: "⚠️ Title cannot be empty!",
     noDimSet: "Dimensions not set",
     editDimBtn: "Edit Dimensions",
     deleteBtn: "Delete",
@@ -193,6 +199,12 @@ const ADMIN_I18N = {
     hasCustomChart: "含自定义尺码对照表",
     usesStandardChart: "尺码对照表：使用行业标准",
     editSpecBtn: "修改规格",
+    editInfoBtn: "编辑信息",
+    editInfoModalTitlePrefix: "编辑商品信息 - ",
+    currentImageLabel: "当前主图",
+    replaceImageLabel: "替换为新图片（可选，不选则保留原图）",
+    infoSaveSuccess: "✨ 商品信息修改成功！",
+    alertNeedTitle: "⚠️ 标题不能为空！",
     noDimSet: "未设置尺寸",
     editDimBtn: "修改尺寸",
     deleteBtn: "删除",
@@ -266,7 +278,7 @@ function toggleAdminLanguage() {
   loadAdminOrders();
   // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
   // 下次点开时会用当前语言重新生成，不会停留在切换前的语言上。
-  ["modal-edit-spec", "modal-edit-dimensions", "modal-order-items"].forEach(id => {
+  ["modal-edit-spec", "modal-edit-dimensions", "modal-order-items", "modal-edit-info"].forEach(id => {
     document.getElementById(id)?.remove();
   });
 }
@@ -438,11 +450,18 @@ async function loadAdminProducts() {
           </td>
           <td class="p-3 font-mono text-xs text-amber-900 font-bold">${item.id}</td>
           <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">${item.category_id}</span></td>
-          <td class="p-3 font-medium text-gray-900">${item.title_en}</td>
+          <td class="p-3 font-medium text-gray-900">
+            <div>${item.title_en || ''}</div>
+            ${item.subtitle_en ? `<div class="text-[11px] text-gray-400 font-normal">${item.subtitle_en}</div>` : ''}
+            <div class="mt-1 text-[11px]"><span class="px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">${item.tag_key || 'New'}</span></div>
+          </td>
           <td class="p-3 text-xs text-gray-600">${specContent}</td>
           <td class="p-3 text-amber-800 font-bold">$${parseFloat(item.price).toFixed(2)}</td>
-          <td class="p-3">
-            <button onclick="deleteProduct('${item.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">${t('deleteBtn')}</button>
+          <td class="p-3 space-y-1">
+            <button onclick="openEditProductModal('${item.id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(item.subtitle_en || '')}', ${parseFloat(item.price) || 0}, '${encodeURIComponent(item.tag_key || '')}', '${encodeURIComponent(item.spin_image || '')}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
+              <i class="fa-solid fa-pen-to-square"></i> ${t('editInfoBtn')}
+            </button>
+            <button onclick="deleteProduct('${item.id}')" class="block text-red-600 hover:text-red-800 text-xs font-semibold">${t('deleteBtn')}</button>
           </td>
         </tr>
       `;
@@ -713,6 +732,153 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
 
 function closeEditSpecModal() {
   document.getElementById("modal-edit-spec")?.classList.add("hidden");
+}
+
+// --- 修改商品基础信息弹窗（标题/副标题/价格/标签/主图）：商品发布后唯一能改这几项的地方 ---
+let currentEditingInfoId = null;
+let currentEditingInfoImage = "";
+let editInfoNewImageFile = null;
+
+function openEditProductModal(prodId, titleEncoded, subtitleEncoded, price, tagKeyEncoded, imageEncoded) {
+  currentEditingInfoId = prodId;
+  currentEditingInfoImage = imageEncoded ? decodeURIComponent(imageEncoded) : "";
+  editInfoNewImageFile = null;
+
+  const titleEn = titleEncoded ? decodeURIComponent(titleEncoded) : "";
+  const subtitleEn = subtitleEncoded ? decodeURIComponent(subtitleEncoded) : "";
+  const tagKey = tagKeyEncoded ? decodeURIComponent(tagKeyEncoded) : "";
+
+  let modal = document.getElementById("modal-edit-info");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal-edit-info";
+    modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4";
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-base font-bold text-gray-900">${t('editInfoModalTitlePrefix')}<span id="edit-info-prod-id" class="text-stone-700 font-mono"></span></h3>
+          <button onclick="closeEditProductModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('titleLabel')}</label>
+            <input type="text" id="edit-info-title" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('subtitleLabel')}</label>
+            <input type="text" id="edit-info-subtitle" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">${t('priceLabel')}</label>
+              <input type="number" step="0.01" id="edit-info-price" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">${t('tagLabel')}</label>
+              <input type="text" id="edit-info-tag" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('currentImageLabel')}</label>
+            <img id="edit-info-current-image" src="" class="w-20 h-20 object-cover rounded-lg border mb-2">
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('replaceImageLabel')}</label>
+            <input type="file" id="edit-info-image-file" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-3 border-t">
+          <button onclick="closeEditProductModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">${t('cancelBtn')}</button>
+          <button onclick="saveProductInfo()" id="edit-info-save-btn" class="px-5 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white shadow-sm">${t('saveChangesBtn')}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById("edit-info-image-file").addEventListener("change", (e) => {
+      editInfoNewImageFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+      if (editInfoNewImageFile) {
+        document.getElementById("edit-info-current-image").src = URL.createObjectURL(editInfoNewImageFile);
+      }
+    });
+  }
+
+  document.getElementById("edit-info-prod-id").innerText = prodId;
+  document.getElementById("edit-info-title").value = titleEn;
+  document.getElementById("edit-info-subtitle").value = subtitleEn;
+  document.getElementById("edit-info-price").value = price || 0;
+  document.getElementById("edit-info-tag").value = tagKey;
+  document.getElementById("edit-info-current-image").src = currentEditingInfoImage || "https://via.placeholder.com/80";
+  const fileInput = document.getElementById("edit-info-image-file");
+  if (fileInput) fileInput.value = "";
+
+  modal.classList.remove("hidden");
+}
+
+function closeEditProductModal() {
+  document.getElementById("modal-edit-info")?.classList.add("hidden");
+}
+
+async function saveProductInfo() {
+  if (!currentEditingInfoId) return;
+
+  const titleEn = document.getElementById("edit-info-title").value.trim();
+  const subtitleEn = document.getElementById("edit-info-subtitle").value.trim();
+  const price = parseFloat(document.getElementById("edit-info-price").value);
+  const tagKey = document.getElementById("edit-info-tag").value.trim() || "New";
+  const saveBtn = document.getElementById("edit-info-save-btn");
+
+  if (!titleEn) {
+    alert(t('alertNeedTitle'));
+    return;
+  }
+
+  try {
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerText = t('savingConfigBtn');
+    }
+
+    let imageUrl = currentEditingInfoImage;
+
+    // 只有选了新图片才重新上传替换主图，不选就保留原来的图
+    if (editInfoNewImageFile) {
+      const compressedBlob = await compressImage(editInfoNewImageFile);
+      const fileName = `${Date.now()}_${currentEditingInfoId}_edit.jpg`;
+      const { error: uploadError } = await supabaseClient.storage
+        .from("product-media")
+        .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
+      if (uploadError) throw new Error(t('imageUploadFailed') + uploadError.message);
+      const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    const updatePayload = {
+      title_en: titleEn,
+      subtitle_en: subtitleEn,
+      price: isNaN(price) ? 0 : price,
+      tag_key: tagKey
+    };
+    // 只有原来就有图或者这次选了新图才更新 spin_image，避免把已有主图误清空成空字符串
+    if (imageUrl) updatePayload.spin_image = imageUrl;
+
+    const { error } = await supabaseClient
+      .from("products")
+      .update(updatePayload)
+      .eq("id", currentEditingInfoId);
+
+    if (error) throw error;
+
+    alert(t('infoSaveSuccess'));
+    closeEditProductModal();
+    loadAdminProducts();
+
+  } catch (err) {
+    console.error("保存商品信息失败:", err);
+    alert(t('updateFailed') + err.message);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerText = t('saveChangesBtn');
+    }
+  }
 }
 
 // --- 立牌 / 古董家具：修改物理尺寸弹窗 ---
