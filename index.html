@@ -414,31 +414,9 @@
       updateLanguageUI();
     }
 
-    // 页面加载完成后初始化语言与后台基础设置
+    // 页面加载完成后初始化中英文切换（品牌名/横幅/Hero 文案现在由 js/app.js 从 Supabase 云端读取，不再用 localStorage）
     document.addEventListener("DOMContentLoaded", () => {
       updateLanguageUI();
-
-      const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
-      if (cfg.logo && document.getElementById("site-logo-text")) {
-        document.getElementById("site-logo-text").innerText = cfg.logo;
-      }
-      if (cfg.banner && document.getElementById("site-banner-text")) {
-        document.getElementById("site-banner-text").innerText = cfg.banner;
-      }
-      if (cfg.heroTitle && document.getElementById("site-hero-title")) {
-        document.getElementById("site-hero-title").innerText = cfg.heroTitle;
-      }
-      if (cfg.heroDesc && document.getElementById("site-hero-desc")) {
-        document.getElementById("site-hero-desc").innerText = cfg.heroDesc;
-      }
-      if (cfg.heroBg) {
-        const heroBanner = document.getElementById("site-hero-banner");
-        if (heroBanner) {
-          heroBanner.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${cfg.heroBg}')`;
-          heroBanner.style.backgroundSize = 'cover';
-          heroBanner.style.backgroundPosition = 'center';
-        }
-      }
     });
   </script>
 </body>

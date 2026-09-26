@@ -8,6 +8,43 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen p-4 md:p-8">
+
+  <!-- 临时密码墙：仅用于挡住随手点进来的路人，防不住懂开发者工具的人。
+       正式方案请尽快换成 Supabase Auth 登录（见与 Claude 的讨论）。 -->
+  <div id="admin-lock-screen" class="fixed inset-0 bg-gray-900/95 z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-xs space-y-4 shadow-2xl">
+      <h2 class="text-lg font-bold text-gray-900">管理后台</h2>
+      <p class="text-xs text-gray-400">请输入密码进入。此为临时保护，请勿在他人面前打开本页面。</p>
+      <input type="password" id="admin-lock-input" placeholder="输入密码" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none" autofocus>
+      <button id="admin-lock-btn" type="button" class="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-stone-800">进入后台</button>
+      <p id="admin-lock-error" class="text-xs text-red-500 hidden">密码错误，请重试。</p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      // TODO: 改成你自己的密码。这段代码所有人都能在浏览器"查看网页源代码"里看到，
+      // 只是挡一挡随手点进来的路人，不是真正的安全措施。
+      var ADMIN_PASSWORD = "请改成你自己的密码";
+      var lock = document.getElementById("admin-lock-screen");
+      if (sessionStorage.getItem("admin_unlocked") === "yes") {
+        lock.style.display = "none";
+      }
+      function tryUnlock() {
+        var val = document.getElementById("admin-lock-input").value;
+        if (val === ADMIN_PASSWORD) {
+          sessionStorage.setItem("admin_unlocked", "yes");
+          lock.style.display = "none";
+        } else {
+          document.getElementById("admin-lock-error").classList.remove("hidden");
+        }
+      }
+      document.getElementById("admin-lock-btn").addEventListener("click", tryUnlock);
+      document.getElementById("admin-lock-input").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") tryUnlock();
+      });
+    })();
+  </script>
+
   <div class="max-w-5xl mx-auto space-y-8">
 
     <!-- 顶部导航 -->

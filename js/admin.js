@@ -385,26 +385,38 @@ async function deleteProduct(productId) {
   generateSmartId();
 }
 
-// 加载站点配置与回显
-function loadSiteSettings() {
-  const cfg = JSON.parse(localStorage.getItem("site_settings") || "{}");
-  if (cfg.logo && document.getElementById("cfg-site-logo")) {
-    document.getElementById("cfg-site-logo").value = cfg.logo;
-  }
-  if (cfg.banner && document.getElementById("cfg-banner-text")) {
-    document.getElementById("cfg-banner-text").value = cfg.banner;
-  }
-  if (cfg.heroTitle && document.getElementById("cfg-hero-title")) {
-    document.getElementById("cfg-hero-title").value = cfg.heroTitle;
-  }
-  if (cfg.heroDesc && document.getElementById("cfg-hero-desc")) {
-    document.getElementById("cfg-hero-desc").value = cfg.heroDesc;
-  }
-  if (cfg.heroBg && document.getElementById("cfg-hero-bg-preview")) {
-    const prev = document.getElementById("cfg-hero-bg-preview");
-    const container = document.getElementById("cfg-hero-bg-preview-container");
-    prev.src = cfg.heroBg;
-    container.classList.remove("hidden");
+// 加载站点配置与回显（改为从 Supabase 的 site_settings 表读取，不再用只存在本机的 localStorage）
+async function loadSiteSettings() {
+  try {
+    const { data: cfg, error } = await supabaseClient
+      .from("site_settings")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    if (error) throw error;
+    if (!cfg) return;
+
+    if (cfg.logo && document.getElementById("cfg-site-logo")) {
+      document.getElementById("cfg-site-logo").value = cfg.logo;
+    }
+    if (cfg.banner && document.getElementById("cfg-banner-text")) {
+      document.getElementById("cfg-banner-text").value = cfg.banner;
+    }
+    if (cfg.hero_title && document.getElementById("cfg-hero-title")) {
+      document.getElementById("cfg-hero-title").value = cfg.hero_title;
+    }
+    if (cfg.hero_desc && document.getElementById("cfg-hero-desc")) {
+      document.getElementById("cfg-hero-desc").value = cfg.hero_desc;
+    }
+    if (cfg.hero_bg && document.getElementById("cfg-hero-bg-preview")) {
+      const prev = document.getElementById("cfg-hero-bg-preview");
+      const container = document.getElementById("cfg-hero-bg-preview-container");
+      prev.src = cfg.hero_bg;
+      container.classList.remove("hidden");
+    }
+  } catch (err) {
+    console.error("加载站点配置失败:", err);
   }
 }
 
@@ -420,7 +432,13 @@ async function handleSaveSettings(e) {
     }
 
     const fileInput = document.getElementById("cfg-hero-bg-file");
-    let heroBgUrl = JSON.parse(localStorage.getItem("site_settings") || "{}").heroBg || "";
+
+    // 先取云端现有的背景图地址，避免没有重新上传图片时把已有背景图清空
+    let heroBgUrl = "";
+    try {
+      const { data: existing } = await supabaseClient.from("site_settings").select("hero_bg").eq("id", 1).single();
+      if (existing && existing.hero_bg) heroBgUrl = existing.hero_bg;
+    } catch (e) { /* 表可能还没有数据，忽略 */ }
 
     if (fileInput && fileInput.files && fileInput.files[0]) {
       const compressedBlob = await compressImage(fileInput.files[0]);
@@ -437,16 +455,20 @@ async function handleSaveSettings(e) {
     }
 
     const cfg = {
+      id: 1,
       logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
       banner: document.getElementById("cfg-banner-text") ? document.getElementById("cfg-banner-text").value : "",
-      heroTitle: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
-      heroDesc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
-      heroBg: heroBgUrl
+      hero_title: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
+      hero_desc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
+      hero_bg: heroBgUrl
     };
 
-    localStorage.setItem("site_settings", JSON.stringify(cfg));
-    alert("✨ 站点文案与背景配置已保存，刷新前台即可完美生效！");
-    loadSiteSettings();
+    // 写入 Supabase 的 site_settings 表（单行 id=1），所有访客都会看到这份配置
+    const { error: saveError } = await supabaseClient.from("site_settings").upsert(cfg);
+    if (saveError) throw saveError;
+
+    alert("✨ 站点文案与背景配置已保存到云端，刷新前台即可对所有访客生效！");
+    await loadSiteSettings();
 
   } catch (err) {
     console.error("保存设置出错:", err);
