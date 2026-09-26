@@ -7,13 +7,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const categorySelect = document.getElementById("prod-category");
   const nailSection = document.getElementById("nail-options-section");
+  const dimensionsSection = document.getElementById("dimensions-section");
   const imageInput = document.getElementById("prod-image-file");
   const heroBgInput = document.getElementById("cfg-hero-bg-file");
 
   if (categorySelect) {
     categorySelect.addEventListener("change", (e) => {
+      const isNails = e.target.value === "nails";
       if (nailSection) {
-        nailSection.style.display = e.target.value === "nails" ? "block" : "none";
+        nailSection.style.display = isNails ? "block" : "none";
+      }
+      if (dimensionsSection) {
+        dimensionsSection.style.display = isNails ? "none" : "block";
       }
       generateSmartId();
     });
@@ -37,6 +42,19 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsForm.addEventListener("submit", handleSaveSettings);
   }
 });
+
+// 毫米(mm) -> 英寸(in) 实时换算预览，输入长/宽/高时触发
+function syncInches() {
+  const l = parseFloat(document.getElementById("prod-length")?.value) || 0;
+  const w = parseFloat(document.getElementById("prod-width")?.value) || 0;
+  const h = parseFloat(document.getElementById("prod-height")?.value) || 0;
+  const lEl = document.getElementById("length-inch");
+  const wEl = document.getElementById("width-inch");
+  const hEl = document.getElementById("height-inch");
+  if (lEl) lEl.innerText = (l / 25.4).toFixed(2);
+  if (wEl) wEl.innerText = (w / 25.4).toFixed(2);
+  if (hEl) hEl.innerText = (h / 25.4).toFixed(2);
+}
 
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
@@ -101,7 +119,21 @@ async function loadAdminProducts() {
                <i class="fa-solid fa-pen-to-square"></i> 修改规格
              </button>
            </div>`
-        : '无';
+        : (() => {
+            const l = parseFloat(item.length || 0);
+            const w = parseFloat(item.width || 0);
+            const h = parseFloat(item.height || 0);
+            const hasDim = l > 0 || w > 0 || h > 0;
+            const dimText = hasDim
+              ? `${l} × ${w} × ${h} mm`
+              : `<span class='text-red-500 font-bold'>未设置尺寸</span>`;
+            return `<div class="space-y-1">
+                 <div><b>L×W×H:</b> ${dimText}</div>
+                 <button onclick="openEditDimensionsModal('${item.id}', ${l}, ${w}, ${h})" class="mt-1 px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded text-xs font-bold border border-blue-300 shadow-sm">
+                   <i class="fa-solid fa-ruler-combined"></i> 修改尺寸
+                 </button>
+               </div>`;
+          })();
 
       return `
         <tr class="border-b hover:bg-gray-50">
@@ -153,6 +185,11 @@ async function handleAddProduct(e) {
     const tagKey = document.getElementById("prod-tag-key").value.trim() || "New";
     const fileInput = document.getElementById("prod-image-file");
 
+    // 立牌 / 古董家具的物理尺寸（穿戴甲不需要，留 0 即可）
+    const length = parseFloat(document.getElementById("prod-length")?.value) || 0;
+    const width = parseFloat(document.getElementById("prod-width")?.value) || 0;
+    const height = parseFloat(document.getElementById("prod-height")?.value) || 0;
+
     let selectedShapes = [];
     let selectedSizes = [];
 
@@ -199,7 +236,10 @@ async function handleAddProduct(e) {
       price: price,
       tag_key: tagKey,
       tag_class: "bg-amber-800 text-white",
-      spin_image: imageUrl
+      spin_image: imageUrl,
+      length: length,
+      width: width,
+      height: height
     }]);
 
     if (prodError) throw prodError;
@@ -214,6 +254,7 @@ async function handleAddProduct(e) {
 
     alert("🎉 商品发布成功！唯一编码: " + id);
     document.getElementById("add-product-form").reset();
+    syncInches();
     const previewContainer = document.getElementById("image-preview-container");
     if (previewContainer) previewContainer.classList.add("hidden");
 
@@ -300,6 +341,83 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
 
 function closeEditSpecModal() {
   document.getElementById("modal-edit-spec")?.classList.add("hidden");
+}
+
+// --- 立牌 / 古董家具：修改物理尺寸弹窗 ---
+let currentEditingDimId = null;
+
+function openEditDimensionsModal(prodId, length, width, height) {
+  currentEditingDimId = prodId;
+
+  let modal = document.getElementById("modal-edit-dimensions");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal-edit-dimensions";
+    modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4";
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-base font-bold text-gray-900">修改尺寸 - <span id="edit-dim-prod-id" class="text-blue-800 font-mono"></span></h3>
+          <button onclick="closeEditDimensionsModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">长度 (mm)</label>
+            <input type="number" step="0.1" min="0" id="edit-dim-length" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">宽度 (mm)</label>
+            <input type="number" step="0.1" min="0" id="edit-dim-width" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">高度 (mm)</label>
+            <input type="number" step="0.1" min="0" id="edit-dim-height" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 pt-3 border-t">
+          <button onclick="closeEditDimensionsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">取消</button>
+          <button onclick="saveProductDimensions()" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-sm">保存修改</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById("edit-dim-prod-id").innerText = prodId;
+  document.getElementById("edit-dim-length").value = length || 0;
+  document.getElementById("edit-dim-width").value = width || 0;
+  document.getElementById("edit-dim-height").value = height || 0;
+
+  modal.classList.remove("hidden");
+}
+
+function closeEditDimensionsModal() {
+  document.getElementById("modal-edit-dimensions")?.classList.add("hidden");
+}
+
+async function saveProductDimensions() {
+  if (!currentEditingDimId) return;
+
+  const length = parseFloat(document.getElementById("edit-dim-length").value) || 0;
+  const width = parseFloat(document.getElementById("edit-dim-width").value) || 0;
+  const height = parseFloat(document.getElementById("edit-dim-height").value) || 0;
+
+  try {
+    const { error } = await supabaseClient
+      .from("products")
+      .update({ length, width, height })
+      .eq("id", currentEditingDimId);
+
+    if (error) throw error;
+
+    alert("✨ 尺寸修改成功！");
+    closeEditDimensionsModal();
+    loadAdminProducts();
+
+  } catch (err) {
+    console.error("保存尺寸失败:", err);
+    alert("更新失败: " + err.message);
+  }
 }
 
 async function saveProductSpec() {

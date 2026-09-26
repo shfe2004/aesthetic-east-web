@@ -24,7 +24,7 @@
     (function () {
       // TODO: 改成你自己的密码。这段代码所有人都能在浏览器"查看网页源代码"里看到，
       // 只是挡一挡随手点进来的路人，不是真正的安全措施。
-      var ADMIN_PASSWORD = "111111";
+      var ADMIN_PASSWORD = "请改成你自己的密码";
       var lock = document.getElementById("admin-lock-screen");
       if (sessionStorage.getItem("admin_unlocked") === "yes") {
         lock.style.display = "none";
@@ -160,6 +160,29 @@
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="L" class="size-checkbox" checked> L</label>
             </div>
           </div>
+        </div>
+
+        <!-- 立牌 / 古董家具专属配置：物理尺寸 (毫米输入，实时换算英寸预览) -->
+        <div id="dimensions-section" class="bg-blue-50/60 p-4 rounded-lg border border-blue-200/60 space-y-3" style="display:none;">
+          <p class="text-xs font-semibold text-blue-900 uppercase tracking-wider">物理尺寸配置（立牌 / 古董家具）</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">长度 Length (mm)</label>
+              <input type="number" step="0.1" min="0" id="prod-length" value="0" oninput="syncInches()" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+              <p class="text-[11px] text-gray-400 mt-1">≈ <span id="length-inch">0.00</span> in</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">宽度 Width (mm)</label>
+              <input type="number" step="0.1" min="0" id="prod-width" value="0" oninput="syncInches()" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+              <p class="text-[11px] text-gray-400 mt-1">≈ <span id="width-inch">0.00</span> in</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">高度 Height (mm)</label>
+              <input type="number" step="0.1" min="0" id="prod-height" value="0" oninput="syncInches()" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+              <p class="text-[11px] text-gray-400 mt-1">≈ <span id="height-inch">0.00</span> in</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-500">留 0 表示不显示"Size Guide"尺寸弹窗；至少填一项大于 0 的数值才会在前台显示尺寸对照。</p>
         </div>
 
         <!-- 图片上传区域 -->
