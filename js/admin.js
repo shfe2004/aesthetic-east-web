@@ -56,6 +56,26 @@ function syncInches() {
   if (hEl) hEl.innerText = (h / 25.4).toFixed(2);
 }
 
+// 从一批 .size-chart-input 输入框里收集非空的自定义尺码值，
+// 组装成 { XS: { thumb: 12.5, ... }, S: {...} } 这样的结构；留空的格子不会出现在结果里，
+// 前台会针对缺失的尺码/手指自动用行业标准值兜底。
+function collectSizeChartInputs(scopeSelector) {
+  const inputs = document.querySelectorAll(scopeSelector);
+  const chart = {};
+  inputs.forEach(inp => {
+    const val = inp.value.trim();
+    if (val === '') return;
+    const num = parseFloat(val);
+    if (isNaN(num)) return;
+    const size = inp.dataset.size;
+    const finger = inp.dataset.finger;
+    if (!size || !finger) return;
+    if (!chart[size]) chart[size] = {};
+    chart[size][finger] = num;
+  });
+  return chart;
+}
+
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
   const category = categorySelect ? categorySelect.value : "nails";
@@ -107,15 +127,18 @@ async function loadAdminProducts() {
 
       let shapesArr = robustParseSpec(nailOpt.shapes);
       let sizesArr = robustParseSpec(nailOpt.sizes);
+      let sizeChartObj = robustParseSizeChart(nailOpt.size_chart);
 
       const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : "<span class='text-red-500 font-bold'>未设置规格</span>";
       const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : "<span class='text-red-500 font-bold'>未设置规格</span>";
+      const hasCustomSizeChart = Object.keys(sizeChartObj).length > 0;
 
       const specContent = item.category_id === 'nails'
         ? `<div class="space-y-1">
              <div><b>Shapes:</b> ${shapesText}</div>
              <div><b>Sizes:</b> ${sizesText}</div>
-             <button onclick="openEditSpecModal('${item.id}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}')" class="mt-1 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-xs font-bold border border-amber-300 shadow-sm">
+             <div class="text-[11px] ${hasCustomSizeChart ? 'text-amber-700 font-semibold' : 'text-gray-400'}">${hasCustomSizeChart ? '含自定义尺码对照表' : '尺码对照表：使用行业标准'}</div>
+             <button onclick="openEditSpecModal('${item.id}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}', '${encodeURIComponent(JSON.stringify(sizeChartObj))}')" class="mt-1 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-xs font-bold border border-amber-300 shadow-sm">
                <i class="fa-solid fa-pen-to-square"></i> 修改规格
              </button>
            </div>`
@@ -172,6 +195,18 @@ function robustParseSpec(input) {
   return [];
 }
 
+function robustParseSizeChart(input) {
+  if (!input) return {};
+  if (typeof input === 'object') return input;
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch (e) {}
+  }
+  return {};
+}
+
 async function handleAddProduct(e) {
   e.preventDefault();
   const submitBtn = document.getElementById("submit-btn");
@@ -192,10 +227,12 @@ async function handleAddProduct(e) {
 
     let selectedShapes = [];
     let selectedSizes = [];
+    let sizeChart = {};
 
     if (categoryId === "nails") {
       selectedShapes = Array.from(document.querySelectorAll(".shape-checkbox:checked")).map(cb => cb.value);
       selectedSizes = Array.from(document.querySelectorAll(".size-checkbox:checked")).map(cb => cb.value);
+      sizeChart = collectSizeChartInputs("#nail-options-section .size-chart-input");
 
       if (selectedShapes.length === 0) {
         alert("⚠️ 请至少勾选 1 个甲型 (Shape)！");
@@ -248,7 +285,8 @@ async function handleAddProduct(e) {
       await supabaseClient.from("nail_options").insert([{
         product_id: id,
         shapes: selectedShapes,
-        sizes: selectedSizes
+        sizes: selectedSizes,
+        size_chart: Object.keys(sizeChart).length > 0 ? sizeChart : null
       }]);
     }
 
@@ -275,10 +313,19 @@ async function handleAddProduct(e) {
 // 规格修改弹窗与安全更新逻辑
 let currentEditingProdId = null;
 
-function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
+function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChartJsonEncoded) {
   currentEditingProdId = prodId;
   const shapes = JSON.parse(decodeURIComponent(shapesJsonEncoded));
   const sizes = JSON.parse(decodeURIComponent(sizesJsonEncoded));
+  const sizeChart = sizeChartJsonEncoded ? JSON.parse(decodeURIComponent(sizeChartJsonEncoded)) : {};
+
+  const SIZE_CHART_FINGERS = [
+    { key: 'thumb', label: '拇指' },
+    { key: 'index', label: '食指' },
+    { key: 'middle', label: '中指' },
+    { key: 'ring', label: '无名指' },
+    { key: 'pinky', label: '小指' }
+  ];
 
   let modal = document.getElementById("modal-edit-spec");
   if (!modal) {
@@ -286,7 +333,7 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
     modal.id = "modal-edit-spec";
     modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4";
     modal.innerHTML = `
-      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-5 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base font-bold text-gray-900">修改规格 - <span id="edit-spec-prod-id" class="text-amber-800 font-mono"></span></h3>
           <button onclick="closeEditSpecModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -316,6 +363,30 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
               `).join('')}
             </div>
           </div>
+
+          <div class="pt-2 border-t">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">自定义指围尺码对照表（可选，mm；留空用行业标准）:</label>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs border-collapse min-w-[420px]">
+                <thead>
+                  <tr class="text-gray-500">
+                    <th class="text-left py-1 pr-2 font-medium">尺码</th>
+                    ${SIZE_CHART_FINGERS.map(f => `<th class="text-center py-1 px-1 font-medium">${f.label}</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody id="edit-size-chart-body">
+                  ${["XS", "S", "M", "L"].map(sz => `
+                    <tr>
+                      <td class="py-1 pr-2 font-bold text-gray-700">${sz}</td>
+                      ${SIZE_CHART_FINGERS.map(f => `
+                        <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="edit-size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="${sz}" data-finger="${f.key}" placeholder="标准"></td>
+                      `).join('')}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div class="flex justify-end gap-3 pt-3 border-t">
@@ -334,6 +405,14 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded) {
   });
   document.querySelectorAll(".edit-size-cb").forEach(cb => {
     cb.checked = sizes.includes(cb.value);
+  });
+  document.querySelectorAll(".edit-size-chart-input").forEach(inp => {
+    const size = inp.dataset.size;
+    const finger = inp.dataset.finger;
+    const val = (sizeChart[size] && sizeChart[size][finger] !== undefined && sizeChart[size][finger] !== null)
+      ? sizeChart[size][finger]
+      : '';
+    inp.value = val;
   });
 
   modal.classList.remove("hidden");
@@ -425,6 +504,8 @@ async function saveProductSpec() {
 
   const newShapes = Array.from(document.querySelectorAll(".edit-shape-cb:checked")).map(cb => cb.value);
   const newSizes = Array.from(document.querySelectorAll(".edit-size-cb:checked")).map(cb => cb.value);
+  const newSizeChart = collectSizeChartInputs(".edit-size-chart-input");
+  const sizeChartToSave = Object.keys(newSizeChart).length > 0 ? newSizeChart : null;
 
   if (newShapes.length === 0 || newSizes.length === 0) {
     alert("⚠️ 必须至少勾选 1 个甲型和 1 个尺寸！");
@@ -434,7 +515,7 @@ async function saveProductSpec() {
   try {
     const { data: updateData, error: updateError } = await supabaseClient
       .from("nail_options")
-      .update({ shapes: newShapes, sizes: newSizes })
+      .update({ shapes: newShapes, sizes: newSizes, size_chart: sizeChartToSave })
       .eq("product_id", currentEditingProdId)
       .select();
 
@@ -443,7 +524,7 @@ async function saveProductSpec() {
     if (!updateData || updateData.length === 0) {
       const { error: insertError } = await supabaseClient
         .from("nail_options")
-        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes }]);
+        .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes, size_chart: sizeChartToSave }]);
       if (insertError) throw insertError;
     }
 
@@ -457,18 +538,41 @@ async function saveProductSpec() {
   }
 }
 
-function compressImage(file) {
-  return new Promise((resolve) => {
+// 压缩图片但保持原始宽高比例，不再强行拉伸/压扁成 800x800 正方形。
+// 之前的版本把任何比例的照片都硬塞进正方形画布，非正方形的原图会被拉变形；
+// 前台展示时用的是 object-cover 只负责裁剪，并不能把已经被拉伸的图片"拉回来"，
+// 所以变形是在这一步产生的。现在改成：按最长边缩放到 maxDim 以内，比例不变。
+function compressImage(file, maxDim = 1200, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
     const img = new Image();
-    img.src = URL.createObjectURL(file);
     img.onload = () => {
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) {
+          height = Math.round(height * (maxDim / width));
+          width = maxDim;
+        } else {
+          width = Math.round(width * (maxDim / height));
+          height = maxDim;
+        }
+      }
+
       const canvas = document.createElement("canvas");
-      canvas.width = 800;
-      canvas.height = 800;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, 800, 800);
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85);
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(objectUrl);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
     };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(err);
+    };
+    img.src = objectUrl;
   });
 }
 

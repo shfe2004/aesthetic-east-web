@@ -24,7 +24,7 @@
     (function () {
       // TODO: 改成你自己的密码。这段代码所有人都能在浏览器"查看网页源代码"里看到，
       // 只是挡一挡随手点进来的路人，不是真正的安全措施。
-      var ADMIN_PASSWORD = "111111";
+      var ADMIN_PASSWORD = "请改成你自己的密码";
       var lock = document.getElementById("admin-lock-screen");
       if (sessionStorage.getItem("admin_unlocked") === "yes") {
         lock.style.display = "none";
@@ -158,6 +158,58 @@
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="S" class="size-checkbox" checked> S</label>
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="M" class="size-checkbox" checked> M</label>
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="L" class="size-checkbox" checked> L</label>
+            </div>
+          </div>
+
+          <div class="pt-3 mt-1 border-t border-amber-200/60 space-y-2">
+            <label class="block text-xs font-medium text-gray-700">自定义指围尺码对照表（可选，单位 mm；留空的格子前台会显示行业标准参考值）</label>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs border-collapse min-w-[420px]">
+                <thead>
+                  <tr class="text-gray-500">
+                    <th class="text-left py-1 pr-2 font-medium">尺码</th>
+                    <th class="text-center py-1 px-1 font-medium">拇指</th>
+                    <th class="text-center py-1 px-1 font-medium">食指</th>
+                    <th class="text-center py-1 px-1 font-medium">中指</th>
+                    <th class="text-center py-1 px-1 font-medium">无名指</th>
+                    <th class="text-center py-1 px-1 font-medium">小指</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="py-1 pr-2 font-bold text-gray-700">XS</td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="thumb" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="index" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="middle" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="ring" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="pinky" placeholder="标准"></td>
+                  </tr>
+                  <tr>
+                    <td class="py-1 pr-2 font-bold text-gray-700">S</td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="thumb" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="index" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="middle" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="ring" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="pinky" placeholder="标准"></td>
+                  </tr>
+                  <tr>
+                    <td class="py-1 pr-2 font-bold text-gray-700">M</td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="thumb" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="index" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="middle" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="ring" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="pinky" placeholder="标准"></td>
+                  </tr>
+                  <tr>
+                    <td class="py-1 pr-2 font-bold text-gray-700">L</td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="thumb" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="index" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="middle" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="ring" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="pinky" placeholder="标准"></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
