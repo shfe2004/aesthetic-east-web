@@ -61,6 +61,9 @@ const ADMIN_I18N = {
     publishProductBtn: "Save & Publish Product",
     publishingBtn: "Publishing...",
     productListTitle: "Live Product List",
+    productSearchPlaceholder: "Search by ID or name...",
+    productCountLabel: "{n} products total",
+    noMatchingProducts: "No products match your search.",
     thImage: "Image",
     thCategory: "Category",
     thName: "Name",
@@ -89,6 +92,9 @@ const ADMIN_I18N = {
     loadingLogs: "Loading logs...",
     noLogs: "No activity logged yet.",
     loadLogsFailed: "Failed to load activity log — please confirm you've run create_admin_activity_log.sql in Supabase.",
+    expandLogBtn: "Show full log ▾",
+    collapseLogBtn: "Collapse ▴",
+    activityLogLatestPrefix: "Latest: ",
     logEventLogin: "Signed in",
     logEventLogout: "Signed out",
     logEventProductCreate: "Product created",
@@ -200,6 +206,9 @@ const ADMIN_I18N = {
     publishProductBtn: "保存并发布商品",
     publishingBtn: "正在发布商品...",
     productListTitle: "在线商品管理列表",
+    productSearchPlaceholder: "按 ID 或名称搜索...",
+    productCountLabel: "共 {n} 件商品",
+    noMatchingProducts: "没有匹配的商品。",
     thImage: "主图",
     thCategory: "分类",
     thName: "名称",
@@ -228,6 +237,9 @@ const ADMIN_I18N = {
     loadingLogs: "正在加载日志...",
     noLogs: "暂无操作记录。",
     loadLogsFailed: "加载操作日志失败，请确认已在 Supabase 里运行过 create_admin_activity_log.sql。",
+    expandLogBtn: "展开完整日志 ▾",
+    collapseLogBtn: "收起 ▴",
+    activityLogLatestPrefix: "最新一条：",
     logEventLogin: "登录",
     logEventLogout: "退出登录",
     logEventProductCreate: "新增商品",
@@ -317,7 +329,7 @@ function toggleAdminLanguage() {
   localStorage.setItem("site_lang", currentAdminLang);
   applyAdminI18n();
   if (isAdminAuthenticated) {
-    loadAdminProducts();
+    loadAdminProducts().then(filterAdminProducts); // 重新拉取后按当前搜索框内容重新过滤一次，避免语言切换把筛选结果清空
     loadAdminOrders();
     loadAdminActivityLog();
   }
@@ -445,6 +457,31 @@ const ADMIN_LOG_EVENT_LABEL_KEYS = {
 
 let lastLoadedActivityLog = [];
 
+// 默认只显示最新一条摘要（折叠态），避免日志越攒越多把整个后台页面撑得很长；
+// 点"展开完整日志"才切换到下面固定高度、可滚动的完整表格（见 toggleActivityLogView）。
+function renderActivityLogSummary(logs) {
+  const summaryEl = document.getElementById("admin-activity-log-latest");
+  if (!summaryEl) return;
+  if (!logs || logs.length === 0) {
+    summaryEl.textContent = t('noLogs');
+    return;
+  }
+  const latest = logs[0];
+  const timeStr = latest.created_at ? new Date(latest.created_at).toLocaleString() : '';
+  const labelKey = ADMIN_LOG_EVENT_LABEL_KEYS[latest.event_type];
+  const eventLabel = labelKey ? t(labelKey) : latest.event_type;
+  summaryEl.textContent = `${t('activityLogLatestPrefix')}${timeStr} · ${latest.actor_email || ''} · ${eventLabel}${latest.detail ? ' · ' + latest.detail : ''}`;
+}
+
+function toggleActivityLogView() {
+  const fullView = document.getElementById("admin-activity-log-full");
+  const summaryView = document.getElementById("admin-activity-log-summary");
+  if (!fullView || !summaryView) return;
+  const isCurrentlyCollapsed = fullView.classList.contains("hidden");
+  fullView.classList.toggle("hidden", !isCurrentlyCollapsed);
+  summaryView.classList.toggle("hidden", isCurrentlyCollapsed);
+}
+
 async function loadAdminActivityLog() {
   const tbody = document.getElementById("admin-activity-log-list");
   if (!tbody) return;
@@ -458,6 +495,7 @@ async function loadAdminActivityLog() {
 
     if (error) throw error;
     lastLoadedActivityLog = logs || [];
+    renderActivityLogSummary(lastLoadedActivityLog);
 
     if (!logs || logs.length === 0) {
       tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">${t('noLogs')}</td></tr>`;
@@ -481,6 +519,8 @@ async function loadAdminActivityLog() {
   } catch (err) {
     console.error('加载操作日志失败:', err);
     tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">${t('loadLogsFailed')}</td></tr>`;
+    const summaryEl = document.getElementById("admin-activity-log-latest");
+    if (summaryEl) summaryEl.textContent = t('loadLogsFailed');
   }
 }
 
@@ -553,6 +593,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (imageInput) {
     imageInput.addEventListener("change", handleImagePreview);
+  }
+
+  const productSearchInput = document.getElementById("admin-product-search");
+  if (productSearchInput) {
+    productSearchInput.addEventListener("input", filterAdminProducts);
   }
 
   if (heroBgInput) {
@@ -632,6 +677,10 @@ async function generateSmartId() {
   }
 }
 
+// 商品全量数据缓存在内存里，搜索框筛选时直接在这份数据上过滤重新渲染，
+// 不用每次都重新请求数据库。
+let lastLoadedProducts = [];
+
 async function loadAdminProducts() {
   const tbody = document.getElementById("admin-product-list");
   if (!tbody) return;
@@ -644,8 +693,48 @@ async function loadAdminProducts() {
 
     if (error) throw error;
 
+    lastLoadedProducts = products || [];
+    updateProductCountLabel(lastLoadedProducts.length);
+    renderProductRows(lastLoadedProducts);
+
+  } catch (err) {
+    console.error("加载商品失败:", err);
+    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">${t('loadProductsFailed')}</td></tr>`;
+  }
+}
+
+function updateProductCountLabel(n) {
+  const countEl = document.getElementById("admin-product-count");
+  if (countEl) countEl.textContent = t('productCountLabel').replace('{n}', n);
+}
+
+// 商品列表本身太长的问题（表格滚动）已经在 admin.html 里用 max-h + overflow-auto 解决；
+// 这里加个按 ID/名称的本地筛选，商品一多的时候能更快找到要改的那一件。
+function filterAdminProducts() {
+  const input = document.getElementById("admin-product-search");
+  const keyword = (input ? input.value : '').trim().toLowerCase();
+  if (!keyword) {
+    renderProductRows(lastLoadedProducts);
+    updateProductCountLabel(lastLoadedProducts.length);
+    return;
+  }
+  const filtered = lastLoadedProducts.filter(item => {
+    const idMatch = (item.id || '').toLowerCase().includes(keyword);
+    const titleMatch = (item.title_en || '').toLowerCase().includes(keyword);
+    return idMatch || titleMatch;
+  });
+  updateProductCountLabel(filtered.length);
+  renderProductRows(filtered);
+}
+
+function renderProductRows(products) {
+  const tbody = document.getElementById("admin-product-list");
+  if (!tbody) return;
+
+  try {
     if (!products || products.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">${t('noProducts')}</td></tr>`;
+      const emptyMsg = lastLoadedProducts.length === 0 ? t('noProducts') : t('noMatchingProducts');
+      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">${emptyMsg}</td></tr>`;
       return;
     }
 
