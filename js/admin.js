@@ -772,14 +772,37 @@ async function loadAdminProducts() {
   if (!tbody) return;
 
   try {
-    const { data: products, error } = await supabaseClient
-      .from("products")
-      .select("*, nail_options (*), nail_variant_stock (*)")
-      .order("created_at", { ascending: false });
+    // 改成三个独立查询再在 JS 里手动按 product_id 拼起来，不用 Supabase 的嵌套 select
+    // （之前写的 "*, nail_options (*), nail_variant_stock (*)"）。
+    // 排查"刚新增的商品在后台规格选项显示未设置，但前台明明能正确显示"这个问题时发现，
+    // 一次查询里同时嵌套两个子表，在部分情况下会导致其中一个子表的数据拿不回来
+    // （前台 app.js 一直用的是分开查询再手动匹配，从没出过这个问题）——
+    // 这里改成同样稳妥的写法，彻底避开这一类嵌套查询的坑。
+    const [productsRes, nailOptionsRes, variantStockRes] = await Promise.all([
+      supabaseClient.from("products").select("*").order("created_at", { ascending: false }),
+      supabaseClient.from("nail_options").select("*"),
+      supabaseClient.from("nail_variant_stock").select("*")
+    ]);
 
-    if (error) throw error;
+    if (productsRes.error) throw productsRes.error;
+    if (nailOptionsRes.error) throw nailOptionsRes.error;
+    if (variantStockRes.error) throw variantStockRes.error;
 
-    lastLoadedProducts = products || [];
+    const nailOptionsByProduct = {};
+    (nailOptionsRes.data || []).forEach(o => { nailOptionsByProduct[o.product_id] = o; });
+
+    const variantStockByProduct = {};
+    (variantStockRes.data || []).forEach(v => {
+      if (!variantStockByProduct[v.product_id]) variantStockByProduct[v.product_id] = [];
+      variantStockByProduct[v.product_id].push(v);
+    });
+
+    lastLoadedProducts = (productsRes.data || []).map(p => ({
+      ...p,
+      nail_options: nailOptionsByProduct[p.id] ? [nailOptionsByProduct[p.id]] : [],
+      nail_variant_stock: variantStockByProduct[p.id] || []
+    }));
+
     updateProductCountLabel(lastLoadedProducts.length);
     renderProductRows(lastLoadedProducts);
 
