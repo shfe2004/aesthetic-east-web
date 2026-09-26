@@ -1,6 +1,278 @@
 // 后台控制脚本 (采用标准先更新后插入逻辑，杜绝一切数据库约束报错)
 
+// ===================== 双语翻译（后台管理界面）=====================
+// 与前台 js/app.js 共用同一个 localStorage key("site_lang")，切换一次两边语言保持同步。
+// 静态文案用 data-i18n / data-i18n-placeholder 属性 + applyAdminI18n() 渲染；
+// 动态生成的表格行、弹窗、alert/confirm 提示文案则统一调用 t(key) 取当前语言的文本。
+let currentAdminLang = localStorage.getItem("site_lang") || "en";
+
+const ADMIN_I18N = {
+  en: {
+    adminLockTitle: "Admin Panel",
+    adminLockDesc: "Enter the password to continue. This is a temporary safeguard only — don't open this page in front of others.",
+    adminLockPlaceholder: "Enter password",
+    adminLockBtn: "Enter",
+    adminLockError: "Incorrect password, please try again.",
+    adminPanelTitle: "Aesthetic East Admin Panel",
+    adminPanelSubtitle: "Auto-generated IDs · Dynamic site content · Cloud sync",
+    previewFrontendLink: "Preview Storefront ↗",
+    siteConfigSectionTitle: "🌐 Global Site Settings",
+    logoLabel: "Brand Name (Logo Text)",
+    bannerLabel: "Sticky Top Announcement",
+    heroTitleLabel: "Hero Main Heading",
+    heroDescLabel: "Hero Description",
+    heroBgLabel: "Hero Banner Background Image (custom upload)",
+    saveSiteConfigBtn: "Save Site Settings",
+    savingConfigBtn: "Saving...",
+    addProductSectionTitle: "📦 Add New Product",
+    chooseCategoryLabel: "1. Choose Category (determines ID prefix)",
+    catNails: "Press-On Nails",
+    catMerch: "Merch",
+    catFurniture: "Antique Furniture",
+    autoIdLabel: "2. Auto-Generated Unique ID",
+    titleLabel: "Title (English)",
+    subtitleLabel: "Subtitle (English)",
+    priceLabel: "Price ($ USD)",
+    tagLabel: "Tag",
+    nailSpecSectionTitle: "Nail-Specific Options",
+    shapesLabel: "Available Shapes",
+    shapeAlmond: "Almond",
+    shapeCoffin: "Coffin",
+    shapeStiletto: "Stiletto",
+    shapeSquare: "Square",
+    sizesLabel: "Available Sizes",
+    sizeChartLabel: "Custom finger-size chart (optional, mm; blank cells fall back to industry standard on the storefront)",
+    sizeChartHeaderSize: "Size",
+    sizeChartHeaderThumb: "Thumb",
+    sizeChartHeaderIndex: "Index",
+    sizeChartHeaderMiddle: "Middle",
+    sizeChartHeaderRing: "Ring",
+    sizeChartHeaderPinky: "Pinky",
+    standardPlaceholder: "Standard",
+    dimensionsSectionTitle: "Physical Dimensions (Merch / Antique Furniture)",
+    lengthLabel: "Length (mm)",
+    widthLabel: "Width (mm)",
+    heightLabel: "Height (mm)",
+    dimensionsHelpText: "Leave at 0 to hide the \"Size Guide\" popup; fill in at least one value greater than 0 to show dimensions on the storefront.",
+    imageUploadLabel: "Choose local product images (multiple allowed, first one is the main image; auto-compressed and synced to the cloud)",
+    publishProductBtn: "Save & Publish Product",
+    publishingBtn: "Publishing...",
+    productListTitle: "Live Product List",
+    thImage: "Image",
+    thCategory: "Category",
+    thName: "Name",
+    thSpec: "Options",
+    thPrice: "Price",
+    thAction: "Actions",
+    loadingProducts: "Loading products...",
+    orderMgmtTitle: "📋 Order Management",
+    simulatedBadge: "Test mode — no real payments",
+    refreshBtn: "Refresh",
+    thOrderId: "Order ID",
+    thCustomer: "Customer",
+    thContact: "Contact",
+    thAddress: "Shipping Address",
+    thAmount: "Amount",
+    thStatus: "Status",
+    thOrderTime: "Order Time",
+    loadingOrders: "Loading orders...",
+    noProducts: "No products in the database yet.",
+    noSpecSet: "Options not set",
+    hasCustomChart: "Includes custom size chart",
+    usesStandardChart: "Size chart: using industry standard",
+    editSpecBtn: "Edit Options",
+    noDimSet: "Dimensions not set",
+    editDimBtn: "Edit Dimensions",
+    deleteBtn: "Delete",
+    loadProductsFailed: "Failed to load product list.",
+    alertNeedShape: "⚠️ Please select at least 1 shape!",
+    alertNeedSize: "⚠️ Please select at least 1 size!",
+    imageUploadFailed: "Image upload failed: ",
+    galleryImageSaveFailed: "Failed to save gallery images: ",
+    productPublishSuccess: "🎉 Product published! Unique ID: ",
+    operationFailed: "Operation failed: ",
+    editSpecModalTitlePrefix: "Edit Options - ",
+    shapesCheckboxLabel: "Shapes (check available shapes):",
+    sizesCheckboxLabel: "Sizes (check available sizes):",
+    customSizeChartEditLabel: "Custom finger-size chart (optional, mm; leave blank to use industry standard):",
+    cancelBtn: "Cancel",
+    saveChangesBtn: "Save Changes",
+    editDimModalTitlePrefix: "Edit Dimensions - ",
+    dimEditLength: "Length (mm)",
+    dimEditWidth: "Width (mm)",
+    dimEditHeight: "Height (mm)",
+    dimSaveSuccess: "✨ Dimensions updated successfully!",
+    updateFailed: "Update failed: ",
+    alertNeedBoth: "⚠️ At least 1 shape and 1 size must be selected!",
+    specSaveSuccess: "✨ Options updated successfully!",
+    mainImageBadge: "Main",
+    confirmDeleteProduct: 'Are you sure you want to delete product "{id}"?',
+    noOrders: "No orders yet.",
+    viewDetailsBtn: "View Details",
+    loadOrdersFailed: "Failed to load orders — please confirm you've run complete_missing_features.sql in Supabase.",
+    orderDetailsModalTitlePrefix: "Order Details - ",
+    closeBtn: "Close",
+    loadingText: "Loading...",
+    noOrderItems: "No line items for this order.",
+    loadFailedPrefix: "Failed to load: ",
+    heroUploadFailed: "Hero background upload failed: ",
+    siteConfigSaveSuccess: "✨ Site content & background saved to the cloud — refresh the storefront and it's live for every visitor!",
+    saveFailed: "Save failed: "
+  },
+  zh: {
+    adminLockTitle: "管理后台",
+    adminLockDesc: "请输入密码进入。此为临时保护，请勿在他人面前打开本页面。",
+    adminLockPlaceholder: "输入密码",
+    adminLockBtn: "进入后台",
+    adminLockError: "密码错误，请重试。",
+    adminPanelTitle: "Aesthetic East 管理后台",
+    adminPanelSubtitle: "自动生成编码 · 站点文案动态配置 · 云端同步",
+    previewFrontendLink: "预览前台 ↗",
+    siteConfigSectionTitle: "🌐 网站全局信息配置",
+    logoLabel: "品牌名称 (Logo Text)",
+    bannerLabel: "顶部固定促销横幅 (Sticky Announcement)",
+    heroTitleLabel: "Hero 大图标题 (Main Heading)",
+    heroDescLabel: "Hero 描述文案 (Description)",
+    heroBgLabel: "Hero 顶部横幅背景图 (自定义上传)",
+    saveSiteConfigBtn: "保存站点配置",
+    savingConfigBtn: "正在保存配置...",
+    addProductSectionTitle: "📦 添加新商品",
+    chooseCategoryLabel: "1. 先选择商品分类 (决定编码前缀)",
+    catNails: "穿戴甲 (Nails)",
+    catMerch: "周边 (Merch)",
+    catFurniture: "古董家具 (Furniture)",
+    autoIdLabel: "2. 自动生成唯一编码 (ID)",
+    titleLabel: "英文标题 (Title)",
+    subtitleLabel: "英文副标题 (Subtitle)",
+    priceLabel: "价格 ($ USD)",
+    tagLabel: "标签 (Tag)",
+    nailSpecSectionTitle: "穿戴甲专属规格配置",
+    shapesLabel: "可供选择的甲型 (Shapes)",
+    shapeAlmond: "杏仁型",
+    shapeCoffin: "梯形",
+    shapeStiletto: "尖甲",
+    shapeSquare: "方型",
+    sizesLabel: "可供选择的尺码 (Sizes)",
+    sizeChartLabel: "自定义指围尺码对照表（可选，单位 mm；留空的格子前台会显示行业标准参考值）",
+    sizeChartHeaderSize: "尺码",
+    sizeChartHeaderThumb: "拇指",
+    sizeChartHeaderIndex: "食指",
+    sizeChartHeaderMiddle: "中指",
+    sizeChartHeaderRing: "无名指",
+    sizeChartHeaderPinky: "小指",
+    standardPlaceholder: "标准",
+    dimensionsSectionTitle: "物理尺寸配置（立牌 / 古董家具）",
+    lengthLabel: "长度 Length (mm)",
+    widthLabel: "宽度 Width (mm)",
+    heightLabel: "高度 Height (mm)",
+    dimensionsHelpText: "留 0 表示不显示\"Size Guide\"尺寸弹窗；至少填一项大于 0 的数值才会在前台显示尺寸对照。",
+    imageUploadLabel: "选择本地商品图片（可多选，第一张作为主图；自动等比压缩并同步至云端）",
+    publishProductBtn: "保存并发布商品",
+    publishingBtn: "正在发布商品...",
+    productListTitle: "在线商品管理列表",
+    thImage: "主图",
+    thCategory: "分类",
+    thName: "名称",
+    thSpec: "规格选项",
+    thPrice: "价格",
+    thAction: "操作",
+    loadingProducts: "正在加载商品列表...",
+    orderMgmtTitle: "📋 订单管理",
+    simulatedBadge: "模拟结算，非真实收款",
+    refreshBtn: "刷新",
+    thOrderId: "订单号",
+    thCustomer: "客户",
+    thContact: "联系方式",
+    thAddress: "收货地址",
+    thAmount: "金额",
+    thStatus: "状态",
+    thOrderTime: "下单时间",
+    loadingOrders: "正在加载订单...",
+    noProducts: "数据库中暂无商品。",
+    noSpecSet: "未设置规格",
+    hasCustomChart: "含自定义尺码对照表",
+    usesStandardChart: "尺码对照表：使用行业标准",
+    editSpecBtn: "修改规格",
+    noDimSet: "未设置尺寸",
+    editDimBtn: "修改尺寸",
+    deleteBtn: "删除",
+    loadProductsFailed: "加载列表失败。",
+    alertNeedShape: "⚠️ 请至少勾选 1 个甲型 (Shape)！",
+    alertNeedSize: "⚠️ 请至少勾选 1 个尺寸 (Size)！",
+    imageUploadFailed: "图片上传失败: ",
+    galleryImageSaveFailed: "商品画廊图片保存失败: ",
+    productPublishSuccess: "🎉 商品发布成功！唯一编码: ",
+    operationFailed: "操作失败: ",
+    editSpecModalTitlePrefix: "修改规格 - ",
+    shapesCheckboxLabel: "Shapes (勾选可用甲型):",
+    sizesCheckboxLabel: "Sizes (勾选可用尺寸):",
+    customSizeChartEditLabel: "自定义指围尺码对照表（可选，mm；留空用行业标准）:",
+    cancelBtn: "取消",
+    saveChangesBtn: "保存修改",
+    editDimModalTitlePrefix: "修改尺寸 - ",
+    dimEditLength: "长度 (mm)",
+    dimEditWidth: "宽度 (mm)",
+    dimEditHeight: "高度 (mm)",
+    dimSaveSuccess: "✨ 尺寸修改成功！",
+    updateFailed: "更新失败: ",
+    alertNeedBoth: "⚠️ 必须至少勾选 1 个甲型和 1 个尺寸！",
+    specSaveSuccess: "✨ 规格修改成功！",
+    mainImageBadge: "主图",
+    confirmDeleteProduct: '确定要删除商品 "{id}" 吗？',
+    noOrders: "暂无订单。",
+    viewDetailsBtn: "查看明细",
+    loadOrdersFailed: "加载订单失败，请确认已在 Supabase 里运行过 complete_missing_features.sql。",
+    orderDetailsModalTitlePrefix: "订单明细 - ",
+    closeBtn: "关闭",
+    loadingText: "加载中...",
+    noOrderItems: "该订单没有商品明细。",
+    loadFailedPrefix: "加载失败：",
+    heroUploadFailed: "Hero 背景图上传失败: ",
+    siteConfigSaveSuccess: "✨ 站点文案与背景配置已保存到云端，刷新前台即可对所有访客生效！",
+    saveFailed: "保存失败: "
+  }
+};
+
+// 取当前语言下的文案，找不到就退回中文，避免因为漏填 key 直接显示 undefined
+function t(key) {
+  return (ADMIN_I18N[currentAdminLang] && ADMIN_I18N[currentAdminLang][key]) || ADMIN_I18N.zh[key] || key;
+}
+
+function applyAdminI18n() {
+  const langBtn = document.getElementById("admin-lang-btn-text");
+  if (langBtn) langBtn.innerText = currentAdminLang === "zh" ? "中文" : "EN";
+
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (ADMIN_I18N[currentAdminLang] && ADMIN_I18N[currentAdminLang][key]) {
+      el.innerText = ADMIN_I18N[currentAdminLang][key];
+    }
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const key = el.getAttribute("data-i18n-placeholder");
+    if (ADMIN_I18N[currentAdminLang] && ADMIN_I18N[currentAdminLang][key]) {
+      el.placeholder = ADMIN_I18N[currentAdminLang][key];
+    }
+  });
+}
+
+// 切换语言：与前台共用同一个 localStorage key，切换一次两个页面都会同步；
+// 静态文案直接重渲染，表格/弹窗等动态内容重新拉取一次数据用新语言渲染。
+function toggleAdminLanguage() {
+  currentAdminLang = currentAdminLang === "zh" ? "en" : "zh";
+  localStorage.setItem("site_lang", currentAdminLang);
+  applyAdminI18n();
+  loadAdminProducts();
+  loadAdminOrders();
+  // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
+  // 下次点开时会用当前语言重新生成，不会停留在切换前的语言上。
+  ["modal-edit-spec", "modal-edit-dimensions", "modal-order-items"].forEach(id => {
+    document.getElementById(id)?.remove();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  applyAdminI18n();
   loadAdminProducts();
   loadAdminOrders();
   loadSiteSettings();
@@ -119,7 +391,7 @@ async function loadAdminProducts() {
     if (error) throw error;
 
     if (!products || products.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">数据库中暂无商品。</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">${t('noProducts')}</td></tr>`;
       return;
     }
 
@@ -130,17 +402,17 @@ async function loadAdminProducts() {
       let sizesArr = robustParseSpec(nailOpt.sizes);
       let sizeChartObj = robustParseSizeChart(nailOpt.size_chart);
 
-      const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : "<span class='text-red-500 font-bold'>未设置规格</span>";
-      const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : "<span class='text-red-500 font-bold'>未设置规格</span>";
+      const shapesText = (shapesArr && shapesArr.length > 0) ? shapesArr.join(", ") : `<span class='text-red-500 font-bold'>${t('noSpecSet')}</span>`;
+      const sizesText = (sizesArr && sizesArr.length > 0) ? sizesArr.join(", ") : `<span class='text-red-500 font-bold'>${t('noSpecSet')}</span>`;
       const hasCustomSizeChart = Object.keys(sizeChartObj).length > 0;
 
       const specContent = item.category_id === 'nails'
         ? `<div class="space-y-1">
              <div><b>Shapes:</b> ${shapesText}</div>
              <div><b>Sizes:</b> ${sizesText}</div>
-             <div class="text-[11px] ${hasCustomSizeChart ? 'text-amber-700 font-semibold' : 'text-gray-400'}">${hasCustomSizeChart ? '含自定义尺码对照表' : '尺码对照表：使用行业标准'}</div>
+             <div class="text-[11px] ${hasCustomSizeChart ? 'text-amber-700 font-semibold' : 'text-gray-400'}">${hasCustomSizeChart ? t('hasCustomChart') : t('usesStandardChart')}</div>
              <button onclick="openEditSpecModal('${item.id}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}', '${encodeURIComponent(JSON.stringify(sizeChartObj))}')" class="mt-1 px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-xs font-bold border border-amber-300 shadow-sm">
-               <i class="fa-solid fa-pen-to-square"></i> 修改规格
+               <i class="fa-solid fa-pen-to-square"></i> ${t('editSpecBtn')}
              </button>
            </div>`
         : (() => {
@@ -150,11 +422,11 @@ async function loadAdminProducts() {
             const hasDim = l > 0 || w > 0 || h > 0;
             const dimText = hasDim
               ? `${l} × ${w} × ${h} mm`
-              : `<span class='text-red-500 font-bold'>未设置尺寸</span>`;
+              : `<span class='text-red-500 font-bold'>${t('noDimSet')}</span>`;
             return `<div class="space-y-1">
                  <div><b>L×W×H:</b> ${dimText}</div>
                  <button onclick="openEditDimensionsModal('${item.id}', ${l}, ${w}, ${h})" class="mt-1 px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded text-xs font-bold border border-blue-300 shadow-sm">
-                   <i class="fa-solid fa-ruler-combined"></i> 修改尺寸
+                   <i class="fa-solid fa-ruler-combined"></i> ${t('editDimBtn')}
                  </button>
                </div>`;
           })();
@@ -170,7 +442,7 @@ async function loadAdminProducts() {
           <td class="p-3 text-xs text-gray-600">${specContent}</td>
           <td class="p-3 text-amber-800 font-bold">$${parseFloat(item.price).toFixed(2)}</td>
           <td class="p-3">
-            <button onclick="deleteProduct('${item.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">删除</button>
+            <button onclick="deleteProduct('${item.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">${t('deleteBtn')}</button>
           </td>
         </tr>
       `;
@@ -178,7 +450,7 @@ async function loadAdminProducts() {
 
   } catch (err) {
     console.error("加载商品失败:", err);
-    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">加载列表失败。</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">${t('loadProductsFailed')}</td></tr>`;
   }
 }
 
@@ -236,18 +508,18 @@ async function handleAddProduct(e) {
       sizeChart = collectSizeChartInputs("#nail-options-section .size-chart-input");
 
       if (selectedShapes.length === 0) {
-        alert("⚠️ 请至少勾选 1 个甲型 (Shape)！");
+        alert(t('alertNeedShape'));
         return;
       }
       if (selectedSizes.length === 0) {
-        alert("⚠️ 请至少勾选 1 个尺寸 (Size)！");
+        alert(t('alertNeedSize'));
         return;
       }
     }
 
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.innerText = "正在发布商品...";
+      submitBtn.innerText = t('publishingBtn');
     }
 
     let imageUrl = "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800";
@@ -265,7 +537,7 @@ async function handleAddProduct(e) {
           .from("product-media")
           .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
 
-        if (uploadError) throw new Error("图片上传失败: " + uploadError.message);
+        if (uploadError) throw new Error(t('imageUploadFailed') + uploadError.message);
 
         const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
         uploadedImageUrls.push(publicUrlData.publicUrl);
@@ -305,10 +577,10 @@ async function handleAddProduct(e) {
         display_order: idx
       }));
       const { error: imgError } = await supabaseClient.from("product_images").insert(imageRows);
-      if (imgError) throw new Error("商品画廊图片保存失败: " + imgError.message);
+      if (imgError) throw new Error(t('galleryImageSaveFailed') + imgError.message);
     }
 
-    alert("🎉 商品发布成功！唯一编码: " + id);
+    alert(t('productPublishSuccess') + id);
     document.getElementById("add-product-form").reset();
     syncInches();
     const previewContainer = document.getElementById("image-preview-container");
@@ -322,11 +594,11 @@ async function handleAddProduct(e) {
 
   } catch (err) {
     console.error("发布失败:", err);
-    alert("操作失败: " + err.message);
+    alert(t('operationFailed') + err.message);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.innerText = "保存并发布商品";
+      submitBtn.innerText = t('publishProductBtn');
     }
   }
 }
@@ -341,11 +613,11 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
   const sizeChart = sizeChartJsonEncoded ? JSON.parse(decodeURIComponent(sizeChartJsonEncoded)) : {};
 
   const SIZE_CHART_FINGERS = [
-    { key: 'thumb', label: '拇指' },
-    { key: 'index', label: '食指' },
-    { key: 'middle', label: '中指' },
-    { key: 'ring', label: '无名指' },
-    { key: 'pinky', label: '小指' }
+    { key: 'thumb', label: t('sizeChartHeaderThumb') },
+    { key: 'index', label: t('sizeChartHeaderIndex') },
+    { key: 'middle', label: t('sizeChartHeaderMiddle') },
+    { key: 'ring', label: t('sizeChartHeaderRing') },
+    { key: 'pinky', label: t('sizeChartHeaderPinky') }
   ];
 
   let modal = document.getElementById("modal-edit-spec");
@@ -356,13 +628,13 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
     modal.innerHTML = `
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-5 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-base font-bold text-gray-900">修改规格 - <span id="edit-spec-prod-id" class="text-amber-800 font-mono"></span></h3>
+          <h3 class="text-base font-bold text-gray-900">${t('editSpecModalTitlePrefix')}<span id="edit-spec-prod-id" class="text-amber-800 font-mono"></span></h3>
           <button onclick="closeEditSpecModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Shapes (勾选可用甲型):</label>
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">${t('shapesCheckboxLabel')}</label>
             <div class="flex flex-wrap gap-3" id="edit-shapes-container">
               ${["Almond", "Coffin", "Stiletto", "Square"].map(s => `
                 <label class="inline-flex items-center gap-1.5 text-xs text-gray-800 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border hover:bg-gray-100">
@@ -374,7 +646,7 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Sizes (勾选可用尺寸):</label>
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">${t('sizesCheckboxLabel')}</label>
             <div class="flex flex-wrap gap-3" id="edit-sizes-container">
               ${["XS", "S", "M", "L"].map(sz => `
                 <label class="inline-flex items-center gap-1.5 text-xs text-gray-800 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border hover:bg-gray-100">
@@ -386,12 +658,12 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
           </div>
 
           <div class="pt-2 border-t">
-            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">自定义指围尺码对照表（可选，mm；留空用行业标准）:</label>
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">${t('customSizeChartEditLabel')}</label>
             <div class="overflow-x-auto">
               <table class="w-full text-xs border-collapse min-w-[420px]">
                 <thead>
                   <tr class="text-gray-500">
-                    <th class="text-left py-1 pr-2 font-medium">尺码</th>
+                    <th class="text-left py-1 pr-2 font-medium">${t('sizeChartHeaderSize')}</th>
                     ${SIZE_CHART_FINGERS.map(f => `<th class="text-center py-1 px-1 font-medium">${f.label}</th>`).join('')}
                   </tr>
                 </thead>
@@ -400,7 +672,7 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
                     <tr>
                       <td class="py-1 pr-2 font-bold text-gray-700">${sz}</td>
                       ${SIZE_CHART_FINGERS.map(f => `
-                        <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="edit-size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="${sz}" data-finger="${f.key}" placeholder="标准"></td>
+                        <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="edit-size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="${sz}" data-finger="${f.key}" placeholder="${t('standardPlaceholder')}"></td>
                       `).join('')}
                     </tr>
                   `).join('')}
@@ -411,8 +683,8 @@ function openEditSpecModal(prodId, shapesJsonEncoded, sizesJsonEncoded, sizeChar
         </div>
 
         <div class="flex justify-end gap-3 pt-3 border-t">
-          <button onclick="closeEditSpecModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">取消</button>
-          <button onclick="saveProductSpec()" class="px-5 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shadow-sm">保存修改</button>
+          <button onclick="closeEditSpecModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">${t('cancelBtn')}</button>
+          <button onclick="saveProductSpec()" class="px-5 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shadow-sm">${t('saveChangesBtn')}</button>
         </div>
       </div>
     `;
@@ -457,26 +729,26 @@ function openEditDimensionsModal(prodId, length, width, height) {
     modal.innerHTML = `
       <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-base font-bold text-gray-900">修改尺寸 - <span id="edit-dim-prod-id" class="text-blue-800 font-mono"></span></h3>
+          <h3 class="text-base font-bold text-gray-900">${t('editDimModalTitlePrefix')}<span id="edit-dim-prod-id" class="text-blue-800 font-mono"></span></h3>
           <button onclick="closeEditDimensionsModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
         <div class="grid grid-cols-3 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">长度 (mm)</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('dimEditLength')}</label>
             <input type="number" step="0.1" min="0" id="edit-dim-length" class="w-full border rounded-lg px-3 py-2 text-sm">
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">宽度 (mm)</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('dimEditWidth')}</label>
             <input type="number" step="0.1" min="0" id="edit-dim-width" class="w-full border rounded-lg px-3 py-2 text-sm">
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">高度 (mm)</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">${t('dimEditHeight')}</label>
             <input type="number" step="0.1" min="0" id="edit-dim-height" class="w-full border rounded-lg px-3 py-2 text-sm">
           </div>
         </div>
         <div class="flex justify-end gap-3 pt-3 border-t">
-          <button onclick="closeEditDimensionsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">取消</button>
-          <button onclick="saveProductDimensions()" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-sm">保存修改</button>
+          <button onclick="closeEditDimensionsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">${t('cancelBtn')}</button>
+          <button onclick="saveProductDimensions()" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-sm">${t('saveChangesBtn')}</button>
         </div>
       </div>
     `;
@@ -510,13 +782,13 @@ async function saveProductDimensions() {
 
     if (error) throw error;
 
-    alert("✨ 尺寸修改成功！");
+    alert(t('dimSaveSuccess'));
     closeEditDimensionsModal();
     loadAdminProducts();
 
   } catch (err) {
     console.error("保存尺寸失败:", err);
-    alert("更新失败: " + err.message);
+    alert(t('updateFailed') + err.message);
   }
 }
 
@@ -529,7 +801,7 @@ async function saveProductSpec() {
   const sizeChartToSave = Object.keys(newSizeChart).length > 0 ? newSizeChart : null;
 
   if (newShapes.length === 0 || newSizes.length === 0) {
-    alert("⚠️ 必须至少勾选 1 个甲型和 1 个尺寸！");
+    alert(t('alertNeedBoth'));
     return;
   }
 
@@ -549,13 +821,13 @@ async function saveProductSpec() {
       if (insertError) throw insertError;
     }
 
-    alert("✨ 规格修改成功！");
+    alert(t('specSaveSuccess'));
     closeEditSpecModal();
     loadAdminProducts();
 
   } catch(err) {
     console.error("保存失败:", err);
-    alert("更新失败: " + err.message);
+    alert(t('updateFailed') + err.message);
   }
 }
 
@@ -612,7 +884,7 @@ function handleImagePreview(e) {
   previewContainer.innerHTML = files.map((f, i) => `
     <div class="relative">
       <img src="${URL.createObjectURL(f)}" class="w-20 h-20 object-cover rounded-lg border ${i === 0 ? 'ring-2 ring-amber-600' : ''}">
-      ${i === 0 ? '<span class="absolute -top-1.5 -left-1.5 bg-amber-800 text-white text-[9px] px-1.5 py-0.5 rounded-full">主图</span>' : ''}
+      ${i === 0 ? `<span class="absolute -top-1.5 -left-1.5 bg-amber-800 text-white text-[9px] px-1.5 py-0.5 rounded-full">${t('mainImageBadge')}</span>` : ''}
     </div>
   `).join('');
   previewContainer.classList.remove("hidden");
@@ -631,7 +903,7 @@ function handleHeroBgPreview(e) {
 }
 
 async function deleteProduct(productId) {
-  if (!confirm(`确定要删除商品 "${productId}" 吗？`)) return;
+  if (!confirm(t('confirmDeleteProduct').replace('{id}', productId))) return;
   await supabaseClient.from("products").delete().eq("id", productId);
   loadAdminProducts();
   generateSmartId();
@@ -651,7 +923,7 @@ async function loadAdminOrders() {
     if (error) throw error;
 
     if (!orders || orders.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">暂无订单。</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">${t('noOrders')}</td></tr>`;
       return;
     }
 
@@ -668,7 +940,7 @@ async function loadAdminOrders() {
           <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">${o.status || 'pending_test_payment'}</span></td>
           <td class="p-3 text-xs text-gray-500">${created}</td>
           <td class="p-3">
-            <button onclick="openOrderItemsModal('${o.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-semibold">查看明细</button>
+            <button onclick="openOrderItemsModal('${o.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-semibold">${t('viewDetailsBtn')}</button>
           </td>
         </tr>
       `;
@@ -676,7 +948,7 @@ async function loadAdminOrders() {
 
   } catch (err) {
     console.error("加载订单失败:", err);
-    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-red-500">加载订单失败，请确认已在 Supabase 里运行过 complete_missing_features.sql。</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-red-500">${t('loadOrdersFailed')}</td></tr>`;
   }
 }
 
@@ -689,12 +961,12 @@ async function openOrderItemsModal(orderId) {
     modal.innerHTML = `
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[80vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
-          <h3 class="text-base font-bold text-gray-900">订单明细 - <span id="order-items-order-id" class="text-amber-800 font-mono"></span></h3>
+          <h3 class="text-base font-bold text-gray-900">${t('orderDetailsModalTitlePrefix')}<span id="order-items-order-id" class="text-amber-800 font-mono"></span></h3>
           <button onclick="closeOrderItemsModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
         <div id="order-items-body" class="space-y-2 text-sm"></div>
         <div class="flex justify-end pt-2 border-t">
-          <button onclick="closeOrderItemsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">关闭</button>
+          <button onclick="closeOrderItemsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">${t('closeBtn')}</button>
         </div>
       </div>
     `;
@@ -703,7 +975,7 @@ async function openOrderItemsModal(orderId) {
 
   document.getElementById("order-items-order-id").innerText = orderId;
   const body = document.getElementById("order-items-body");
-  body.innerHTML = `<p class="text-gray-400 text-xs">加载中...</p>`;
+  body.innerHTML = `<p class="text-gray-400 text-xs">${t('loadingText')}</p>`;
   modal.classList.remove("hidden");
 
   try {
@@ -715,7 +987,7 @@ async function openOrderItemsModal(orderId) {
     if (error) throw error;
 
     if (!items || items.length === 0) {
-      body.innerHTML = `<p class="text-gray-400 text-xs">该订单没有商品明细。</p>`;
+      body.innerHTML = `<p class="text-gray-400 text-xs">${t('noOrderItems')}</p>`;
       return;
     }
 
@@ -731,7 +1003,7 @@ async function openOrderItemsModal(orderId) {
 
   } catch (err) {
     console.error("加载订单明细失败:", err);
-    body.innerHTML = `<p class="text-red-500 text-xs">加载失败：${err.message}</p>`;
+    body.innerHTML = `<p class="text-red-500 text-xs">${t('loadFailedPrefix')}${err.message}</p>`;
   }
 }
 
@@ -782,7 +1054,7 @@ async function handleSaveSettings(e) {
   try {
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.innerText = "正在保存配置...";
+      submitBtn.innerText = t('savingConfigBtn');
     }
 
     const fileInput = document.getElementById("cfg-hero-bg-file");
@@ -802,7 +1074,7 @@ async function handleSaveSettings(e) {
         .from("product-media")
         .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
 
-      if (uploadError) throw new Error("Hero 背景图上传失败: " + uploadError.message);
+      if (uploadError) throw new Error(t('heroUploadFailed') + uploadError.message);
 
       const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
       heroBgUrl = publicUrlData.publicUrl;
@@ -821,16 +1093,16 @@ async function handleSaveSettings(e) {
     const { error: saveError } = await supabaseClient.from("site_settings").upsert(cfg);
     if (saveError) throw saveError;
 
-    alert("✨ 站点文案与背景配置已保存到云端，刷新前台即可对所有访客生效！");
+    alert(t('siteConfigSaveSuccess'));
     await loadSiteSettings();
 
   } catch (err) {
     console.error("保存设置出错:", err);
-    alert("保存失败: " + err.message);
+    alert(t('saveFailed') + err.message);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.innerText = "保存站点配置";
+      submitBtn.innerText = t('saveSiteConfigBtn');
     }
   }
 }

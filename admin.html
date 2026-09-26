@@ -7,6 +7,9 @@
   <!-- TODO(上线前): 同 index.html，Play CDN 换成构建版 CSS 再上线。 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 补充：后台弹窗里一直在用 fa-solid 图标（关闭按钮、修改按钮等），但之前没引入 Font Awesome，
+       图标其实一直没显示出来，顺手在这里补上。 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen p-4 md:p-8">
 
@@ -14,18 +17,18 @@
        正式方案请尽快换成 Supabase Auth 登录（见与 Claude 的讨论）。 -->
   <div id="admin-lock-screen" class="fixed inset-0 bg-gray-900/95 z-[9999] flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl p-8 w-full max-w-xs space-y-4 shadow-2xl">
-      <h2 class="text-lg font-bold text-gray-900">管理后台</h2>
-      <p class="text-xs text-gray-400">请输入密码进入。此为临时保护，请勿在他人面前打开本页面。</p>
-      <input type="password" id="admin-lock-input" placeholder="输入密码" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none" autofocus>
-      <button id="admin-lock-btn" type="button" class="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-stone-800">进入后台</button>
-      <p id="admin-lock-error" class="text-xs text-red-500 hidden">密码错误，请重试。</p>
+      <h2 class="text-lg font-bold text-gray-900" data-i18n="adminLockTitle">管理后台</h2>
+      <p class="text-xs text-gray-400" data-i18n="adminLockDesc">请输入密码进入。此为临时保护，请勿在他人面前打开本页面。</p>
+      <input type="password" id="admin-lock-input" placeholder="输入密码" data-i18n-placeholder="adminLockPlaceholder" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none" autofocus>
+      <button id="admin-lock-btn" type="button" class="w-full bg-stone-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-stone-800" data-i18n="adminLockBtn">进入后台</button>
+      <p id="admin-lock-error" class="text-xs text-red-500 hidden" data-i18n="adminLockError">密码错误，请重试。</p>
     </div>
   </div>
   <script>
     (function () {
       // TODO: 改成你自己的密码。这段代码所有人都能在浏览器"查看网页源代码"里看到，
       // 只是挡一挡随手点进来的路人，不是真正的安全措施。
-      var ADMIN_PASSWORD = "111111";
+      var ADMIN_PASSWORD = "请改成你自己的密码";
       var lock = document.getElementById("admin-lock-screen");
       if (sessionStorage.getItem("admin_unlocked") === "yes") {
         lock.style.display = "none";
@@ -49,49 +52,56 @@
   <div class="max-w-5xl mx-auto space-y-8">
 
     <!-- 顶部导航 -->
-    <div class="bg-white rounded-xl shadow-md p-6 flex justify-between items-center">
+    <div class="bg-white rounded-xl shadow-md p-6 flex justify-between items-center flex-wrap gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Aesthetic East 管理后台</h1>
-        <p class="text-xs text-gray-500 mt-1">自动生成编码 · 站点文案动态配置 · 云端同步</p>
+        <h1 class="text-2xl font-bold text-gray-900" data-i18n="adminPanelTitle">Aesthetic East 管理后台</h1>
+        <p class="text-xs text-gray-500 mt-1" data-i18n="adminPanelSubtitle">自动生成编码 · 站点文案动态配置 · 云端同步</p>
       </div>
-      <a href="index.html" target="_blank" class="text-amber-800 hover:text-amber-900 text-sm font-medium">预览前台 ↗</a>
+      <div class="flex items-center gap-3">
+        <!-- 语言切换按钮，与前台共用同一个 localStorage 键，切换一次两边同步 -->
+        <button onclick="toggleAdminLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
+          <i class="fa-solid fa-globe"></i>
+          <span id="admin-lang-btn-text">EN</span>
+        </button>
+        <a href="index.html" target="_blank" class="text-amber-800 hover:text-amber-900 text-sm font-medium" data-i18n="previewFrontendLink">预览前台 ↗</a>
+      </div>
     </div>
 
     <!-- 1. 站点文案与品牌配置 (Logo/促销横幅/Hero) -->
     <div class="bg-white rounded-xl shadow-md p-6 border border-amber-200">
-      <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">🌐 网站全局信息配置</h2>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="siteConfigSectionTitle">🌐 网站全局信息配置</h2>
       <form id="site-settings-form" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">品牌名称 (Logo Text)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="logoLabel">品牌名称 (Logo Text)</label>
             <input type="text" id="cfg-site-logo" placeholder="Aesthetic East" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">顶部固定促销横幅 (Sticky Announcement)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="bannerLabel">顶部固定促销横幅 (Sticky Announcement)</label>
             <input type="text" id="cfg-banner-text" placeholder="✨ Free US Shipping on Nails & Merch over $50" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Hero 大图标题 (Main Heading)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="heroTitleLabel">Hero 大图标题 (Main Heading)</label>
             <input type="text" id="cfg-hero-title" placeholder="Handcrafted Press-Ons & Timeless Chinese Antiques" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Hero 描述文案 (Description)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="heroDescLabel">Hero 描述文案 (Description)</label>
             <input type="text" id="cfg-hero-desc" placeholder="Bringing oriental craftsmanship and pop art into modern American homes." class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
         </div>
 
         <!-- 新增：Hero 背景图上传与预览 -->
         <div class="space-y-2 pt-2 border-t border-gray-100">
-          <label class="block text-sm font-medium text-gray-700">Hero 顶部横幅背景图 (自定义上传)</label>
+          <label class="block text-sm font-medium text-gray-700" data-i18n="heroBgLabel">Hero 顶部横幅背景图 (自定义上传)</label>
           <input type="file" id="cfg-hero-bg-file" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
           <div id="cfg-hero-bg-preview-container" class="mt-2 hidden">
             <img id="cfg-hero-bg-preview" src="" class="w-full h-32 object-cover rounded-lg border shadow-sm">
           </div>
         </div>
 
-        <button type="submit" class="bg-stone-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-stone-800 transition">
+        <button type="submit" class="bg-stone-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-stone-800 transition" data-i18n="saveSiteConfigBtn">
           保存站点配置
         </button>
       </form>
@@ -99,61 +109,61 @@
 
     <!-- 2. 上架新商品表单 (自动编码 ID) -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">📦 添加新商品</h2>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="addProductSectionTitle">📦 添加新商品</h2>
 
       <form id="add-product-form" class="space-y-4">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">1. 先选择商品分类 (决定编码前缀)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="chooseCategoryLabel">1. 先选择商品分类 (决定编码前缀)</label>
             <select id="prod-category" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none bg-amber-50">
-              <option value="nails">穿戴甲 (Nails)</option>
-              <option value="merch">周边 (Merch)</option>
-              <option value="furniture">古董家具 (Furniture)</option>
+              <option value="nails" data-i18n="catNails">穿戴甲 (Nails)</option>
+              <option value="merch" data-i18n="catMerch">周边 (Merch)</option>
+              <option value="furniture" data-i18n="catFurniture">古董家具 (Furniture)</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">2. 自动生成唯一编码 (ID)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="autoIdLabel">2. 自动生成唯一编码 (ID)</label>
             <input type="text" id="prod-id" readonly class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600 font-mono font-bold cursor-not-allowed">
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">英文标题 (Title)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="titleLabel">英文标题 (Title)</label>
             <input type="text" id="prod-title-en" required placeholder="如 Velvet Rose Press-Ons" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">英文副标题 (Subtitle)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="subtitleLabel">英文副标题 (Subtitle)</label>
             <input type="text" id="prod-subtitle-en" placeholder="如 Pearl Accents · Hand Crafted" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">价格 ($ USD)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="priceLabel">价格 ($ USD)</label>
             <input type="number" step="0.01" id="prod-price" required placeholder="25.00" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">标签 (Tag)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="tagLabel">标签 (Tag)</label>
             <input type="text" id="prod-tag-key" placeholder="如 Sweet, Y2K, Handcrafted" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
         </div>
 
         <!-- 穿戴甲专属配置 -->
         <div id="nail-options-section" class="bg-amber-50/60 p-4 rounded-lg border border-amber-200/60 space-y-3">
-          <p class="text-xs font-semibold text-amber-900 uppercase tracking-wider">穿戴甲专属规格配置</p>
+          <p class="text-xs font-semibold text-amber-900 uppercase tracking-wider" data-i18n="nailSpecSectionTitle">穿戴甲专属规格配置</p>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">可供选择的甲型 (Shapes)</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="shapesLabel">可供选择的甲型 (Shapes)</label>
             <div class="flex flex-wrap gap-4 text-sm text-gray-700">
-              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Almond" class="shape-checkbox" checked> Almond (杏仁型)</label>
-              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Coffin" class="shape-checkbox" checked> Coffin (梯形)</label>
-              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Stiletto" class="shape-checkbox" checked> Stiletto (尖甲)</label>
-              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Square" class="shape-checkbox" checked> Square (方型)</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Almond" class="shape-checkbox" checked> Almond (<span data-i18n="shapeAlmond">杏仁型</span>)</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Coffin" class="shape-checkbox" checked> Coffin (<span data-i18n="shapeCoffin">梯形</span>)</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Stiletto" class="shape-checkbox" checked> Stiletto (<span data-i18n="shapeStiletto">尖甲</span>)</label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="Square" class="shape-checkbox" checked> Square (<span data-i18n="shapeSquare">方型</span>)</label>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">可供选择的尺码 (Sizes)</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="sizesLabel">可供选择的尺码 (Sizes)</label>
             <div class="flex flex-wrap gap-4 text-sm text-gray-700">
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="XS" class="size-checkbox" checked> XS</label>
               <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="S" class="size-checkbox" checked> S</label>
@@ -163,51 +173,51 @@
           </div>
 
           <div class="pt-3 mt-1 border-t border-amber-200/60 space-y-2">
-            <label class="block text-xs font-medium text-gray-700">自定义指围尺码对照表（可选，单位 mm；留空的格子前台会显示行业标准参考值）</label>
+            <label class="block text-xs font-medium text-gray-700" data-i18n="sizeChartLabel">自定义指围尺码对照表（可选，单位 mm；留空的格子前台会显示行业标准参考值）</label>
             <div class="overflow-x-auto">
               <table class="w-full text-xs border-collapse min-w-[420px]">
                 <thead>
                   <tr class="text-gray-500">
-                    <th class="text-left py-1 pr-2 font-medium">尺码</th>
-                    <th class="text-center py-1 px-1 font-medium">拇指</th>
-                    <th class="text-center py-1 px-1 font-medium">食指</th>
-                    <th class="text-center py-1 px-1 font-medium">中指</th>
-                    <th class="text-center py-1 px-1 font-medium">无名指</th>
-                    <th class="text-center py-1 px-1 font-medium">小指</th>
+                    <th class="text-left py-1 pr-2 font-medium" data-i18n="sizeChartHeaderSize">尺码</th>
+                    <th class="text-center py-1 px-1 font-medium" data-i18n="sizeChartHeaderThumb">拇指</th>
+                    <th class="text-center py-1 px-1 font-medium" data-i18n="sizeChartHeaderIndex">食指</th>
+                    <th class="text-center py-1 px-1 font-medium" data-i18n="sizeChartHeaderMiddle">中指</th>
+                    <th class="text-center py-1 px-1 font-medium" data-i18n="sizeChartHeaderRing">无名指</th>
+                    <th class="text-center py-1 px-1 font-medium" data-i18n="sizeChartHeaderPinky">小指</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td class="py-1 pr-2 font-bold text-gray-700">XS</td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="thumb" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="index" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="middle" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="ring" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="pinky" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="thumb" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="index" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="middle" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="ring" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="XS" data-finger="pinky" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
                   </tr>
                   <tr>
                     <td class="py-1 pr-2 font-bold text-gray-700">S</td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="thumb" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="index" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="middle" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="ring" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="pinky" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="thumb" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="index" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="middle" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="ring" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="S" data-finger="pinky" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
                   </tr>
                   <tr>
                     <td class="py-1 pr-2 font-bold text-gray-700">M</td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="thumb" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="index" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="middle" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="ring" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="pinky" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="thumb" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="index" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="middle" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="ring" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="M" data-finger="pinky" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
                   </tr>
                   <tr>
                     <td class="py-1 pr-2 font-bold text-gray-700">L</td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="thumb" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="index" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="middle" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="ring" placeholder="标准"></td>
-                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="pinky" placeholder="标准"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="thumb" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="index" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="middle" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="ring" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
+                    <td class="py-1 px-1"><input type="number" step="0.1" min="0" class="size-chart-input w-16 border rounded px-1.5 py-1 text-xs" data-size="L" data-finger="pinky" placeholder="标准" data-i18n-placeholder="standardPlaceholder"></td>
                   </tr>
                 </tbody>
               </table>
@@ -217,35 +227,35 @@
 
         <!-- 立牌 / 古董家具专属配置：物理尺寸 (毫米输入，实时换算英寸预览) -->
         <div id="dimensions-section" class="bg-blue-50/60 p-4 rounded-lg border border-blue-200/60 space-y-3" style="display:none;">
-          <p class="text-xs font-semibold text-blue-900 uppercase tracking-wider">物理尺寸配置（立牌 / 古董家具）</p>
+          <p class="text-xs font-semibold text-blue-900 uppercase tracking-wider" data-i18n="dimensionsSectionTitle">物理尺寸配置（立牌 / 古董家具）</p>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">长度 Length (mm)</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="lengthLabel">长度 Length (mm)</label>
               <input type="number" step="0.1" min="0" id="prod-length" value="0" oninput="syncInches()" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
               <p class="text-[11px] text-gray-400 mt-1">≈ <span id="length-inch">0.00</span> in</p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">宽度 Width (mm)</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="widthLabel">宽度 Width (mm)</label>
               <input type="number" step="0.1" min="0" id="prod-width" value="0" oninput="syncInches()" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
               <p class="text-[11px] text-gray-400 mt-1">≈ <span id="width-inch">0.00</span> in</p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">高度 Height (mm)</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="heightLabel">高度 Height (mm)</label>
               <input type="number" step="0.1" min="0" id="prod-height" value="0" oninput="syncInches()" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
               <p class="text-[11px] text-gray-400 mt-1">≈ <span id="height-inch">0.00</span> in</p>
             </div>
           </div>
-          <p class="text-[11px] text-gray-500">留 0 表示不显示"Size Guide"尺寸弹窗；至少填一项大于 0 的数值才会在前台显示尺寸对照。</p>
+          <p class="text-[11px] text-gray-500" data-i18n="dimensionsHelpText">留 0 表示不显示"Size Guide"尺寸弹窗；至少填一项大于 0 的数值才会在前台显示尺寸对照。</p>
         </div>
 
         <!-- 图片上传区域：支持一次选多张，第一张作为主图，其余进画廊 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">选择本地商品图片（可多选，第一张作为主图；自动等比压缩并同步至云端）</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="imageUploadLabel">选择本地商品图片（可多选，第一张作为主图；自动等比压缩并同步至云端）</label>
           <input type="file" id="prod-image-file" accept="image/*" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
           <div id="image-preview-container" class="mt-3 hidden flex flex-wrap gap-2"></div>
         </div>
 
-        <button type="submit" id="submit-btn" class="w-full bg-amber-800 text-white py-3 rounded-lg hover:bg-amber-900 font-medium transition">
+        <button type="submit" id="submit-btn" class="w-full bg-amber-800 text-white py-3 rounded-lg hover:bg-amber-900 font-medium transition" data-i18n="publishProductBtn">
           保存并发布商品
         </button>
 
@@ -254,23 +264,23 @@
 
     <!-- 3. 在线商品管理列表 -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <h2 class="text-lg font-semibold mb-4 text-gray-800">在线商品管理列表</h2>
+      <h2 class="text-lg font-semibold mb-4 text-gray-800" data-i18n="productListTitle">在线商品管理列表</h2>
       <div class="overflow-x-auto border rounded-lg">
         <table class="w-full text-left border-collapse text-sm">
           <thead>
             <tr class="bg-gray-100 border-b text-gray-600">
-              <th class="p-3">主图</th>
+              <th class="p-3" data-i18n="thImage">主图</th>
               <th class="p-3">ID</th>
-              <th class="p-3">分类</th>
-              <th class="p-3">名称</th>
-              <th class="p-3">规格选项</th>
-              <th class="p-3">价格</th>
-              <th class="p-3">操作</th>
+              <th class="p-3" data-i18n="thCategory">分类</th>
+              <th class="p-3" data-i18n="thName">名称</th>
+              <th class="p-3" data-i18n="thSpec">规格选项</th>
+              <th class="p-3" data-i18n="thPrice">价格</th>
+              <th class="p-3" data-i18n="thAction">操作</th>
             </tr>
           </thead>
           <tbody id="admin-product-list">
             <tr>
-              <td colspan="7" class="p-4 text-center text-gray-500">正在加载商品列表...</td>
+              <td colspan="7" class="p-4 text-center text-gray-500" data-i18n="loadingProducts">正在加载商品列表...</td>
             </tr>
           </tbody>
         </table>
@@ -280,26 +290,26 @@
     <!-- 4. 订单管理（当前为模拟结算，尚未接入真实支付） -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-800">📋 订单管理 <span class="text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 ml-1">模拟结算，非真实收款</span></h2>
-        <button onclick="loadAdminOrders()" class="text-xs text-amber-800 hover:text-amber-900 font-medium">刷新</button>
+        <h2 class="text-lg font-semibold text-gray-800"><span data-i18n="orderMgmtTitle">📋 订单管理</span> <span class="text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 ml-1" data-i18n="simulatedBadge">模拟结算，非真实收款</span></h2>
+        <button onclick="loadAdminOrders()" class="text-xs text-amber-800 hover:text-amber-900 font-medium" data-i18n="refreshBtn">刷新</button>
       </div>
       <div class="overflow-x-auto border rounded-lg">
         <table class="w-full text-left border-collapse text-sm">
           <thead>
             <tr class="bg-gray-100 border-b text-gray-600">
-              <th class="p-3">订单号</th>
-              <th class="p-3">客户</th>
-              <th class="p-3">联系方式</th>
-              <th class="p-3">收货地址</th>
-              <th class="p-3">金额</th>
-              <th class="p-3">状态</th>
-              <th class="p-3">下单时间</th>
-              <th class="p-3">操作</th>
+              <th class="p-3" data-i18n="thOrderId">订单号</th>
+              <th class="p-3" data-i18n="thCustomer">客户</th>
+              <th class="p-3" data-i18n="thContact">联系方式</th>
+              <th class="p-3" data-i18n="thAddress">收货地址</th>
+              <th class="p-3" data-i18n="thAmount">金额</th>
+              <th class="p-3" data-i18n="thStatus">状态</th>
+              <th class="p-3" data-i18n="thOrderTime">下单时间</th>
+              <th class="p-3" data-i18n="thAction">操作</th>
             </tr>
           </thead>
           <tbody id="admin-order-list">
             <tr>
-              <td colspan="8" class="p-4 text-center text-gray-500">正在加载订单...</td>
+              <td colspan="8" class="p-4 text-center text-gray-500" data-i18n="loadingOrders">正在加载订单...</td>
             </tr>
           </tbody>
         </table>

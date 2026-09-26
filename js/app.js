@@ -2,7 +2,8 @@
    Aesthetic East - 前台全功能控制脚本 (毫米mm与英寸in实时换算版)
    ================================================= */
 
-let currentLang = 'en';
+// 语言状态：优先读取 localStorage 里保存的选择（与后台管理页共用同一个 key，切换一次全站同步）
+let currentLang = localStorage.getItem('site_lang') || 'en';
 let cart = [];
 let activeSelections = {};
 let isSpinning = false;
@@ -31,21 +32,86 @@ const NAIL_STANDARD_SIZE_CHART = {
 };
 const NAIL_SIZE_FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
+// 全站唯一的双语翻译字典（原先 index.html 底部还有一份重复的 translations 字典，
+// 两处都用 `let currentLang` 在全局作用域声明，浏览器解析第二个 <script> 时会直接抛出
+// "Identifier 'currentLang' has already been declared" 的 SyntaxError，导致那整段内联脚本
+// 完全不执行——这就是横幅/Hero文案/结算表单/footer 等大部分文字点"中文/EN"按钮没反应的真正原因。
+// 现在把两份字典合并成这一份，index.html 里重复的那段内联脚本已经删除。
 const i18n = {
   en: {
-    cartEmpty: "Your cart is empty.",
+    topBanner: "✨ Free US Shipping on Nails & Merch over $50 | White-Glove Freight for Antiques",
+    adminBtn: "Admin",
+    heroTag: "Curated Asian Aesthetics",
+    heroTitle: "Handcrafted Press-Ons & Timeless Chinese Antiques",
+    heroDesc: "Bringing oriental craftsmanship and pop art into modern American homes.",
     nailsSectionTitle: "Handcrafted Press-On Nails",
+    nailsSubTitle: "Click image to enlarge · View custom size specs inside",
     merchSectionTitle: "Original Acrylic Merch",
+    merchSubTitle: "High definition printing & standees",
     furnitureSectionTitle: "Restored Antique Furniture",
-    adminBtn: "Admin Panel",
+    furnitureSubTitle: "Authentic 19th-century craftsmanship",
+    loadingText: "Loading...",
+    cartTitle: "Shopping Bag",
+    cartEmpty: "Your cart is empty.",
+    subtotalLabel: "Subtotal",
+    checkoutBtn: "Proceed to Checkout",
+    dimModalTitle: "Product Dimensions",
+    unitConversionLabel: "Unit Conversion:",
+    closeBtn: "Close",
+    shippingCheckoutTitle: "Shipping & Checkout",
+    placeholderFirstName: "First Name *",
+    placeholderLastName: "Last Name *",
+    placeholderEmail: "Email Address *",
+    placeholderPhone: "Phone (10 digits) *",
+    placeholderAddress: "Street Address (e.g., 123 Main St) *",
+    placeholderCity: "City *",
+    selectState: "Select State *",
+    placeholderZip: "Zip (5 digits) *",
+    taxLabel: "Est. Tax (8%):",
+    totalLabel: "Total:",
+    payBtn: "Complete Payment (Test Mode)",
+    successTitle: "Thank You for Your Order!",
+    successDesc: "Order confirmation has been generated for",
+    continueShoppingBtn: "Continue Shopping",
+    footerSub: "Mobile-First Dynamic E-Commerce Storefront",
     sizeGuide: "Size Guide"
   },
   zh: {
-    cartEmpty: "您的购物车是空的。",
-    nailsSectionTitle: "手工定制穿戴甲",
-    merchSectionTitle: "原创立牌与精美周边",
-    furnitureSectionTitle: "修复明清古董家具",
+    topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
     adminBtn: "管理后台",
+    heroTag: "精选东方美学",
+    heroTitle: "手工精制穿戴甲与流光岁月的东方古董",
+    heroDesc: "将东方手工艺与现代波普艺术完美融入北美现代家居生活。",
+    nailsSectionTitle: "纯手工定制穿戴甲",
+    nailsSubTitle: "点击图片放大 · 内含标准与定制尺寸规格指南",
+    merchSectionTitle: "原创动漫与艺术周边",
+    merchSubTitle: "高清数码印花与精品亚克力立牌",
+    furnitureSectionTitle: "经典修复古董家具",
+    furnitureSubTitle: "传承十九世纪正宗东方木作工艺",
+    loadingText: "加载中...",
+    cartTitle: "购物袋",
+    cartEmpty: "您的购物车是空的。",
+    subtotalLabel: "小计",
+    checkoutBtn: "前往结账",
+    dimModalTitle: "商品尺寸与规格",
+    unitConversionLabel: "单位换算：",
+    closeBtn: "关闭",
+    shippingCheckoutTitle: "配送与结算信息",
+    placeholderFirstName: "名 (First Name) *",
+    placeholderLastName: "姓 (Last Name) *",
+    placeholderEmail: "电子邮箱 (Email) *",
+    placeholderPhone: "手机号码 (10位数字) *",
+    placeholderAddress: "详细街道地址 *",
+    placeholderCity: "城市 (City) *",
+    selectState: "选择州 (State) *",
+    placeholderZip: "邮编 (5位数字) *",
+    taxLabel: "预估税费 (8%):",
+    totalLabel: "总计:",
+    payBtn: "确认支付 (测试模式)",
+    successTitle: "感谢您的订购！",
+    successDesc: "订单确认信已成功生成，收件人：",
+    continueShoppingBtn: "继续购物",
+    footerSub: "移动优先的高性能动态电商前台",
     sizeGuide: "尺寸指南"
   }
 };
@@ -213,16 +279,26 @@ function initSelections() {
 
 function toggleLanguage() {
   currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('site_lang', currentLang);
   const langText = document.getElementById('lang-btn-text');
   if (langText) langText.innerText = currentLang === 'zh' ? '中文' : 'EN';
   renderPage();
 }
 
 function renderPage() {
+  const langText = document.getElementById('lang-btn-text');
+  if (langText) langText.innerText = currentLang === 'zh' ? '中文' : 'EN';
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (i18n[currentLang] && i18n[currentLang][key]) {
       el.innerText = i18n[currentLang][key];
+    }
+  });
+  // 结算表单等输入框的 placeholder 文案（原来只有被删掉的那份重复脚本在处理这个）
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (i18n[currentLang] && i18n[currentLang][key]) {
+      el.placeholder = i18n[currentLang][key];
     }
   });
   renderNails();
