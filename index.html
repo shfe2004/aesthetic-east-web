@@ -4,9 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aesthetic East - Handcrafted Press-Ons & Antiques</title>
-  <!-- TODO(上线前): Tailwind 的 Play CDN 不建议用于生产环境（体积大、控制台会警告），
-       正式上线前应换成构建好的静态 CSS。功能完善阶段先保留，方便快速迭代样式。 -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 已从 Tailwind Play CDN（体积大、控制台会警告"不建议用于生产环境"）换成构建好的静态 CSS。
+       这份 CSS 是根据 index.html / admin.html / js/*.js 里实际用到的 class 扫描生成的，
+       只有 27KB 左右；以后如果新增了页面上没出现过的新 class，需要重新跑一次构建才会生效
+       （不是改了 HTML/JS 就自动更新——这是最主要要注意的地方，见交付说明）。 -->
+  <link rel="stylesheet" href="css/tailwind.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
