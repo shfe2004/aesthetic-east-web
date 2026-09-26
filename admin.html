@@ -300,6 +300,36 @@
       </div>
     </div>
 
+    <!-- 5. 操作日志：登录记录 + 商品/站点配置的增删改记录，永久保存在 Supabase 里，
+         不受 Supabase 自带 Auth Logs 保留期限制；支持导出成 CSV 存到本地备份查看 -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-800" data-i18n="activityLogTitle">📝 操作日志</h2>
+        <div class="flex items-center gap-3">
+          <button onclick="exportActivityLogCSV()" class="text-xs text-blue-700 hover:text-blue-900 font-medium" data-i18n="exportCsvBtn">导出为 CSV</button>
+          <button onclick="loadAdminActivityLog()" class="text-xs text-amber-800 hover:text-amber-900 font-medium" data-i18n="refreshBtn">刷新</button>
+        </div>
+      </div>
+      <p class="text-[11px] text-gray-400 mb-3" data-i18n="activityLogHint">这里的记录永久保存在云端数据库里，不会像 Supabase 自带的登录日志那样几天后自动清空；建议定期点"导出为 CSV"下载到本地留一份备份。</p>
+      <div class="overflow-x-auto border rounded-lg">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-gray-100 border-b text-gray-600">
+              <th class="p-3" data-i18n="thLogTime">时间</th>
+              <th class="p-3" data-i18n="thLogActor">操作人</th>
+              <th class="p-3" data-i18n="thLogEvent">事件</th>
+              <th class="p-3" data-i18n="thLogDetail">详情</th>
+            </tr>
+          </thead>
+          <tbody id="admin-activity-log-list">
+            <tr>
+              <td colspan="4" class="p-4 text-center text-gray-500" data-i18n="loadingLogs">正在加载日志...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <script src="js/supabase-client.js"></script>

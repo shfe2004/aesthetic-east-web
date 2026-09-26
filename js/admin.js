@@ -79,6 +79,24 @@ const ADMIN_I18N = {
     thStatus: "Status",
     thOrderTime: "Order Time",
     loadingOrders: "Loading orders...",
+    activityLogTitle: "📝 Activity Log",
+    exportCsvBtn: "Export as CSV",
+    activityLogHint: "This log is stored permanently in the cloud database — unlike Supabase's built-in Auth Logs, it won't auto-clear after a few days. Export it as CSV regularly to keep a local backup.",
+    thLogTime: "Time",
+    thLogActor: "Actor",
+    thLogEvent: "Event",
+    thLogDetail: "Detail",
+    loadingLogs: "Loading logs...",
+    noLogs: "No activity logged yet.",
+    loadLogsFailed: "Failed to load activity log — please confirm you've run create_admin_activity_log.sql in Supabase.",
+    logEventLogin: "Signed in",
+    logEventLogout: "Signed out",
+    logEventProductCreate: "Product created",
+    logEventProductUpdateSpec: "Options edited",
+    logEventProductUpdateDimensions: "Dimensions edited",
+    logEventProductUpdateInfo: "Product info edited",
+    logEventProductDelete: "Product deleted",
+    logEventSettingsUpdate: "Site settings updated",
     noProducts: "No products in the database yet.",
     noSpecSet: "Options not set",
     hasCustomChart: "Includes custom size chart",
@@ -200,6 +218,24 @@ const ADMIN_I18N = {
     thStatus: "状态",
     thOrderTime: "下单时间",
     loadingOrders: "正在加载订单...",
+    activityLogTitle: "📝 操作日志",
+    exportCsvBtn: "导出为 CSV",
+    activityLogHint: "这里的记录永久保存在云端数据库里，不会像 Supabase 自带的登录日志那样几天后自动清空；建议定期点\"导出为 CSV\"下载到本地留一份备份。",
+    thLogTime: "时间",
+    thLogActor: "操作人",
+    thLogEvent: "事件",
+    thLogDetail: "详情",
+    loadingLogs: "正在加载日志...",
+    noLogs: "暂无操作记录。",
+    loadLogsFailed: "加载操作日志失败，请确认已在 Supabase 里运行过 create_admin_activity_log.sql。",
+    logEventLogin: "登录",
+    logEventLogout: "退出登录",
+    logEventProductCreate: "新增商品",
+    logEventProductUpdateSpec: "修改规格",
+    logEventProductUpdateDimensions: "修改尺寸",
+    logEventProductUpdateInfo: "编辑商品信息",
+    logEventProductDelete: "删除商品",
+    logEventSettingsUpdate: "更新站点配置",
     noProducts: "数据库中暂无商品。",
     noSpecSet: "未设置规格",
     hasCustomChart: "含自定义尺码对照表",
@@ -283,6 +319,7 @@ function toggleAdminLanguage() {
   if (isAdminAuthenticated) {
     loadAdminProducts();
     loadAdminOrders();
+    loadAdminActivityLog();
   }
   // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
   // 下次点开时会用当前语言重新生成，不会停留在切换前的语言上。
@@ -341,6 +378,10 @@ async function handleAdminLogin(e) {
   try {
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    // 只在这里记"登录"事件（真正调用了登录接口且成功），而不是放在 onAdminAuthenticated()
+    // 里——那个函数在刷新页面、Supabase 自动恢复已有登录态时也会跑一次，放那里会导致
+    // 每次刷新页面都被记一条"登录"，日志很快就没意义了。
+    logAdminActivity('login', `email: ${email}`);
     // 登录成功后交给 onAuthStateChange 的 SIGNED_IN 事件统一处理（隐藏登录框、加载数据）
   } catch (err) {
     console.error("管理员登录失败:", err);
@@ -356,7 +397,10 @@ async function handleAdminLogin(e) {
   }
 }
 
-function handleAdminSignOut() {
+async function handleAdminSignOut() {
+  // 必须在真正退出登录之前把日志写进去——退出之后就不是 authenticated 了，
+  // 按照 RLS 策略这条 insert 会被拒绝，写不进去。
+  await logAdminActivity('logout', '');
   supabaseClient.auth.signOut();
 }
 
@@ -367,7 +411,119 @@ function onAdminAuthenticated() {
   loadAdminProducts();
   loadAdminOrders();
   loadSiteSettings();
+  loadAdminActivityLog();
   generateSmartId();
+}
+
+// ===================== 操作日志：登录/关键操作记录 =====================
+// 写进 Supabase 的 admin_activity_log 表，永久保留，不受 Supabase 自带
+// Auth Logs 的保留期限制；配合下面的 CSV 导出可以在本地留一份备份。
+// 这里做成"失败也不影响主流程"——日志写不进去不应该阻止商品保存之类的正常操作。
+async function logAdminActivity(eventType, detail) {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    await supabaseClient.from('admin_activity_log').insert([{
+      actor_email: user ? user.email : null,
+      event_type: eventType,
+      detail: detail || ''
+    }]);
+  } catch (err) {
+    console.error('写入操作日志失败（不影响本次操作本身）:', err);
+  }
+}
+
+const ADMIN_LOG_EVENT_LABEL_KEYS = {
+  login: 'logEventLogin',
+  logout: 'logEventLogout',
+  product_create: 'logEventProductCreate',
+  product_update_spec: 'logEventProductUpdateSpec',
+  product_update_dimensions: 'logEventProductUpdateDimensions',
+  product_update_info: 'logEventProductUpdateInfo',
+  product_delete: 'logEventProductDelete',
+  settings_update: 'logEventSettingsUpdate'
+};
+
+let lastLoadedActivityLog = [];
+
+async function loadAdminActivityLog() {
+  const tbody = document.getElementById("admin-activity-log-list");
+  if (!tbody) return;
+
+  try {
+    const { data: logs, error } = await supabaseClient
+      .from('admin_activity_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) throw error;
+    lastLoadedActivityLog = logs || [];
+
+    if (!logs || logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">${t('noLogs')}</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = logs.map(row => {
+      const timeStr = row.created_at ? new Date(row.created_at).toLocaleString() : '';
+      const labelKey = ADMIN_LOG_EVENT_LABEL_KEYS[row.event_type];
+      const eventLabel = labelKey ? t(labelKey) : row.event_type;
+      return `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="p-3 text-xs text-gray-500">${timeStr}</td>
+          <td class="p-3 text-xs text-gray-700">${row.actor_email || ''}</td>
+          <td class="p-3 text-xs font-semibold text-gray-900">${eventLabel}</td>
+          <td class="p-3 text-xs text-gray-500">${row.detail || ''}</td>
+        </tr>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('加载操作日志失败:', err);
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">${t('loadLogsFailed')}</td></tr>`;
+  }
+}
+
+// 导出成 CSV 下载到本地——重新拉一份更完整的记录（最多 5000 条），而不是只导出当前页面上
+// 已经加载的那 200 条，这样定期导出备份的时候不会漏掉中间的记录。
+async function exportActivityLogCSV() {
+  try {
+    const { data: logs, error } = await supabaseClient
+      .from('admin_activity_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5000);
+
+    if (error) throw error;
+
+    const rows = logs || [];
+    const header = ['time', 'actor_email', 'event_type', 'detail'];
+    const csvLines = [header.join(',')];
+
+    rows.forEach(row => {
+      const timeStr = row.created_at ? new Date(row.created_at).toISOString() : '';
+      const cells = [timeStr, row.actor_email || '', row.event_type || '', row.detail || ''];
+      // 简单的 CSV 转义：把双引号变成两个双引号，整个字段用双引号包起来
+      const escaped = cells.map(c => `"${String(c).replace(/"/g, '""')}"`);
+      csvLines.push(escaped.join(','));
+    });
+
+    const csvContent = csvLines.join('\r\n');
+    const blob = new Blob(["﻿" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `admin_activity_log_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error('导出日志失败:', err);
+    alert(t('loadLogsFailed'));
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -685,6 +841,9 @@ async function handleAddProduct(e) {
       if (imgError) throw new Error(t('galleryImageSaveFailed') + imgError.message);
     }
 
+    logAdminActivity('product_create', `id: ${id}, title: ${titleEn}`);
+    loadAdminActivityLog();
+
     alert(t('productPublishSuccess') + id);
     document.getElementById("add-product-form").reset();
     syncInches();
@@ -969,6 +1128,9 @@ async function saveProductInfo() {
 
     if (error) throw error;
 
+    logAdminActivity('product_update_info', `id: ${currentEditingInfoId}, title: ${titleEn}`);
+    loadAdminActivityLog();
+
     alert(t('infoSaveSuccess'));
     closeEditProductModal();
     loadAdminProducts();
@@ -1051,6 +1213,9 @@ async function saveProductDimensions() {
 
     if (error) throw error;
 
+    logAdminActivity('product_update_dimensions', `id: ${currentEditingDimId}, ${length}x${width}x${height}mm`);
+    loadAdminActivityLog();
+
     alert(t('dimSaveSuccess'));
     closeEditDimensionsModal();
     loadAdminProducts();
@@ -1089,6 +1254,9 @@ async function saveProductSpec() {
         .insert([{ product_id: currentEditingProdId, shapes: newShapes, sizes: newSizes, size_chart: sizeChartToSave }]);
       if (insertError) throw insertError;
     }
+
+    logAdminActivity('product_update_spec', `id: ${currentEditingProdId}, shapes: ${newShapes.join('/')}, sizes: ${newSizes.join('/')}`);
+    loadAdminActivityLog();
 
     alert(t('specSaveSuccess'));
     closeEditSpecModal();
@@ -1183,6 +1351,8 @@ async function deleteProduct(productId) {
     await supabaseClient.from("product_images").delete().eq("product_id", productId);
     const { error } = await supabaseClient.from("products").delete().eq("id", productId);
     if (error) throw error;
+    logAdminActivity('product_delete', `id: ${productId}`);
+    loadAdminActivityLog();
   } catch (err) {
     console.error("删除商品失败:", err);
     alert(t('operationFailed') + err.message);
@@ -1374,6 +1544,9 @@ async function handleSaveSettings(e) {
     // 写入 Supabase 的 site_settings 表（单行 id=1），所有访客都会看到这份配置
     const { error: saveError } = await supabaseClient.from("site_settings").upsert(cfg);
     if (saveError) throw saveError;
+
+    logAdminActivity('settings_update', '');
+    loadAdminActivityLog();
 
     alert(t('siteConfigSaveSuccess'));
     await loadSiteSettings();
