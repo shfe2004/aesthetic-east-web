@@ -111,6 +111,7 @@ const ADMIN_I18N = {
     stockModalTitlePrefix: "Manage Stock - ",
     currentStockLabel: "Current stock quantity",
     stockByVariantHint: "Enter the current on-hand quantity for each shape + size combination. This overwrites the stored count — e.g. if 20 were left and you just received 30, enter 50, not 30.",
+    stockNeedsSpecHint: "Set at least one shape and one size first, then you'll be able to enter stock per combination.",
     saveStockBtn: "Save Stock",
     stockSaveSuccess: "✨ Stock updated successfully!",
     adjustStockSectionTitle: "Loss / Damage Adjustment",
@@ -129,6 +130,22 @@ const ADMIN_I18N = {
     labelPrintModalTitle: "Print QR Code Label",
     generateLabelsBtn: "Generate & Print",
     noStockYet: "Not set up yet",
+    labelSheetPresetLabel: "Label sheet type",
+    labelPresetApproxHint: "These are common approximations. If it doesn't line up with the sheet you actually bought, use \"Custom\" and enter the exact columns/rows/size printed on the sheet's packaging.",
+    labelPresetA4_21: "A4 — 21 labels (3×7, ~70×42.3mm)",
+    labelPresetA4_24: "A4 — 24 labels (3×8, ~70×36mm)",
+    labelPresetA4_32: "A4 — 32 labels (4×8, ~52.5×29.7mm)",
+    labelPresetA4_65: "A4 — 65 labels (5×13, ~38.1×21.2mm)",
+    labelPresetLetter30: "US Letter — 30 labels (Avery 5160-style, 3×10, 1\"×2.625\")",
+    labelPresetCustom: "Custom (enter exact dimensions)",
+    labelPageSizeLabel: "Page size",
+    labelColsLabel: "Columns",
+    labelRowsLabel: "Rows",
+    labelGapXLabel: "Gap X (mm)",
+    labelGapYLabel: "Gap Y (mm)",
+    labelStartPositionLabel: "Start at position #",
+    labelStartPositionHint: "If the first few labels on your sheet are already used, enter which position to start from (1 = top-left) — earlier positions are left blank so nothing prints on used labels.",
+    labelStartPositionTooLarge: "⚠️ This sheet only has {n} labels — the start position can't exceed that.",
     noSpecSet: "Options not set",
     hasCustomChart: "Includes custom size chart",
     usesStandardChart: "Size chart: using industry standard",
@@ -281,6 +298,7 @@ const ADMIN_I18N = {
     stockModalTitlePrefix: "库存管理 - ",
     currentStockLabel: "当前库存数量",
     stockByVariantHint: "为每个甲型+尺寸组合填写当前实际库存总数（不是本次新增数）——比如补货前剩20个，这次进30个，直接填50，不是填30。",
+    stockNeedsSpecHint: "请先设置至少一个甲型和一个尺寸，之后才能按组合填写库存。",
     saveStockBtn: "保存库存",
     stockSaveSuccess: "✨ 库存已更新！",
     adjustStockSectionTitle: "损耗 / 丢失调整",
@@ -299,6 +317,22 @@ const ADMIN_I18N = {
     labelPrintModalTitle: "打印二维码标签",
     generateLabelsBtn: "生成并打印",
     noStockYet: "尚未设置",
+    labelSheetPresetLabel: "标签纸型号",
+    labelPresetApproxHint: "以下是常见规格的近似值。如果和你实际买到的标签纸对不上，选“自定义”，照标签纸包装/衬纸上印的列数、行数、单格尺寸精确填写。",
+    labelPresetA4_21: "A4 — 21格 (3列×7行, 约70×42.3mm)",
+    labelPresetA4_24: "A4 — 24格 (3列×8行, 约70×36mm)",
+    labelPresetA4_32: "A4 — 32格 (4列×8行, 约52.5×29.7mm)",
+    labelPresetA4_65: "A4 — 65格 (5列×13行, 约38.1×21.2mm)",
+    labelPresetLetter30: "US Letter — 30格 (Avery 5160风格, 3列×10行, 1\"×2.625\")",
+    labelPresetCustom: "自定义（精确填写尺寸）",
+    labelPageSizeLabel: "纸张大小",
+    labelColsLabel: "列数",
+    labelRowsLabel: "行数",
+    labelGapXLabel: "横向间距 (mm)",
+    labelGapYLabel: "纵向间距 (mm)",
+    labelStartPositionLabel: "从第几个位置开始",
+    labelStartPositionHint: "如果这张标签纸前面几个格子已经用掉了，填从第几个开始打印（1 = 左上角第一个）——前面的格子会留空跳过，不会印到已用过的标签上。",
+    labelStartPositionTooLarge: "⚠️ 这个型号一页只有 {n} 个标签格，起始位置不能超过这个数。",
     noSpecSet: "未设置规格",
     hasCustomChart: "含自定义尺码对照表",
     usesStandardChart: "尺码对照表：使用行业标准",
@@ -838,7 +872,7 @@ function renderProductRows(products) {
 
       const stockCell = `<div class="space-y-1">
              <div class="font-bold ${stockColorClass}">${stockDisplay}</div>
-             <button onclick="openStockModal('${item.id}', '${item.category_id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}', '${encodeURIComponent(JSON.stringify(variantStocks))}', ${item.stock_quantity || 0})" class="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded text-xs font-bold border border-emerald-300 shadow-sm">
+             <button onclick="openStockModal('${item.id}')" class="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded text-xs font-bold border border-emerald-300 shadow-sm">
                <i class="fa-solid fa-boxes-stacked"></i> ${t('manageStockBtn')}
              </button>
            </div>`;
@@ -982,12 +1016,17 @@ async function handleAddProduct(e) {
     if (prodError) throw prodError;
 
     if (categoryId === "nails") {
-      await supabaseClient.from("nail_options").insert([{
+      // 之前这里没检查 insert 的返回错误——如果这一步失败（比如网络抖动、约束冲突），
+      // 商品主表那行已经建好了，但甲型/尺寸完全没有落库，后台会看起来"库存管理"
+      // 打不开甲型/尺寸选项、库存也没法按组合设置，而且没有任何报错提示。
+      // 现在补上错误检查，失败会直接抛出来，在 alert 里明确告诉你。
+      const { error: nailOptError } = await supabaseClient.from("nail_options").insert([{
         product_id: id,
         shapes: selectedShapes,
         sizes: selectedSizes,
         size_chart: Object.keys(sizeChart).length > 0 ? sizeChart : null
       }]);
+      if (nailOptError) throw new Error('Shapes/sizes failed to save: ' + nailOptError.message);
     }
 
     if (uploadedImageUrls.length > 0) {
@@ -1322,21 +1361,56 @@ function buildVariantSku(productId, shape, size) {
   return `${productId}-${shapeAbbr}-${size}`.toUpperCase();
 }
 
-function openStockModal(prodId, categoryId, titleEncoded, shapesJsonEncoded, sizesJsonEncoded, variantStocksJsonEncoded, currentTotalQty) {
-  currentStockProdId = prodId;
-  currentStockCategory = categoryId;
-  const title = titleEncoded ? decodeURIComponent(titleEncoded) : '';
-  const shapes = shapesJsonEncoded ? JSON.parse(decodeURIComponent(shapesJsonEncoded)) : [];
-  const sizes = sizesJsonEncoded ? JSON.parse(decodeURIComponent(sizesJsonEncoded)) : [];
-  const variantStocks = variantStocksJsonEncoded ? JSON.parse(decodeURIComponent(variantStocksJsonEncoded)) : [];
+// 常见不干胶标签纸规格（近似值，供快速选用）——行数/列数/单个标签尺寸是常见规格里
+// 比较通用的参数，但不同厂家、不同批次的具体页边距可能有一点差异。如果打印出来
+// 和实际标签纸对不上，用"自定义"精确填一遍：大多数标签纸的包装或衬纸上会直接
+// 印着"多少列×多少行、每格多少 mm"，照着填就行，边距我们按"整页居中"自动算，
+// 也可以在自定义里自己再微调。
+const LABEL_SHEET_PRESETS = {
+  a4_21: { nameKey: 'labelPresetA4_21', page: 'A4', cols: 3, rows: 7, labelW: 70, labelH: 42.3, gapX: 0, gapY: 0 },
+  a4_24: { nameKey: 'labelPresetA4_24', page: 'A4', cols: 3, rows: 8, labelW: 70, labelH: 36, gapX: 0, gapY: 0 },
+  a4_32: { nameKey: 'labelPresetA4_32', page: 'A4', cols: 4, rows: 8, labelW: 52.5, labelH: 29.7, gapX: 0, gapY: 0 },
+  a4_65: { nameKey: 'labelPresetA4_65', page: 'A4', cols: 5, rows: 13, labelW: 38.1, labelH: 21.2, gapX: 2, gapY: 0 },
+  letter_30: { nameKey: 'labelPresetLetter30', page: 'Letter', cols: 3, rows: 10, labelW: 66.68, labelH: 25.4, gapX: 3.18, gapY: 0 },
+  custom: { nameKey: 'labelPresetCustom', page: 'A4', cols: 3, rows: 7, labelW: 40, labelH: 30, gapX: 2, gapY: 2 }
+};
 
-  const isNails = categoryId === 'nails';
+const PAGE_SIZE_MM = { A4: { w: 210, h: 297 }, Letter: { w: 215.9, h: 279.4 } };
+
+// 通过商品 ID 从已加载的商品列表里查出完整数据，而不是把标题/规格等内容整段编码塞进
+// onclick 属性字符串——之前那种写法一旦标题、标签之类的字段里出现单引号，
+// 会直接把 onclick 里的参数列表拆断，导致后面的参数（包括甲型/尺寸）被错误截断成空值，
+// 库存管理弹窗看起来"甲型尺寸都没设置"、下拉框也是空的。改成只传 ID 再查表，从根上避免这个问题。
+function openStockModal(prodId) {
+  const item = lastLoadedProducts.find(p => p.id === prodId);
+  if (!item) {
+    alert(t('operationFailed') + 'product not found in current list, please refresh and try again.');
+    return;
+  }
+
+  currentStockProdId = prodId;
+  currentStockCategory = item.category_id;
+  const title = item.title_en || '';
+  const nailOpt = (item.nail_options && item.nail_options.length > 0) ? item.nail_options[0] : {};
+  const shapes = robustParseSpec(nailOpt.shapes);
+  const sizes = robustParseSpec(nailOpt.sizes);
+  const variantStocks = item.nail_variant_stock || [];
+  const currentTotalQty = item.stock_quantity || 0;
+
+  const isNails = currentStockCategory === 'nails';
   const stockLookup = {};
   variantStocks.forEach(v => { stockLookup[`${v.shape}__${v.size}`] = v.quantity_on_hand; });
 
+  // 甲型/尺寸还没在"编辑规格"里设置过的话，库存没法按组合拆开填——这里给个明确的
+  // 提示和直达按钮去设置，而不是显示一句"未设置规格"就没下文了。
   const stockGridHtml = isNails
     ? (shapes.length === 0 || sizes.length === 0
-        ? `<p class="text-xs text-red-500">${t('noSpecSet')}</p>`
+        ? `<div class="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+             <div>${t('noSpecSet')} — ${t('stockNeedsSpecHint')}</div>
+             <button onclick="closeStockModal(); openEditSpecModal('${prodId}', '${encodeURIComponent(JSON.stringify(shapes))}', '${encodeURIComponent(JSON.stringify(sizes))}', '${encodeURIComponent(JSON.stringify(nailOpt.size_chart || {}))}')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300">
+               <i class="fa-solid fa-pen-to-square"></i> ${t('editSpecBtn')}
+             </button>
+           </div>`
         : `<div class="overflow-x-auto">
             <table class="w-full text-xs border-collapse">
               <thead><tr class="text-gray-500">
@@ -1442,8 +1516,39 @@ function openStockModal(prodId, categoryId, titleEncoded, shapesJsonEncoded, siz
 
       <div class="pt-4 border-t space-y-3">
         <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">${t('labelPrintModalTitle')}</h4>
+
         <div class="flex flex-wrap gap-2 items-end">
           ${labelTargetHtml}
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">${t('labelSheetPresetLabel')}</label>
+            <select id="label-preset-select" onchange="onLabelPresetChange()" class="border rounded-lg px-2 py-1.5 text-xs">
+              ${Object.keys(LABEL_SHEET_PRESETS).map(key => `<option value="${key}">${t(LABEL_SHEET_PRESETS[key].nameKey)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-400">${t('labelPresetApproxHint')}</p>
+
+        <div id="label-custom-fields" class="hidden flex flex-wrap gap-2 items-end bg-gray-50 border rounded-lg p-2">
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">${t('labelPageSizeLabel')}</label>
+            <select id="label-custom-page" class="border rounded-lg px-2 py-1.5 text-xs">
+              <option value="A4">A4</option>
+              <option value="Letter">Letter</option>
+            </select>
+          </div>
+          <div><label class="block text-[11px] text-gray-500 mb-1">${t('labelColsLabel')}</label><input type="number" min="1" step="1" id="label-custom-cols" class="w-16 border rounded-lg px-2 py-1.5 text-xs" value="3"></div>
+          <div><label class="block text-[11px] text-gray-500 mb-1">${t('labelRowsLabel')}</label><input type="number" min="1" step="1" id="label-custom-rows" class="w-16 border rounded-lg px-2 py-1.5 text-xs" value="7"></div>
+          <div><label class="block text-[11px] text-gray-500 mb-1">${t('labelWidthLabel')}</label><input type="number" min="1" step="0.1" id="label-custom-w" class="w-20 border rounded-lg px-2 py-1.5 text-xs" value="40"></div>
+          <div><label class="block text-[11px] text-gray-500 mb-1">${t('labelHeightLabel')}</label><input type="number" min="1" step="0.1" id="label-custom-h" class="w-20 border rounded-lg px-2 py-1.5 text-xs" value="30"></div>
+          <div><label class="block text-[11px] text-gray-500 mb-1">${t('labelGapXLabel')}</label><input type="number" min="0" step="0.1" id="label-custom-gapx" class="w-16 border rounded-lg px-2 py-1.5 text-xs" value="2"></div>
+          <div><label class="block text-[11px] text-gray-500 mb-1">${t('labelGapYLabel')}</label><input type="number" min="0" step="0.1" id="label-custom-gapy" class="w-16 border rounded-lg px-2 py-1.5 text-xs" value="2"></div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 items-end">
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">${t('labelStartPositionLabel')}</label>
+            <input type="number" min="1" step="1" id="label-start-position-input" class="w-20 border rounded-lg px-2 py-1.5 text-xs" value="1">
+          </div>
           <div>
             <label class="block text-[11px] text-gray-500 mb-1">${t('labelCopiesLabel')}</label>
             <input type="number" min="1" step="1" id="label-copies-input" class="w-20 border rounded-lg px-2 py-1.5 text-xs" value="1">
@@ -1452,9 +1557,12 @@ function openStockModal(prodId, categoryId, titleEncoded, shapesJsonEncoded, siz
             <i class="fa-solid fa-qrcode"></i> ${t('printLabelBtn')}
           </button>
         </div>
+        <p class="text-[11px] text-gray-400">${t('labelStartPositionHint')}</p>
       </div>
     </div>
   `;
+
+  onLabelPresetChange();
 
   modal.classList.remove("hidden");
 }
@@ -1560,15 +1668,46 @@ async function applyStockAdjustment() {
   }
 }
 
+// 切换"标签纸型号"下拉框时，只有选"自定义"才显示手动填写行列数/尺寸/间距的区域，
+// 选预设型号时这些参数都是写死在 LABEL_SHEET_PRESETS 里的，不需要手填。
+function onLabelPresetChange() {
+  const select = document.getElementById("label-preset-select");
+  const customFields = document.getElementById("label-custom-fields");
+  if (!select || !customFields) return;
+  customFields.classList.toggle("hidden", select.value !== "custom");
+}
+
+function getSelectedLabelConfig() {
+  const select = document.getElementById("label-preset-select");
+  const presetKey = select ? select.value : "custom";
+
+  if (presetKey === "custom") {
+    return {
+      page: document.getElementById("label-custom-page")?.value || "A4",
+      cols: Math.max(parseInt(document.getElementById("label-custom-cols")?.value, 10) || 1, 1),
+      rows: Math.max(parseInt(document.getElementById("label-custom-rows")?.value, 10) || 1, 1),
+      labelW: parseFloat(document.getElementById("label-custom-w")?.value) || 40,
+      labelH: parseFloat(document.getElementById("label-custom-h")?.value) || 30,
+      gapX: parseFloat(document.getElementById("label-custom-gapx")?.value) || 0,
+      gapY: parseFloat(document.getElementById("label-custom-gapy")?.value) || 0
+    };
+  }
+  return LABEL_SHEET_PRESETS[presetKey] || LABEL_SHEET_PRESETS.custom;
+}
+
 // 打印条码标签：用二维码（QR Code）承载 SKU，标签上同时印出可读文字方便肉眼核对。
-// 版式是给"普通打印机 + 不干胶贴纸"用的——弹出的打印页面里可以自己调整每张标签的
-// 宽高（毫米），适配你买的不干胶贴纸规格，用普通 A4/Letter 纸打印后按虚线裁剪。
+// 版式是给"普通打印机 + 不干胶贴纸"用的：选一个常见标签纸型号（或自定义精确尺寸），
+// 再填"从第几个位置开始打印"，前面已经用掉的标签格会留空跳过，从指定位置接着往后印，
+// 用普通 A4/Letter 纸张打印。
 function printStockLabel() {
   if (!currentStockProdId) return;
   const modal = document.getElementById("modal-stock");
   const title = modal ? (modal.dataset.title || '') : '';
   const copiesInput = document.getElementById("label-copies-input");
   const copies = Math.max(parseInt(copiesInput ? copiesInput.value : '1', 10) || 1, 1);
+  const startPosInput = document.getElementById("label-start-position-input");
+  const startPosition = Math.max(parseInt(startPosInput ? startPosInput.value : '1', 10) || 1, 1);
+  const labelConfig = getSelectedLabelConfig();
 
   let sku, subLabel;
   if (currentStockCategory === 'nails') {
@@ -1581,15 +1720,29 @@ function printStockLabel() {
     subLabel = '';
   }
 
-  openLabelPrintWindow(sku, title, subLabel, copies);
+  if (startPosition > labelConfig.cols * labelConfig.rows) {
+    alert(t('labelStartPositionTooLarge').replace('{n}', labelConfig.cols * labelConfig.rows));
+    return;
+  }
+
+  openLabelPrintWindow(sku, title, subLabel, copies, startPosition, labelConfig);
 }
 
-function openLabelPrintWindow(sku, title, subLabel, copies) {
-  const printWin = window.open('', '_blank', 'width=900,height=700');
+function openLabelPrintWindow(sku, title, subLabel, copies, startPosition, cfg) {
+  const printWin = window.open('', '_blank', 'width=1000,height=750');
   if (!printWin) {
     alert(t('operationFailed') + 'popup blocked — please allow pop-ups for this site.');
     return;
   }
+
+  const pageDims = PAGE_SIZE_MM[cfg.page] || PAGE_SIZE_MM.A4;
+  // 整页居中：用页面尺寸减去"格子总占用尺寸"算出上/左边距，尽量还原常见标签纸
+  // 印刷厂通常采用的对称排版；如果和你手上实际那张标签纸有出入，改用"自定义"
+  // 并参考标签纸包装/衬纸上印的规格微调。
+  const gridWidth = cfg.cols * cfg.labelW + (cfg.cols - 1) * cfg.gapX;
+  const gridHeight = cfg.rows * cfg.labelH + (cfg.rows - 1) * cfg.gapY;
+  const marginLeft = Math.max((pageDims.w - gridWidth) / 2, 0);
+  const marginTop = Math.max((pageDims.h - gridHeight) / 2, 0);
 
   printWin.document.write(`
     <!DOCTYPE html>
@@ -1599,64 +1752,90 @@ function openLabelPrintWindow(sku, title, subLabel, copies) {
       <title>${sku}</title>
       <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 16px; }
-        .toolbar { margin-bottom: 12px; }
-        .toolbar label { font-size: 12px; margin-right: 12px; }
-        .toolbar input { width: 60px; }
-        #label-grid { display: flex; flex-wrap: wrap; gap: 4mm; }
-        .label-item { border: 1px dashed #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2mm; box-sizing: border-box; text-align: center; }
-        .label-item img { width: 55%; height: auto; }
-        .label-sku { font-size: 9px; font-weight: bold; word-break: break-all; margin-top: 2px; }
-        .label-title { font-size: 8px; color: #555; }
+        body { font-family: Arial, sans-serif; margin: 0; }
+        .toolbar { padding: 12px 16px; background: #f5f5f5; }
+        .toolbar span { font-size: 12px; color: #555; margin-right: 16px; }
+        .toolbar button { margin-right: 8px; }
+        .page { position: relative; width: ${pageDims.w}mm; height: ${pageDims.h}mm; background: #fff; page-break-after: always; }
+        .cell { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; border: 1px dashed #ddd; }
+        .cell img { width: 55%; height: auto; }
+        .cell.blank { border: 1px dashed #eee; }
+        .label-sku { font-size: 8px; font-weight: bold; word-break: break-all; margin-top: 1px; }
+        .label-title { font-size: 7px; color: #555; }
+        @page { size: ${pageDims.w}mm ${pageDims.h}mm; margin: 0; }
         @media print {
           .toolbar { display: none; }
-          .label-item { border: none; }
+          .cell { border: none; }
         }
       </style>
     </head>
     <body>
       <div class="toolbar">
-        <label>Label width (mm): <input type="number" id="w" value="40"></label>
-        <label>Label height (mm): <input type="number" id="h" value="30"></label>
-        <button onclick="regen()">Re-layout</button>
+        <span>${sku} · ${cfg.cols}×${cfg.rows} · ${cfg.labelW}×${cfg.labelH}mm</span>
         <button onclick="window.print()">Print</button>
       </div>
-      <div id="label-grid"></div>
+      <div id="pages"></div>
       <script>
         const sku = ${JSON.stringify(sku)};
         const title = ${JSON.stringify(title)};
         const subLabel = ${JSON.stringify(subLabel)};
         const copies = ${copies};
+        const startPosition = ${startPosition};
+        const cfg = ${JSON.stringify(cfg)};
+        const marginLeft = ${marginLeft};
+        const marginTop = ${marginTop};
 
-        function regen() {
-          const w = document.getElementById('w').value || 40;
-          const h = document.getElementById('h').value || 30;
-          const grid = document.getElementById('label-grid');
-          grid.innerHTML = '';
-          for (let i = 0; i < copies; i++) {
-            const div = document.createElement('div');
-            div.className = 'label-item';
-            div.style.width = w + 'mm';
-            div.style.height = h + 'mm';
-            const img = document.createElement('img');
-            div.appendChild(img);
-            const skuEl = document.createElement('div');
-            skuEl.className = 'label-sku';
-            skuEl.innerText = sku;
-            div.appendChild(skuEl);
-            if (title || subLabel) {
-              const infoEl = document.createElement('div');
-              infoEl.className = 'label-title';
-              infoEl.innerText = [title, subLabel].filter(Boolean).join(' \\u00b7 ');
-              div.appendChild(infoEl);
+        function render() {
+          const perPage = cfg.cols * cfg.rows;
+          const totalSlots = (startPosition - 1) + copies;
+          const pagesNeeded = Math.ceil(totalSlots / perPage);
+          const container = document.getElementById('pages');
+          container.innerHTML = '';
+          let slotIndex = 0;
+          let printedCount = 0;
+
+          for (let p = 0; p < pagesNeeded; p++) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'page';
+            for (let r = 0; r < cfg.rows; r++) {
+              for (let c = 0; c < cfg.cols; c++) {
+                const globalSlot = slotIndex;
+                slotIndex++;
+                const cell = document.createElement('div');
+                cell.style.left = (marginLeft + c * (cfg.labelW + cfg.gapX)) + 'mm';
+                cell.style.top = (marginTop + r * (cfg.labelH + cfg.gapY)) + 'mm';
+                cell.style.width = cfg.labelW + 'mm';
+                cell.style.height = cfg.labelH + 'mm';
+
+                if (globalSlot >= startPosition - 1 && printedCount < copies) {
+                  cell.className = 'cell';
+                  const img = document.createElement('img');
+                  cell.appendChild(img);
+                  const skuEl = document.createElement('div');
+                  skuEl.className = 'label-sku';
+                  skuEl.innerText = sku;
+                  cell.appendChild(skuEl);
+                  if (title || subLabel) {
+                    const infoEl = document.createElement('div');
+                    infoEl.className = 'label-title';
+                    infoEl.innerText = [title, subLabel].filter(Boolean).join(' \\u00b7 ');
+                    cell.appendChild(infoEl);
+                  }
+                  QRCode.toDataURL(sku, { margin: 1, width: 200 }, function(err, url) {
+                    if (!err) img.src = url;
+                  });
+                  printedCount++;
+                } else {
+                  // 已经用掉的格子（起始位置之前）留空跳过，不印任何内容
+                  cell.className = 'cell blank';
+                }
+                pageDiv.appendChild(cell);
+              }
             }
-            grid.appendChild(div);
-            QRCode.toDataURL(sku, { margin: 1, width: 200 }, function(err, url) {
-              if (!err) img.src = url;
-            });
+            container.appendChild(pageDiv);
           }
         }
-        regen();
+        render();
       <\/script>
     </body>
     </html>
