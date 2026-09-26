@@ -70,6 +70,7 @@ const i18n = {
     taxLabel: "Est. Tax (8%):",
     totalLabel: "Total:",
     payBtn: "Complete Payment (Test Mode)",
+    processingBtn: "Processing...",
     successTitle: "Thank You for Your Order!",
     successDesc: "Order confirmation has been generated for",
     continueShoppingBtn: "Continue Shopping",
@@ -108,6 +109,7 @@ const i18n = {
     taxLabel: "预估税费 (8%):",
     totalLabel: "总计:",
     payBtn: "确认支付 (测试模式)",
+    processingBtn: "处理中...",
     successTitle: "感谢您的订购！",
     successDesc: "订单确认信已成功生成，收件人：",
     continueShoppingBtn: "继续购物",
@@ -777,7 +779,7 @@ function setupSpin360Events() {
 
 function openCheckoutModal() {
   if (cart.length === 0) {
-    alert("Your cart is empty!");
+    alert(i18n[currentLang] ? i18n[currentLang].cartEmpty : 'Your cart is empty.');
     return;
   }
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -812,8 +814,9 @@ async function processPayment(e) {
   const zip = document.getElementById('cust-zip').value;
 
   const payBtn = document.getElementById('pay-submit-btn');
+  const processingText = (i18n[currentLang] && i18n[currentLang].processingBtn) ? i18n[currentLang].processingBtn : 'Processing...';
   payBtn.disabled = true;
-  payBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+  payBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${processingText}`;
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const tax = subtotal * 0.08;
@@ -866,7 +869,7 @@ async function processPayment(e) {
     cart = [];
     updateCartUI();
     payBtn.disabled = false;
-    payBtn.innerText = "Complete Payment";
+    payBtn.innerText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
   }, 1200);
 }
 

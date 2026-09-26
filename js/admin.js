@@ -8,11 +8,14 @@ let currentAdminLang = localStorage.getItem("site_lang") || "en";
 
 const ADMIN_I18N = {
   en: {
-    adminLockTitle: "Admin Panel",
-    adminLockDesc: "Enter the password to continue. This is a temporary safeguard only — don't open this page in front of others.",
-    adminLockPlaceholder: "Enter password",
-    adminLockBtn: "Enter",
-    adminLockError: "Incorrect password, please try again.",
+    adminLockTitle: "Admin Login",
+    adminLockDesc: "Sign in with your admin account to continue.",
+    adminLoginEmailPlaceholder: "Email",
+    adminLoginPasswordPlaceholder: "Password",
+    adminLockBtn: "Sign In",
+    loggingInBtn: "Signing in...",
+    adminLockError: "Incorrect email or password, please try again.",
+    signOutBtn: "Sign Out",
     adminPanelTitle: "Aesthetic East Admin Panel",
     adminPanelSubtitle: "Auto-generated IDs · Dynamic site content · Cloud sync",
     previewFrontendLink: "Preview Storefront ↗",
@@ -126,11 +129,14 @@ const ADMIN_I18N = {
     saveFailed: "Save failed: "
   },
   zh: {
-    adminLockTitle: "管理后台",
-    adminLockDesc: "请输入密码进入。此为临时保护，请勿在他人面前打开本页面。",
-    adminLockPlaceholder: "输入密码",
-    adminLockBtn: "进入后台",
-    adminLockError: "密码错误，请重试。",
+    adminLockTitle: "管理后台登录",
+    adminLockDesc: "请使用管理员账号登录后台。",
+    adminLoginEmailPlaceholder: "邮箱",
+    adminLoginPasswordPlaceholder: "密码",
+    adminLockBtn: "登录",
+    loggingInBtn: "登录中...",
+    adminLockError: "邮箱或密码错误，请重试。",
+    signOutBtn: "退出登录",
     adminPanelTitle: "Aesthetic East 管理后台",
     adminPanelSubtitle: "自动生成编码 · 站点文案动态配置 · 云端同步",
     previewFrontendLink: "预览前台 ↗",
@@ -274,8 +280,10 @@ function toggleAdminLanguage() {
   currentAdminLang = currentAdminLang === "zh" ? "en" : "zh";
   localStorage.setItem("site_lang", currentAdminLang);
   applyAdminI18n();
-  loadAdminProducts();
-  loadAdminOrders();
+  if (isAdminAuthenticated) {
+    loadAdminProducts();
+    loadAdminOrders();
+  }
   // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
   // 下次点开时会用当前语言重新生成，不会停留在切换前的语言上。
   ["modal-edit-spec", "modal-edit-dimensions", "modal-order-items", "modal-edit-info"].forEach(id => {
@@ -283,12 +291,90 @@ function toggleAdminLanguage() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  applyAdminI18n();
+// ===================== 真实后台登录（Supabase Auth）=====================
+// 取代原来那道"任何人看网页源代码都能找到密码"的临时密码墙。
+// 前提：需要在 Supabase 后台 Authentication -> Users 里手动创建一个管理员账号（邮箱+密码），
+// 并且务必去 Authentication -> Providers -> Email 里把"Allow new users to sign up"关掉——
+// 否则任何人拿着公开的 anon key 都能自己在浏览器控制台调用 supabaseClient.auth.signUp()
+// 注册一个新账号，绕过登录直接进后台。这一步不是可选项，是这套方案能生效的必要条件。
+let isAdminAuthenticated = false;
+
+async function initAdminAuth() {
+  const loginForm = document.getElementById("admin-login-form");
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleAdminLogin);
+  }
+  const signOutBtn = document.getElementById("admin-signout-btn");
+  if (signOutBtn) {
+    signOutBtn.addEventListener("click", handleAdminSignOut);
+  }
+
+  // 页面刷新时 supabase-js 会自动从本地存储恢复登录态，不用每次都重新输密码
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    onAdminAuthenticated();
+  }
+
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN") {
+      onAdminAuthenticated();
+    } else if (event === "SIGNED_OUT") {
+      // 退出登录后刷新页面，确保已经加载到内存里的商品/订单数据被清空，回到登录页
+      location.reload();
+    }
+  });
+}
+
+async function handleAdminLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById("admin-login-email").value.trim();
+  const password = document.getElementById("admin-login-password").value;
+  const errorEl = document.getElementById("admin-lock-error");
+  const loginBtn = document.getElementById("admin-login-btn");
+
+  if (errorEl) errorEl.classList.add("hidden");
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.innerText = t('loggingInBtn');
+  }
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    // 登录成功后交给 onAuthStateChange 的 SIGNED_IN 事件统一处理（隐藏登录框、加载数据）
+  } catch (err) {
+    console.error("管理员登录失败:", err);
+    if (errorEl) {
+      errorEl.innerText = t('adminLockError');
+      errorEl.classList.remove("hidden");
+    }
+  } finally {
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerText = t('adminLockBtn');
+    }
+  }
+}
+
+function handleAdminSignOut() {
+  supabaseClient.auth.signOut();
+}
+
+function onAdminAuthenticated() {
+  isAdminAuthenticated = true;
+  const lockScreen = document.getElementById("admin-lock-screen");
+  if (lockScreen) lockScreen.style.display = "none";
   loadAdminProducts();
   loadAdminOrders();
   loadSiteSettings();
   generateSmartId();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  applyAdminI18n();
+  initAdminAuth();
+  // 商品/订单/站点配置的数据加载现在挪到 onAdminAuthenticated() 里，
+  // 只有真正登录成功才会去拉数据；登录之前这些请求本来也会被下面新的 RLS 策略拦掉。
 
   const categorySelect = document.getElementById("prod-category");
   const nailSection = document.getElementById("nail-options-section");
@@ -848,6 +934,23 @@ async function saveProductInfo() {
       if (uploadError) throw new Error(t('imageUploadFailed') + uploadError.message);
       const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
       imageUrl = publicUrlData.publicUrl;
+
+      // 重要：前台画廊只要 product_images 表里有记录，就完全以它为准，spin_image 只在
+      // 完全没有画廊图片时才当兜底用。只改 products.spin_image 的话，只要商品本来就有
+      // 画廊图（现在新建商品都会有），前台主图根本不会变——这里必须同步把画廊里
+      // display_order = 0 的那张也换成新图，不然这个"替换主图"功能等于没生效。
+      const { data: existingMainImg } = await supabaseClient
+        .from("product_images")
+        .select("id")
+        .eq("product_id", currentEditingInfoId)
+        .eq("display_order", 0)
+        .maybeSingle();
+
+      if (existingMainImg) {
+        await supabaseClient.from("product_images").update({ image_url: imageUrl }).eq("id", existingMainImg.id);
+      } else {
+        await supabaseClient.from("product_images").insert([{ product_id: currentEditingInfoId, image_url: imageUrl, display_order: 0 }]);
+      }
     }
 
     const updatePayload = {
@@ -1070,7 +1173,20 @@ function handleHeroBgPreview(e) {
 
 async function deleteProduct(productId) {
   if (!confirm(t('confirmDeleteProduct').replace('{id}', productId))) return;
-  await supabaseClient.from("products").delete().eq("id", productId);
+  try {
+    // 商品编码是按"当前商品总数+分类内数量"生成的（见 generateSmartId），
+    // 删除一个商品之后，同样的编码之后可能被新商品复用。product_images 表对 products
+    // 有 on delete cascade，会自动清掉；但 nail_options 表建得比较早，不确定有没有
+    // 加这个级联规则，为保险起见这里显式把两张关联表也一起清掉，避免新商品复用编码后
+    // "捡到"被删商品遗留下来的甲型/尺码/画廊图片。
+    await supabaseClient.from("nail_options").delete().eq("product_id", productId);
+    await supabaseClient.from("product_images").delete().eq("product_id", productId);
+    const { error } = await supabaseClient.from("products").delete().eq("id", productId);
+    if (error) throw error;
+  } catch (err) {
+    console.error("删除商品失败:", err);
+    alert(t('operationFailed') + err.message);
+  }
   loadAdminProducts();
   generateSmartId();
 }
