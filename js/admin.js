@@ -2,6 +2,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   loadAdminProducts();
+  loadAdminOrders();
   loadSiteSettings();
   generateSmartId();
 
@@ -250,19 +251,26 @@ async function handleAddProduct(e) {
     }
 
     let imageUrl = "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800";
+    let uploadedImageUrls = [];
 
-    if (fileInput && fileInput.files && fileInput.files[0]) {
-      const compressedBlob = await compressImage(fileInput.files[0]);
-      const fileName = `${Date.now()}_${id}.jpg`;
+    // 支持一次选多张图片：全部上传，第一张同时作为 spin_image（主图/360°图），
+    // 全部图片再写入 product_images 表，前台的缩略图画廊靠这张表驱动。
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      const files = Array.from(fileInput.files);
+      for (let i = 0; i < files.length; i++) {
+        const compressedBlob = await compressImage(files[i]);
+        const fileName = `${Date.now()}_${id}_${i}.jpg`;
 
-      const { error: uploadError } = await supabaseClient.storage
-        .from("product-media")
-        .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
+        const { error: uploadError } = await supabaseClient.storage
+          .from("product-media")
+          .upload(fileName, compressedBlob, { contentType: "image/jpeg", upsert: true });
 
-      if (uploadError) throw new Error("图片上传失败: " + uploadError.message);
+        if (uploadError) throw new Error("图片上传失败: " + uploadError.message);
 
-      const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
-      imageUrl = publicUrlData.publicUrl;
+        const { data: publicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(fileName);
+        uploadedImageUrls.push(publicUrlData.publicUrl);
+      }
+      imageUrl = uploadedImageUrls[0];
     }
 
     const { error: prodError } = await supabaseClient.from("products").insert([{
@@ -290,11 +298,24 @@ async function handleAddProduct(e) {
       }]);
     }
 
+    if (uploadedImageUrls.length > 0) {
+      const imageRows = uploadedImageUrls.map((url, idx) => ({
+        product_id: id,
+        image_url: url,
+        display_order: idx
+      }));
+      const { error: imgError } = await supabaseClient.from("product_images").insert(imageRows);
+      if (imgError) throw new Error("商品画廊图片保存失败: " + imgError.message);
+    }
+
     alert("🎉 商品发布成功！唯一编码: " + id);
     document.getElementById("add-product-form").reset();
     syncInches();
     const previewContainer = document.getElementById("image-preview-container");
-    if (previewContainer) previewContainer.classList.add("hidden");
+    if (previewContainer) {
+      previewContainer.classList.add("hidden");
+      previewContainer.innerHTML = "";
+    }
 
     await generateSmartId();
     await loadAdminProducts();
@@ -576,16 +597,25 @@ function compressImage(file, maxDim = 1200, quality = 0.85) {
   });
 }
 
-// 已修复：商品图片实时预览
+// 商品图片实时预览：支持多选，第一张标注为主图
 function handleImagePreview(e) {
-  const file = e.target.files[0];
-  const previewImg = document.getElementById("image-preview");
+  const files = Array.from(e.target.files || []);
   const previewContainer = document.getElementById("image-preview-container");
+  if (!previewContainer) return;
 
-  if (file && previewImg && previewContainer) {
-    previewImg.src = URL.createObjectURL(file);
-    previewContainer.classList.remove("hidden"); // 修复：移除 hidden 显示预览
+  if (files.length === 0) {
+    previewContainer.classList.add("hidden");
+    previewContainer.innerHTML = "";
+    return;
   }
+
+  previewContainer.innerHTML = files.map((f, i) => `
+    <div class="relative">
+      <img src="${URL.createObjectURL(f)}" class="w-20 h-20 object-cover rounded-lg border ${i === 0 ? 'ring-2 ring-amber-600' : ''}">
+      ${i === 0 ? '<span class="absolute -top-1.5 -left-1.5 bg-amber-800 text-white text-[9px] px-1.5 py-0.5 rounded-full">主图</span>' : ''}
+    </div>
+  `).join('');
+  previewContainer.classList.remove("hidden");
 }
 
 // 新增：Hero 背景图实时预览
@@ -605,6 +635,108 @@ async function deleteProduct(productId) {
   await supabaseClient.from("products").delete().eq("id", productId);
   loadAdminProducts();
   generateSmartId();
+}
+
+// --- 订单管理：读取 orders 表并展示，当前都是模拟结算产生的订单，还没有真实支付 ---
+async function loadAdminOrders() {
+  const tbody = document.getElementById("admin-order-list");
+  if (!tbody) return;
+
+  try {
+    const { data: orders, error } = await supabaseClient
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!orders || orders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">暂无订单。</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = orders.map(o => {
+      const created = o.created_at ? new Date(o.created_at).toLocaleString() : '';
+      const addr = [o.address, o.city, o.state, o.zip].filter(Boolean).join(', ');
+      return `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="p-3 font-mono text-xs text-amber-900 font-bold">${o.id}</td>
+          <td class="p-3 text-gray-900">${o.first_name || ''} ${o.last_name || ''}</td>
+          <td class="p-3 text-xs text-gray-600">${o.email || ''}<br>${o.phone || ''}</td>
+          <td class="p-3 text-xs text-gray-600">${addr}</td>
+          <td class="p-3 text-amber-800 font-bold">$${parseFloat(o.total || 0).toFixed(2)}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">${o.status || 'pending_test_payment'}</span></td>
+          <td class="p-3 text-xs text-gray-500">${created}</td>
+          <td class="p-3">
+            <button onclick="openOrderItemsModal('${o.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-semibold">查看明细</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+  } catch (err) {
+    console.error("加载订单失败:", err);
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-red-500">加载订单失败，请确认已在 Supabase 里运行过 complete_missing_features.sql。</td></tr>`;
+  }
+}
+
+async function openOrderItemsModal(orderId) {
+  let modal = document.getElementById("modal-order-items");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal-order-items";
+    modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4";
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[80vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-base font-bold text-gray-900">订单明细 - <span id="order-items-order-id" class="text-amber-800 font-mono"></span></h3>
+          <button onclick="closeOrderItemsModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div id="order-items-body" class="space-y-2 text-sm"></div>
+        <div class="flex justify-end pt-2 border-t">
+          <button onclick="closeOrderItemsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">关闭</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById("order-items-order-id").innerText = orderId;
+  const body = document.getElementById("order-items-body");
+  body.innerHTML = `<p class="text-gray-400 text-xs">加载中...</p>`;
+  modal.classList.remove("hidden");
+
+  try {
+    const { data: items, error } = await supabaseClient
+      .from("order_items")
+      .select("*")
+      .eq("order_id", orderId);
+
+    if (error) throw error;
+
+    if (!items || items.length === 0) {
+      body.innerHTML = `<p class="text-gray-400 text-xs">该订单没有商品明细。</p>`;
+      return;
+    }
+
+    body.innerHTML = items.map(it => `
+      <div class="flex items-center justify-between border-b pb-2">
+        <div>
+          <div class="font-medium text-gray-900">${it.title}</div>
+          <div class="text-xs text-gray-500">${[it.variant_shape, it.variant_size].filter(Boolean).join(' / ')} × ${it.qty}</div>
+        </div>
+        <div class="font-bold text-amber-800">$${(parseFloat(it.unit_price) * it.qty).toFixed(2)}</div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error("加载订单明细失败:", err);
+    body.innerHTML = `<p class="text-red-500 text-xs">加载失败：${err.message}</p>`;
+  }
+}
+
+function closeOrderItemsModal() {
+  document.getElementById("modal-order-items")?.classList.add("hidden");
 }
 
 // 加载站点配置与回显（改为从 Supabase 的 site_settings 表读取，不再用只存在本机的 localStorage）

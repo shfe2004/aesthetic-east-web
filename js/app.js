@@ -475,6 +475,7 @@ function addNailToCart(id) {
   } else {
     cart.push({
       cartItemId,
+      productId: id,
       title: item.title,
       price: parseFloat(item.price),
       image: (item.images && item.images.length > 0) ? item.images[0] : item.spinImage,
@@ -496,6 +497,7 @@ function addSimpleToCart(category, id) {
   } else {
     cart.push({
       cartItemId: id,
+      productId: id,
       title: item.title,
       price: parseFloat(item.price),
       image: (item.images && item.images.length > 0) ? item.images[0] : item.spinImage,
@@ -718,17 +720,73 @@ function closeCheckoutModal() {
   document.getElementById('modal-checkout')?.classList.add('hidden');
 }
 
-function processPayment(e) {
+// 模拟支付：还没接入真实支付网关（Stripe/PayPal 留到最后一步），
+// 这里先把订单和收货信息真实存进 Supabase 的 orders / order_items 表，
+// 这样后台能看到订单列表，不会像之前那样结算完就什么记录都没留下。
+// status 统一标成 pending_test_payment，接入真实支付后再由支付回调改状态。
+async function processPayment(e) {
   e.preventDefault();
   const firstName = document.getElementById('cust-first-name').value;
   const lastName = document.getElementById('cust-last-name').value;
+  const email = document.getElementById('cust-email').value;
+  const phone = document.getElementById('cust-phone').value;
+  const address = document.getElementById('cust-address').value;
+  const city = document.getElementById('cust-city').value;
+  const state = document.getElementById('cust-state').value;
+  const zip = document.getElementById('cust-zip').value;
+
   const payBtn = document.getElementById('pay-submit-btn');
   payBtn.disabled = true;
   payBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const tax = subtotal * 0.08;
+  const total = subtotal + tax;
+  const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  try {
+    const { error: orderError } = await supabaseClient.from('orders').insert([{
+      id: orderId,
+      status: 'pending_test_payment',
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      phone: phone,
+      address: address,
+      city: city,
+      state: state,
+      zip: zip,
+      subtotal: subtotal,
+      tax: tax,
+      total: total
+    }]);
+    if (orderError) throw orderError;
+
+    if (cart.length > 0) {
+      const itemRows = cart.map(item => ({
+        order_id: orderId,
+        product_id: item.productId || item.cartItemId,
+        title: item.title,
+        unit_price: item.price,
+        qty: item.qty,
+        variant_shape: item.shape || null,
+        variant_size: item.size || null
+      }));
+      const { error: itemsError } = await supabaseClient.from('order_items').insert(itemRows);
+      if (itemsError) throw itemsError;
+    }
+  } catch (err) {
+    // 订单落库失败不阻断这次模拟结算流程（顾客体验优先），但打印出来方便排查——
+    // 常见原因是还没在 Supabase 里跑 complete_missing_features.sql 建表。
+    console.error('订单保存失败（未影响本次模拟结算流程，请检查是否已建好 orders/order_items 表）:', err);
+  }
+
   setTimeout(() => {
     document.getElementById('checkout-form').classList.add('hidden');
     document.getElementById('checkout-success').classList.remove('hidden');
     document.getElementById('success-cust-name').innerText = `${firstName} ${lastName}`;
+    const orderIdEl = document.getElementById('success-order-id');
+    if (orderIdEl) orderIdEl.innerText = orderId;
     cart = [];
     updateCartUI();
     payBtn.disabled = false;

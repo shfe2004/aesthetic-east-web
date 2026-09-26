@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aesthetic East - 商品与站点管理后台</title>
+  <!-- TODO(上线前): 同 index.html，Play CDN 换成构建版 CSS 再上线。 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -237,13 +238,11 @@
           <p class="text-[11px] text-gray-500">留 0 表示不显示"Size Guide"尺寸弹窗；至少填一项大于 0 的数值才会在前台显示尺寸对照。</p>
         </div>
 
-        <!-- 图片上传区域 -->
+        <!-- 图片上传区域：支持一次选多张，第一张作为主图，其余进画廊 -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">选择本地商品图片 (自动调整尺寸并同步至云端)</label>
-          <input type="file" id="prod-image-file" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
-          <div id="image-preview-container" class="mt-3 hidden">
-            <img id="image-preview" src="" class="w-24 h-24 object-cover rounded-lg border">
-          </div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">选择本地商品图片（可多选，第一张作为主图；自动等比压缩并同步至云端）</label>
+          <input type="file" id="prod-image-file" accept="image/*" multiple class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
+          <div id="image-preview-container" class="mt-3 hidden flex flex-wrap gap-2"></div>
         </div>
 
         <button type="submit" id="submit-btn" class="w-full bg-amber-800 text-white py-3 rounded-lg hover:bg-amber-900 font-medium transition">
@@ -272,6 +271,35 @@
           <tbody id="admin-product-list">
             <tr>
               <td colspan="7" class="p-4 text-center text-gray-500">正在加载商品列表...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. 订单管理（当前为模拟结算，尚未接入真实支付） -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-800">📋 订单管理 <span class="text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 ml-1">模拟结算，非真实收款</span></h2>
+        <button onclick="loadAdminOrders()" class="text-xs text-amber-800 hover:text-amber-900 font-medium">刷新</button>
+      </div>
+      <div class="overflow-x-auto border rounded-lg">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-gray-100 border-b text-gray-600">
+              <th class="p-3">订单号</th>
+              <th class="p-3">客户</th>
+              <th class="p-3">联系方式</th>
+              <th class="p-3">收货地址</th>
+              <th class="p-3">金额</th>
+              <th class="p-3">状态</th>
+              <th class="p-3">下单时间</th>
+              <th class="p-3">操作</th>
+            </tr>
+          </thead>
+          <tbody id="admin-order-list">
+            <tr>
+              <td colspan="8" class="p-4 text-center text-gray-500">正在加载订单...</td>
             </tr>
           </tbody>
         </table>
