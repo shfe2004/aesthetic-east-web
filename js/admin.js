@@ -103,7 +103,32 @@ const ADMIN_I18N = {
     logEventProductUpdateInfo: "Product info edited",
     logEventProductDelete: "Product deleted",
     logEventSettingsUpdate: "Site settings updated",
+    logEventStockUpdate: "Stock updated",
+    logEventStockAdjust: "Stock adjusted",
     noProducts: "No products in the database yet.",
+    stockColLabel: "Stock",
+    manageStockBtn: "Manage Stock",
+    stockModalTitlePrefix: "Manage Stock - ",
+    currentStockLabel: "Current stock quantity",
+    stockByVariantHint: "Enter the current on-hand quantity for each shape + size combination. This overwrites the stored count — e.g. if 20 were left and you just received 30, enter 50, not 30.",
+    saveStockBtn: "Save Stock",
+    stockSaveSuccess: "✨ Stock updated successfully!",
+    adjustStockSectionTitle: "Loss / Damage Adjustment",
+    adjustStockHint: "Use this for lost or damaged units, a stock-count correction, or a return — enter a negative number to remove stock, positive to add it back.",
+    adjustQtyLabel: "Adjustment amount (+/-)",
+    adjustReasonLabel: "Reason",
+    adjustReasonDamage: "Damaged",
+    adjustReasonLost: "Lost",
+    adjustReasonCorrection: "Stock count correction",
+    adjustReasonReturn: "Returned to stock",
+    applyAdjustBtn: "Apply Adjustment",
+    adjustSuccess: "✨ Adjustment applied!",
+    adjustNeedAmount: "⚠️ Please enter a non-zero adjustment amount!",
+    printLabelBtn: "Print Barcode Label",
+    labelCopiesLabel: "Number of labels",
+    labelPrintModalTitle: "Print QR Code Label",
+    generateLabelsBtn: "Generate & Print",
+    noStockYet: "Not set up yet",
     noSpecSet: "Options not set",
     hasCustomChart: "Includes custom size chart",
     usesStandardChart: "Size chart: using industry standard",
@@ -248,7 +273,32 @@ const ADMIN_I18N = {
     logEventProductUpdateInfo: "编辑商品信息",
     logEventProductDelete: "删除商品",
     logEventSettingsUpdate: "更新站点配置",
+    logEventStockUpdate: "更新库存",
+    logEventStockAdjust: "库存调整",
     noProducts: "数据库中暂无商品。",
+    stockColLabel: "库存",
+    manageStockBtn: "库存管理",
+    stockModalTitlePrefix: "库存管理 - ",
+    currentStockLabel: "当前库存数量",
+    stockByVariantHint: "为每个甲型+尺寸组合填写当前实际库存总数（不是本次新增数）——比如补货前剩20个，这次进30个，直接填50，不是填30。",
+    saveStockBtn: "保存库存",
+    stockSaveSuccess: "✨ 库存已更新！",
+    adjustStockSectionTitle: "损耗 / 丢失调整",
+    adjustStockHint: "用于记录损坏、丢失、盘点修正或退货入库——填负数表示减少库存，填正数表示补回库存。",
+    adjustQtyLabel: "调整数量（正数增加，负数减少）",
+    adjustReasonLabel: "原因",
+    adjustReasonDamage: "损坏",
+    adjustReasonLost: "丢失",
+    adjustReasonCorrection: "盘点修正",
+    adjustReasonReturn: "退货入库",
+    applyAdjustBtn: "应用调整",
+    adjustSuccess: "✨ 调整已生效！",
+    adjustNeedAmount: "⚠️ 请填写不为0的调整数量！",
+    printLabelBtn: "打印条码标签",
+    labelCopiesLabel: "打印份数",
+    labelPrintModalTitle: "打印二维码标签",
+    generateLabelsBtn: "生成并打印",
+    noStockYet: "尚未设置",
     noSpecSet: "未设置规格",
     hasCustomChart: "含自定义尺码对照表",
     usesStandardChart: "尺码对照表：使用行业标准",
@@ -452,7 +502,9 @@ const ADMIN_LOG_EVENT_LABEL_KEYS = {
   product_update_dimensions: 'logEventProductUpdateDimensions',
   product_update_info: 'logEventProductUpdateInfo',
   product_delete: 'logEventProductDelete',
-  settings_update: 'logEventSettingsUpdate'
+  settings_update: 'logEventSettingsUpdate',
+  stock_update: 'logEventStockUpdate',
+  stock_adjust: 'logEventStockAdjust'
 };
 
 let lastLoadedActivityLog = [];
@@ -688,7 +740,7 @@ async function loadAdminProducts() {
   try {
     const { data: products, error } = await supabaseClient
       .from("products")
-      .select("*, nail_options (*)")
+      .select("*, nail_options (*), nail_variant_stock (*)")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -699,7 +751,7 @@ async function loadAdminProducts() {
 
   } catch (err) {
     console.error("加载商品失败:", err);
-    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">${t('loadProductsFailed')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-red-500">${t('loadProductsFailed')}</td></tr>`;
   }
 }
 
@@ -734,7 +786,7 @@ function renderProductRows(products) {
   try {
     if (!products || products.length === 0) {
       const emptyMsg = lastLoadedProducts.length === 0 ? t('noProducts') : t('noMatchingProducts');
-      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">${emptyMsg}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">${emptyMsg}</td></tr>`;
       return;
     }
 
@@ -774,6 +826,23 @@ function renderProductRows(products) {
                </div>`;
           })();
 
+      // 库存显示：穿戴甲按"甲型+尺寸"各组合的库存数量求和，其它品类直接用商品主表上的 stock_quantity。
+      const isNails = item.category_id === 'nails';
+      const variantStocks = item.nail_variant_stock || [];
+      const totalStock = isNails
+        ? variantStocks.reduce((sum, v) => sum + (v.quantity_on_hand || 0), 0)
+        : (item.stock_quantity || 0);
+      const stockNotSetUp = isNails && variantStocks.length === 0;
+      const stockDisplay = stockNotSetUp ? t('noStockYet') : totalStock;
+      const stockColorClass = stockNotSetUp ? 'text-gray-400' : (totalStock <= 0 ? 'text-red-500' : 'text-gray-800');
+
+      const stockCell = `<div class="space-y-1">
+             <div class="font-bold ${stockColorClass}">${stockDisplay}</div>
+             <button onclick="openStockModal('${item.id}', '${item.category_id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(JSON.stringify(shapesArr))}', '${encodeURIComponent(JSON.stringify(sizesArr))}', '${encodeURIComponent(JSON.stringify(variantStocks))}', ${item.stock_quantity || 0})" class="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded text-xs font-bold border border-emerald-300 shadow-sm">
+               <i class="fa-solid fa-boxes-stacked"></i> ${t('manageStockBtn')}
+             </button>
+           </div>`;
+
       return `
         <tr class="border-b hover:bg-gray-50">
           <td class="p-3">
@@ -787,6 +856,7 @@ function renderProductRows(products) {
             <div class="mt-1 text-[11px]"><span class="px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">${item.tag_key || 'New'}</span></div>
           </td>
           <td class="p-3 text-xs text-gray-600">${specContent}</td>
+          <td class="p-3 text-xs text-gray-600">${stockCell}</td>
           <td class="p-3 text-amber-800 font-bold">$${parseFloat(item.price).toFixed(2)}</td>
           <td class="p-3 space-y-1">
             <button onclick="openEditProductModal('${item.id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(item.subtitle_en || '')}', ${parseFloat(item.price) || 0}, '${encodeURIComponent(item.tag_key || '')}', '${encodeURIComponent(item.spin_image || '')}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
@@ -800,7 +870,7 @@ function renderProductRows(products) {
 
   } catch (err) {
     console.error("加载商品失败:", err);
-    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">${t('loadProductsFailed')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-red-500">${t('loadProductsFailed')}</td></tr>`;
   }
 }
 
@@ -1233,6 +1303,365 @@ async function saveProductInfo() {
       saveBtn.innerText = t('saveChangesBtn');
     }
   }
+}
+
+// ============================================================
+// --- 库存管理弹窗：查看/设置库存数量、损耗调整、打印条码标签 ---
+//
+// 穿戴甲按"甲型+尺寸"每个组合各自记一个库存数量（共用同一个 SKU/条码，
+// 不需要给每个物理单品单独编号）；亚克力制品/古董家具直接用商品主表上的
+// stock_quantity 总数。SKU 的生成规则见 buildVariantSku()。
+// ============================================================
+let currentStockProdId = null;
+let currentStockCategory = null;
+
+const SHAPE_SKU_ABBR = { Almond: 'ALM', Coffin: 'COF', Stiletto: 'STI', Square: 'SQU' };
+
+function buildVariantSku(productId, shape, size) {
+  const shapeAbbr = SHAPE_SKU_ABBR[shape] || (shape || '').slice(0, 3).toUpperCase();
+  return `${productId}-${shapeAbbr}-${size}`.toUpperCase();
+}
+
+function openStockModal(prodId, categoryId, titleEncoded, shapesJsonEncoded, sizesJsonEncoded, variantStocksJsonEncoded, currentTotalQty) {
+  currentStockProdId = prodId;
+  currentStockCategory = categoryId;
+  const title = titleEncoded ? decodeURIComponent(titleEncoded) : '';
+  const shapes = shapesJsonEncoded ? JSON.parse(decodeURIComponent(shapesJsonEncoded)) : [];
+  const sizes = sizesJsonEncoded ? JSON.parse(decodeURIComponent(sizesJsonEncoded)) : [];
+  const variantStocks = variantStocksJsonEncoded ? JSON.parse(decodeURIComponent(variantStocksJsonEncoded)) : [];
+
+  const isNails = categoryId === 'nails';
+  const stockLookup = {};
+  variantStocks.forEach(v => { stockLookup[`${v.shape}__${v.size}`] = v.quantity_on_hand; });
+
+  const stockGridHtml = isNails
+    ? (shapes.length === 0 || sizes.length === 0
+        ? `<p class="text-xs text-red-500">${t('noSpecSet')}</p>`
+        : `<div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse">
+              <thead><tr class="text-gray-500">
+                <th class="text-left py-1 pr-2"></th>
+                ${sizes.map(sz => `<th class="text-center py-1 px-1 font-medium">${sz}</th>`).join('')}
+              </tr></thead>
+              <tbody>
+                ${shapes.map(shape => `
+                  <tr>
+                    <td class="py-1 pr-2 font-bold text-gray-700">${shape}</td>
+                    ${sizes.map(sz => `
+                      <td class="py-1 px-1">
+                        <input type="number" min="0" step="1" class="stock-qty-input w-16 border rounded px-1.5 py-1 text-xs text-center" data-shape="${shape}" data-size="${sz}" value="${stockLookup[`${shape}__${sz}`] ?? 0}">
+                      </td>
+                    `).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-2">${t('stockByVariantHint')}</p>`)
+    : `<div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">${t('currentStockLabel')}</label>
+        <input type="number" min="0" step="1" id="stock-simple-qty" class="w-32 border rounded-lg px-3 py-2 text-sm" value="${currentTotalQty || 0}">
+      </div>`;
+
+  const adjustTargetHtml = isNails
+    ? `<div class="flex flex-wrap gap-2 items-end">
+        <div>
+          <label class="block text-[11px] text-gray-500 mb-1">${t('shapesCheckboxLabel')}</label>
+          <select id="adjust-shape-select" class="border rounded-lg px-2 py-1.5 text-xs">
+            ${shapes.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-500 mb-1">${t('sizesCheckboxLabel')}</label>
+          <select id="adjust-size-select" class="border rounded-lg px-2 py-1.5 text-xs">
+            ${sizes.map(sz => `<option value="${sz}">${sz}</option>`).join('')}
+          </select>
+        </div>
+      </div>`
+    : '';
+
+  const labelTargetHtml = isNails
+    ? `<div>
+        <label class="block text-[11px] text-gray-500 mb-1">${t('shapesCheckboxLabel')}</label>
+        <select id="label-shape-select" class="border rounded-lg px-2 py-1.5 text-xs">
+          ${shapes.map(s => `<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="block text-[11px] text-gray-500 mb-1">${t('sizesCheckboxLabel')}</label>
+        <select id="label-size-select" class="border rounded-lg px-2 py-1.5 text-xs">
+          ${sizes.map(sz => `<option value="${sz}">${sz}</option>`).join('')}
+        </select>
+      </div>`
+    : '';
+
+  let modal = document.getElementById("modal-stock");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal-stock";
+    modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4";
+    document.body.appendChild(modal);
+  }
+  modal.dataset.title = title;
+
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="text-base font-bold text-gray-900">${t('stockModalTitlePrefix')}<span class="text-amber-800 font-mono">${prodId}</span></h3>
+        <button onclick="closeStockModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div>${stockGridHtml}</div>
+
+      <div class="flex justify-end gap-3 pt-1">
+        <button onclick="closeStockModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">${t('cancelBtn')}</button>
+        <button onclick="saveStock()" class="px-5 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shadow-sm">${t('saveStockBtn')}</button>
+      </div>
+
+      <div class="pt-4 border-t space-y-3">
+        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">${t('adjustStockSectionTitle')}</h4>
+        <p class="text-[11px] text-gray-400">${t('adjustStockHint')}</p>
+        ${adjustTargetHtml}
+        <div class="flex flex-wrap gap-2 items-end">
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">${t('adjustQtyLabel')}</label>
+            <input type="number" step="1" id="adjust-qty-input" class="w-24 border rounded-lg px-2 py-1.5 text-xs" placeholder="-1">
+          </div>
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">${t('adjustReasonLabel')}</label>
+            <select id="adjust-reason-select" class="border rounded-lg px-2 py-1.5 text-xs">
+              <option value="damage">${t('adjustReasonDamage')}</option>
+              <option value="lost">${t('adjustReasonLost')}</option>
+              <option value="correction">${t('adjustReasonCorrection')}</option>
+              <option value="return">${t('adjustReasonReturn')}</option>
+            </select>
+          </div>
+          <button onclick="applyStockAdjustment()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-100 hover:bg-red-200 text-red-800 border border-red-300">${t('applyAdjustBtn')}</button>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t space-y-3">
+        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">${t('labelPrintModalTitle')}</h4>
+        <div class="flex flex-wrap gap-2 items-end">
+          ${labelTargetHtml}
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">${t('labelCopiesLabel')}</label>
+            <input type="number" min="1" step="1" id="label-copies-input" class="w-20 border rounded-lg px-2 py-1.5 text-xs" value="1">
+          </div>
+          <button onclick="printStockLabel()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300">
+            <i class="fa-solid fa-qrcode"></i> ${t('printLabelBtn')}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.classList.remove("hidden");
+}
+
+function closeStockModal() {
+  document.getElementById("modal-stock")?.classList.add("hidden");
+}
+
+async function saveStock() {
+  if (!currentStockProdId) return;
+  try {
+    if (currentStockCategory === 'nails') {
+      const inputs = document.querySelectorAll(".stock-qty-input");
+      const rows = Array.from(inputs).map(inp => ({
+        product_id: currentStockProdId,
+        shape: inp.dataset.shape,
+        size: inp.dataset.size,
+        sku: buildVariantSku(currentStockProdId, inp.dataset.shape, inp.dataset.size),
+        quantity_on_hand: parseInt(inp.value, 10) || 0,
+        updated_at: new Date().toISOString()
+      }));
+      if (rows.length > 0) {
+        const { error } = await supabaseClient
+          .from("nail_variant_stock")
+          .upsert(rows, { onConflict: 'product_id,shape,size' });
+        if (error) throw error;
+      }
+    } else {
+      const qty = parseInt(document.getElementById("stock-simple-qty").value, 10) || 0;
+      const { error } = await supabaseClient
+        .from("products")
+        .update({ stock_quantity: qty })
+        .eq("id", currentStockProdId);
+      if (error) throw error;
+    }
+
+    logAdminActivity('stock_update', `id: ${currentStockProdId}`);
+    loadAdminActivityLog();
+    alert(t('stockSaveSuccess'));
+    closeStockModal();
+    loadAdminProducts();
+
+  } catch (err) {
+    console.error("保存库存失败:", err);
+    alert(t('updateFailed') + err.message);
+  }
+}
+
+async function applyStockAdjustment() {
+  if (!currentStockProdId) return;
+  const qtyInput = document.getElementById("adjust-qty-input");
+  const reasonSelect = document.getElementById("adjust-reason-select");
+  const delta = parseInt(qtyInput ? qtyInput.value : '', 10);
+
+  if (!delta) {
+    alert(t('adjustNeedAmount'));
+    return;
+  }
+
+  const reasonKey = reasonSelect ? reasonSelect.value : 'correction';
+  const reasonLabelKeyMap = { damage: 'adjustReasonDamage', lost: 'adjustReasonLost', correction: 'adjustReasonCorrection', return: 'adjustReasonReturn' };
+  const reasonLabel = t(reasonLabelKeyMap[reasonKey] || 'adjustReasonCorrection');
+
+  try {
+    if (currentStockCategory === 'nails') {
+      const shape = document.getElementById("adjust-shape-select")?.value;
+      const size = document.getElementById("adjust-size-select")?.value;
+
+      const { data: existing } = await supabaseClient
+        .from("nail_variant_stock")
+        .select("id, quantity_on_hand")
+        .eq("product_id", currentStockProdId)
+        .eq("shape", shape)
+        .eq("size", size)
+        .maybeSingle();
+
+      const newQty = Math.max((existing ? existing.quantity_on_hand : 0) + delta, 0);
+
+      if (existing) {
+        await supabaseClient.from("nail_variant_stock").update({ quantity_on_hand: newQty, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      } else {
+        await supabaseClient.from("nail_variant_stock").insert([{ product_id: currentStockProdId, shape, size, sku: buildVariantSku(currentStockProdId, shape, size), quantity_on_hand: newQty }]);
+      }
+
+      logAdminActivity('stock_adjust', `id: ${currentStockProdId}, ${shape}/${size}, ${delta > 0 ? '+' : ''}${delta} (${reasonLabel})`);
+
+    } else {
+      const { data: prod } = await supabaseClient.from("products").select("stock_quantity").eq("id", currentStockProdId).maybeSingle();
+      const newQty = Math.max((prod ? (prod.stock_quantity || 0) : 0) + delta, 0);
+      await supabaseClient.from("products").update({ stock_quantity: newQty }).eq("id", currentStockProdId);
+
+      logAdminActivity('stock_adjust', `id: ${currentStockProdId}, ${delta > 0 ? '+' : ''}${delta} (${reasonLabel})`);
+    }
+
+    loadAdminActivityLog();
+    alert(t('adjustSuccess'));
+    closeStockModal();
+    loadAdminProducts();
+
+  } catch (err) {
+    console.error("库存调整失败:", err);
+    alert(t('updateFailed') + err.message);
+  }
+}
+
+// 打印条码标签：用二维码（QR Code）承载 SKU，标签上同时印出可读文字方便肉眼核对。
+// 版式是给"普通打印机 + 不干胶贴纸"用的——弹出的打印页面里可以自己调整每张标签的
+// 宽高（毫米），适配你买的不干胶贴纸规格，用普通 A4/Letter 纸打印后按虚线裁剪。
+function printStockLabel() {
+  if (!currentStockProdId) return;
+  const modal = document.getElementById("modal-stock");
+  const title = modal ? (modal.dataset.title || '') : '';
+  const copiesInput = document.getElementById("label-copies-input");
+  const copies = Math.max(parseInt(copiesInput ? copiesInput.value : '1', 10) || 1, 1);
+
+  let sku, subLabel;
+  if (currentStockCategory === 'nails') {
+    const shape = document.getElementById("label-shape-select")?.value;
+    const size = document.getElementById("label-size-select")?.value;
+    sku = buildVariantSku(currentStockProdId, shape, size);
+    subLabel = `${shape || ''} / ${size || ''}`;
+  } else {
+    sku = currentStockProdId.toUpperCase();
+    subLabel = '';
+  }
+
+  openLabelPrintWindow(sku, title, subLabel, copies);
+}
+
+function openLabelPrintWindow(sku, title, subLabel, copies) {
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if (!printWin) {
+    alert(t('operationFailed') + 'popup blocked — please allow pop-ups for this site.');
+    return;
+  }
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${sku}</title>
+      <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+        .toolbar { margin-bottom: 12px; }
+        .toolbar label { font-size: 12px; margin-right: 12px; }
+        .toolbar input { width: 60px; }
+        #label-grid { display: flex; flex-wrap: wrap; gap: 4mm; }
+        .label-item { border: 1px dashed #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2mm; box-sizing: border-box; text-align: center; }
+        .label-item img { width: 55%; height: auto; }
+        .label-sku { font-size: 9px; font-weight: bold; word-break: break-all; margin-top: 2px; }
+        .label-title { font-size: 8px; color: #555; }
+        @media print {
+          .toolbar { display: none; }
+          .label-item { border: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="toolbar">
+        <label>Label width (mm): <input type="number" id="w" value="40"></label>
+        <label>Label height (mm): <input type="number" id="h" value="30"></label>
+        <button onclick="regen()">Re-layout</button>
+        <button onclick="window.print()">Print</button>
+      </div>
+      <div id="label-grid"></div>
+      <script>
+        const sku = ${JSON.stringify(sku)};
+        const title = ${JSON.stringify(title)};
+        const subLabel = ${JSON.stringify(subLabel)};
+        const copies = ${copies};
+
+        function regen() {
+          const w = document.getElementById('w').value || 40;
+          const h = document.getElementById('h').value || 30;
+          const grid = document.getElementById('label-grid');
+          grid.innerHTML = '';
+          for (let i = 0; i < copies; i++) {
+            const div = document.createElement('div');
+            div.className = 'label-item';
+            div.style.width = w + 'mm';
+            div.style.height = h + 'mm';
+            const img = document.createElement('img');
+            div.appendChild(img);
+            const skuEl = document.createElement('div');
+            skuEl.className = 'label-sku';
+            skuEl.innerText = sku;
+            div.appendChild(skuEl);
+            if (title || subLabel) {
+              const infoEl = document.createElement('div');
+              infoEl.className = 'label-title';
+              infoEl.innerText = [title, subLabel].filter(Boolean).join(' \\u00b7 ');
+              div.appendChild(infoEl);
+            }
+            grid.appendChild(div);
+            QRCode.toDataURL(sku, { margin: 1, width: 200 }, function(err, url) {
+              if (!err) img.src = url;
+            });
+          }
+        }
+        regen();
+      <\/script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
 }
 
 // --- 立牌 / 古董家具：修改物理尺寸弹窗 ---
