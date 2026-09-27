@@ -320,9 +320,21 @@
         </div>
         <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2.5 rounded-xl text-sm w-full text-stone-500 font-medium">
 
+        <!-- 运费计算区：地址填好后点击按钮向 Shippo 实时询价，选一个快递方式再继续付款 -->
+        <div id="shipping-section" class="border rounded-xl p-3 bg-stone-50/50 space-y-2">
+          <button type="button" onclick="calculateShipping()" id="calc-shipping-btn" class="w-full bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold py-2.5 rounded-xl transition" data-i18n="calcShippingBtn">
+            Calculate Shipping
+          </button>
+          <div id="shipping-rates-list" class="space-y-1.5"></div>
+          <p id="shipping-manual-note" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2" data-i18n="manualShippingNote">
+            This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.
+          </p>
+        </div>
+
         <div class="bg-stone-50 p-3.5 rounded-xl text-xs space-y-1.5 text-stone-600 mt-2 border">
           <div class="flex justify-between"><span data-i18n="subtotalLabel">Subtotal:</span><span id="checkout-subtotal">$0.00</span></div>
           <div class="flex justify-between"><span data-i18n="taxLabel">Est. Tax (8%):</span><span id="checkout-tax">$0.00</span></div>
+          <div class="flex justify-between"><span data-i18n="shippingLabel">Shipping:</span><span id="checkout-shipping">--</span></div>
           <div class="flex justify-between font-bold text-stone-900 pt-1.5 border-t"><span data-i18n="totalLabel">Total:</span><span id="checkout-total">$0.00</span></div>
         </div>
         <button type="submit" id="pay-submit-btn" class="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-3.5 rounded-xl transition shadow-md" data-i18n="payBtn">
@@ -351,6 +363,7 @@
 
   <!-- 引入外部控制脚本 -->
   <script src="js/supabase-client.js"></script>
+  <script src="js/shipping-config.js"></script>
   <script src="js/app.js"></script>
   <!-- 双语翻译字典、语言切换与 data-i18n 渲染逻辑现在统一由 js/app.js 维护，
        这里不再重复声明，避免和 app.js 里的 `let currentLang` 撞名导致 SyntaxError。 -->

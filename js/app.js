@@ -5,6 +5,9 @@
 // 语言状态：优先读取 localStorage 里保存的选择（与后台管理页共用同一个 key，切换一次全站同步）
 let currentLang = localStorage.getItem('site_lang') || 'en';
 let cart = [];
+// 当前订单选中的快递方式（点击"计算运费"后由 Shippo 返回，顾客选一个后存在这里）
+let selectedShippingRate = null;
+let currentShippoShipmentId = null;
 let activeSelections = {};
 let isSpinning = false;
 let spinStartX = 0;
@@ -75,7 +78,15 @@ const i18n = {
     successDesc: "Order confirmation has been generated for",
     continueShoppingBtn: "Continue Shopping",
     footerSub: "Mobile-First Dynamic E-Commerce Storefront",
-    sizeGuide: "Size Guide"
+    sizeGuide: "Size Guide",
+    calcShippingBtn: "Calculate Shipping",
+    calculatingShippingBtn: "Calculating...",
+    shippingLabel: "Shipping:",
+    chooseShippingPrompt: "Select a shipping option:",
+    manualShippingNote: "This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.",
+    shippingCalcError: "Could not get shipping rates. Please check your address and try again.",
+    shippingNotCalculatedYet: "Please calculate shipping before completing payment.",
+    fillAddressFirst: "Please fill in your address, city, state and zip first."
   },
   zh: {
     topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
@@ -114,7 +125,15 @@ const i18n = {
     successDesc: "订单确认信已成功生成，收件人：",
     continueShoppingBtn: "继续购物",
     footerSub: "移动优先的高性能动态电商前台",
-    sizeGuide: "尺寸指南"
+    sizeGuide: "尺寸指南",
+    calcShippingBtn: "计算运费",
+    calculatingShippingBtn: "计算中...",
+    shippingLabel: "运费：",
+    chooseShippingPrompt: "请选择一种快递方式：",
+    manualShippingNote: "此订单包含古董家具，运费将在下单后由客服人工核算并与您确认。",
+    shippingCalcError: "获取运费失败，请检查地址信息后重试。",
+    shippingNotCalculatedYet: "请先点击「计算运费」再完成支付。",
+    fillAddressFirst: "请先填写详细地址、城市、州和邮编。"
   }
 };
 
@@ -554,6 +573,7 @@ function addNailToCart(id) {
     cart.push({
       cartItemId,
       productId: id,
+      category: 'nails',
       title: item.title,
       price: parseFloat(item.price),
       image: (item.images && item.images.length > 0) ? item.images[0] : item.spinImage,
@@ -576,6 +596,7 @@ function addSimpleToCart(category, id) {
     cart.push({
       cartItemId: id,
       productId: id,
+      category: category,
       title: item.title,
       price: parseFloat(item.price),
       image: (item.images && item.images.length > 0) ? item.images[0] : item.spinImage,
@@ -782,16 +803,125 @@ function openCheckoutModal() {
     alert(i18n[currentLang] ? i18n[currentLang].cartEmpty : 'Your cart is empty.');
     return;
   }
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const tax = subtotal * 0.08;
-  const total = subtotal + tax;
-  document.getElementById('checkout-subtotal').innerText = `$${subtotal.toFixed(2)}`;
-  document.getElementById('checkout-tax').innerText = `$${tax.toFixed(2)}`;
-  document.getElementById('checkout-total').innerText = `$${total.toFixed(2)}`;
+  // 每次打开结算弹窗都清空上一次选的运费，避免购物车内容变了运费还是旧的
+  selectedShippingRate = null;
+  currentShippoShipmentId = null;
+  const ratesListEl = document.getElementById('shipping-rates-list');
+  if (ratesListEl) ratesListEl.innerHTML = '';
+  const manualNoteEl = document.getElementById('shipping-manual-note');
+  if (manualNoteEl) manualNoteEl.classList.add('hidden');
+  const calcBtn = document.getElementById('calc-shipping-btn');
+  if (calcBtn) { calcBtn.disabled = false; calcBtn.classList.remove('hidden'); }
+
+  updateCheckoutTotalsUI();
   document.getElementById('checkout-form').classList.remove('hidden');
   document.getElementById('checkout-success').classList.add('hidden');
   closeCartDrawer();
   document.getElementById('modal-checkout').classList.remove('hidden');
+}
+
+// 统一刷新结算弹窗里的小计/税费/运费/总计，运费没算出来之前显示 "--"
+function updateCheckoutTotalsUI() {
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const tax = subtotal * 0.08;
+  const shippingCost = selectedShippingRate ? selectedShippingRate.amount : 0;
+  const total = subtotal + tax + shippingCost;
+  document.getElementById('checkout-subtotal').innerText = `$${subtotal.toFixed(2)}`;
+  document.getElementById('checkout-tax').innerText = `$${tax.toFixed(2)}`;
+  const shippingEl = document.getElementById('checkout-shipping');
+  if (shippingEl) {
+    shippingEl.innerText = selectedShippingRate ? `$${shippingCost.toFixed(2)}` : '--';
+  }
+  document.getElementById('checkout-total').innerText = `$${total.toFixed(2)}`;
+  return { subtotal, tax, shippingCost, total };
+}
+
+// 点击"计算运费"：把当前地址 + 购物车换算出的包裹信息发给后端 /api/shipping-rates，
+// 由后端拿着 Shippo 密钥去实时询价，前台只拿回一份可选的快递方式列表。
+async function calculateShipping() {
+  const address = document.getElementById('cust-address').value.trim();
+  const city = document.getElementById('cust-city').value.trim();
+  const state = document.getElementById('cust-state').value;
+  const zip = document.getElementById('cust-zip').value.trim();
+  const firstName = document.getElementById('cust-first-name').value.trim();
+  const lastName = document.getElementById('cust-last-name').value.trim();
+
+  if (!address || !city || !state || !zip) {
+    alert(i18n[currentLang] ? i18n[currentLang].fillAddressFirst : 'Please fill in your address, city, state and zip first.');
+    return;
+  }
+
+  const { parcel, needsManualQuote } = computeParcelForCart(cart);
+
+  const manualNoteEl = document.getElementById('shipping-manual-note');
+  const ratesListEl = document.getElementById('shipping-rates-list');
+  const calcBtn = document.getElementById('calc-shipping-btn');
+
+  // 购物车里只有古董家具（没有可自动算的穿戴甲/亚克力制品）：不调用询价接口，直接提示人工核算
+  if (!parcel) {
+    if (manualNoteEl) manualNoteEl.classList.remove('hidden');
+    if (calcBtn) calcBtn.classList.add('hidden');
+    selectedShippingRate = { amount: 0, manual: true };
+    updateCheckoutTotalsUI();
+    return;
+  }
+
+  const calculatingText = (i18n[currentLang] && i18n[currentLang].calculatingShippingBtn) ? i18n[currentLang].calculatingShippingBtn : 'Calculating...';
+  const originalBtnText = calcBtn ? calcBtn.innerHTML : '';
+  if (calcBtn) { calcBtn.disabled = true; calcBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${calculatingText}`; }
+  if (ratesListEl) ratesListEl.innerHTML = '';
+
+  try {
+    const resp = await fetch('/api/shipping-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        addressTo: { name: `${firstName} ${lastName}`.trim(), street1: address, city, state, zip },
+        parcel
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.rates || data.rates.length === 0) {
+      throw new Error((data && data.error) || 'no rates');
+    }
+    currentShippoShipmentId = data.shipmentId;
+    renderShippingRates(data.rates);
+    // 若含古董家具，同时也提示这部分需要人工核算（穿戴甲/亚克力部分已经能自动询价了）
+    if (needsManualQuote && manualNoteEl) manualNoteEl.classList.remove('hidden');
+  } catch (err) {
+    console.error('运费询价失败:', err);
+    alert(i18n[currentLang] ? i18n[currentLang].shippingCalcError : 'Could not get shipping rates. Please check your address and try again.');
+  } finally {
+    if (calcBtn) { calcBtn.disabled = false; calcBtn.innerHTML = originalBtnText; }
+  }
+}
+
+// 把 Shippo 返回的多个快递方式渲染成单选列表，顾客选中一个后重新计算总价
+function renderShippingRates(rates) {
+  const container = document.getElementById('shipping-rates-list');
+  if (!container) return;
+  const promptText = (i18n[currentLang] && i18n[currentLang].chooseShippingPrompt) ? i18n[currentLang].chooseShippingPrompt : 'Select a shipping option:';
+  container.innerHTML = `<p class="text-[11px] text-stone-500 mb-1">${promptText}</p>` + rates.map((rate, idx) => `
+    <label class="flex items-center justify-between gap-2 bg-white border rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-amber-700">
+      <span class="flex items-center gap-2">
+        <input type="radio" name="shipping-rate-choice" value="${idx}" onchange="selectShippingRate(${idx})" ${idx === 0 ? 'checked' : ''}>
+        <span class="font-semibold text-stone-800">${rate.carrier} ${rate.service}</span>
+        ${rate.days ? `<span class="text-stone-400">(~${rate.days}d)</span>` : ''}
+      </span>
+      <span class="font-bold text-amber-700">$${rate.amount.toFixed(2)}</span>
+    </label>
+  `).join('');
+  container.dataset.rates = JSON.stringify(rates);
+  // 默认选中第一个（最便宜的，因为后端已经按价格从低到高排序过）
+  selectShippingRate(0);
+}
+
+function selectShippingRate(idx) {
+  const container = document.getElementById('shipping-rates-list');
+  if (!container || !container.dataset.rates) return;
+  const rates = JSON.parse(container.dataset.rates);
+  selectedShippingRate = rates[idx];
+  updateCheckoutTotalsUI();
 }
 
 function closeCheckoutModal() {
@@ -804,6 +934,14 @@ function closeCheckoutModal() {
 // status 统一标成 pending_test_payment，接入真实支付后再由支付回调改状态。
 async function processPayment(e) {
   e.preventDefault();
+
+  // 结算前必须先算出运费（人工核算的家具订单会走上面 calculateShipping() 里的分支，
+  // 把 selectedShippingRate 设成 {amount:0, manual:true}，同样算"已确认"）
+  if (!selectedShippingRate) {
+    alert(i18n[currentLang] ? i18n[currentLang].shippingNotCalculatedYet : 'Please calculate shipping before completing payment.');
+    return;
+  }
+
   const firstName = document.getElementById('cust-first-name').value;
   const lastName = document.getElementById('cust-last-name').value;
   const email = document.getElementById('cust-email').value;
@@ -818,9 +956,7 @@ async function processPayment(e) {
   payBtn.disabled = true;
   payBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${processingText}`;
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const tax = subtotal * 0.08;
-  const total = subtotal + tax;
+  const { subtotal, tax, shippingCost, total } = updateCheckoutTotalsUI();
   const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
   try {
@@ -837,7 +973,13 @@ async function processPayment(e) {
       zip: zip,
       subtotal: subtotal,
       tax: tax,
-      total: total
+      total: total,
+      shipping_cost: shippingCost,
+      shipping_carrier: selectedShippingRate.manual ? null : selectedShippingRate.carrier,
+      shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
+      shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
+      shippo_shipment_id: currentShippoShipmentId,
+      needs_manual_shipping: !!selectedShippingRate.manual
     }]);
     if (orderError) throw orderError;
 
@@ -867,6 +1009,8 @@ async function processPayment(e) {
     const orderIdEl = document.getElementById('success-order-id');
     if (orderIdEl) orderIdEl.innerText = orderId;
     cart = [];
+    selectedShippingRate = null;
+    currentShippoShipmentId = null;
     updateCartUI();
     payBtn.disabled = false;
     payBtn.innerText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
