@@ -25,6 +25,8 @@ const ADMIN_I18N = {
     heroTitleLabel: "Hero Main Heading",
     heroDescLabel: "Hero Description",
     heroBgLabel: "Hero Banner Background Image (custom upload)",
+    taxRateLabel: "Checkout Tax Rate (%)",
+    taxRateHint: "Customers are charged this percentage as tax at checkout, e.g. 8 means 8%. Takes effect immediately after saving.",
     saveSiteConfigBtn: "Save Site Settings",
     savingConfigBtn: "Saving...",
     addProductSectionTitle: "📦 Add New Product",
@@ -212,6 +214,8 @@ const ADMIN_I18N = {
     heroTitleLabel: "Hero 大图标题 (Main Heading)",
     heroDescLabel: "Hero 描述文案 (Description)",
     heroBgLabel: "Hero 顶部横幅背景图 (自定义上传)",
+    taxRateLabel: "结算税率 (%)",
+    taxRateHint: "顾客结算页会按这个百分比算税费，比如填 8 就是 8%。改完保存后前台立刻生效。",
     saveSiteConfigBtn: "保存站点配置",
     savingConfigBtn: "正在保存配置...",
     addProductSectionTitle: "📦 添加新商品",
@@ -2213,6 +2217,11 @@ async function loadSiteSettings() {
       prev.src = cfg.hero_bg;
       container.classList.remove("hidden");
     }
+    // tax_rate 数据库里存的是小数（0.08），输入框里按大家习惯显示成百分比数字（8）
+    if (document.getElementById("cfg-tax-rate")) {
+      const rate = (cfg.tax_rate === null || cfg.tax_rate === undefined) ? 0.08 : parseFloat(cfg.tax_rate);
+      document.getElementById("cfg-tax-rate").value = (rate * 100).toString();
+    }
   } catch (err) {
     console.error("加载站点配置失败:", err);
   }
@@ -2252,13 +2261,19 @@ async function handleSaveSettings(e) {
       heroBgUrl = publicUrlData.publicUrl;
     }
 
+    // 输入框填的是百分比数字（比如 8），存进数据库前换算成小数（0.08）；
+    // 留空或填了非法值时兜底用 8%，避免税率意外存成 NaN 或 0 导致漏收税
+    const taxRateInput = document.getElementById("cfg-tax-rate") ? parseFloat(document.getElementById("cfg-tax-rate").value) : NaN;
+    const taxRate = isNaN(taxRateInput) ? 0.08 : (taxRateInput / 100);
+
     const cfg = {
       id: 1,
       logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
       banner: document.getElementById("cfg-banner-text") ? document.getElementById("cfg-banner-text").value : "",
       hero_title: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
       hero_desc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
-      hero_bg: heroBgUrl
+      hero_bg: heroBgUrl,
+      tax_rate: taxRate
     };
 
     // 写入 Supabase 的 site_settings 表（单行 id=1），所有访客都会看到这份配置

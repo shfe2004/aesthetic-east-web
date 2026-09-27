@@ -8,6 +8,8 @@ let cart = [];
 // 当前订单选中的快递方式（点击"计算运费"后由 Shippo 返回，顾客选一个后存在这里）
 let selectedShippingRate = null;
 let currentShippoShipmentId = null;
+// 结算税率，从后台 site_settings 里读，读不到时兜底用 8%（跟原来硬编码的值保持一致）
+let siteTaxRate = 0.08;
 let activeSelections = {};
 let isSpinning = false;
 let spinStartX = 0;
@@ -86,7 +88,9 @@ const i18n = {
     manualShippingNote: "This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.",
     shippingCalcError: "Could not get shipping rates. Please check your address and try again.",
     shippingNotCalculatedYet: "Please calculate shipping before completing payment.",
-    fillAddressFirst: "Please fill in your address, city, state and zip first."
+    fillAddressFirst: "Please fill in your address, city, state and zip first.",
+    soldOutBtn: "Sold Out",
+    variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock."
   },
   zh: {
     topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
@@ -133,7 +137,9 @@ const i18n = {
     manualShippingNote: "此订单包含古董家具，运费将在下单后由客服人工核算并与您确认。",
     shippingCalcError: "获取运费失败，请检查地址信息后重试。",
     shippingNotCalculatedYet: "请先点击「计算运费」再完成支付。",
-    fillAddressFirst: "请先填写详细地址、城市、州和邮编。"
+    fillAddressFirst: "请先填写详细地址、城市、州和邮编。",
+    soldOutBtn: "已售罄",
+    variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。"
   }
 };
 
@@ -160,15 +166,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 独立并发查询 products、nail_options、product_images，全面组装尺寸与属性
 async function fetchProductsIndependentJoin() {
   try {
-    const [prodRes, optRes, imgRes] = await Promise.all([
+    const [prodRes, optRes, imgRes, stockAvailRes] = await Promise.all([
       supabaseClient.from("products").select("*").order("created_at", { ascending: false }),
       supabaseClient.from("nail_options").select("*"),
-      supabaseClient.from("product_images").select("*")
+      supabaseClient.from("product_images").select("*"),
+      // 只读"有没有货"的布尔视图，读不到具体库存数字（见 sql/add_nail_stock_public_view.sql）
+      supabaseClient.from("nail_variant_availability").select("*")
     ]);
     if (prodRes.error) throw prodRes.error;
     const products = prodRes.data || [];
     const nailOptions = optRes.data || [];
     const productImages = imgRes.data || [];
+    // 视图可能还没建（旧数据库没跑过那份 SQL），查询失败时不阻断整个页面，只是不做缺货判断
+    const stockAvailRows = (!stockAvailRes.error && stockAvailRes.data) ? stockAvailRes.data : [];
     const nails = [];
     const merch = [];
     const furniture = [];
@@ -178,6 +188,13 @@ async function fetchProductsIndependentJoin() {
       const parsedShapes = robustParseSpec(nailOpt.shapes);
       const parsedSizes = robustParseSpec(nailOpt.sizes);
       const parsedSizeChart = robustParseSizeChart(nailOpt.size_chart);
+
+      // 把这个商品的库存可售状态拼成 { 甲型: { 尺寸: true/false } } 方便渲染时查
+      const stockMap = {};
+      stockAvailRows.filter(r => r.product_id === item.id).forEach(r => {
+        if (!stockMap[r.shape]) stockMap[r.shape] = {};
+        stockMap[r.shape][r.size] = !!r.in_stock;
+      });
 
       const imgs = productImages
         .filter(img => img.product_id === item.id)
@@ -195,6 +212,9 @@ async function fetchProductsIndependentJoin() {
         images: imgs.length > 0 ? imgs : (item.spin_image ? [item.spin_image] : []),
         shapes: parsedShapes,
         sizes: parsedSizes,
+        stockMap: stockMap,
+        // 亚克力制品/古董家具用的总库存（穿戴甲走上面按甲型+尺寸的 stockMap，这个字段对穿戴甲没意义）
+        stockQuantity: parseInt(item.stock_quantity || 0, 10),
         // 穿戴甲专属：商家自定义的指围尺码对照表（可能只填了部分尺码/部分手指，其余用行业标准兜底）
         sizeChart: parsedSizeChart,
         // 全品类通用的长宽高尺寸字段（后台维护的毫米 mm 数据）
@@ -281,6 +301,9 @@ async function loadSiteDynamicConfig() {
         heroBanner.style.backgroundPosition = 'center';
       }
     }
+    if (cfg.tax_rate !== null && cfg.tax_rate !== undefined) {
+      siteTaxRate = parseFloat(cfg.tax_rate);
+    }
   } catch (err) {
     console.error("加载站点配置失败，使用页面默认文案:", err);
   }
@@ -304,6 +327,12 @@ function toggleLanguage() {
   const langText = document.getElementById('lang-btn-text');
   if (langText) langText.innerText = currentLang === 'zh' ? '中文' : 'EN';
   renderPage();
+  // 结算弹窗开着的时候切语言，renderPage 里那份 data-i18n 批量替换会把税率标签冲回默认的 "8%" 文案，
+  // 这里再刷新一次让它显示回真实税率
+  const checkoutModal = document.getElementById('modal-checkout');
+  if (checkoutModal && !checkoutModal.classList.contains('hidden')) {
+    updateCheckoutTotalsUI();
+  }
 }
 
 function renderPage() {
@@ -365,11 +394,17 @@ function renderNails() {
               <div class="space-y-1.5">
                 <span class="text-xs font-semibold text-stone-400 uppercase tracking-wider block">Shape:</span>
                 <div class="flex flex-wrap gap-1.5">
-                  ${shapes.map(s => `
-                    <button onclick="selectOption('${item.id}', 'shape', '${s}')" class="px-3 py-1 rounded-lg text-xs font-medium transition-all ${currentShape === s ? 'bg-stone-900 text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}">
+                  ${shapes.map(s => {
+                    const inStock = isShapeInStock(item, s);
+                    const isCurrent = currentShape === s;
+                    const cls = isCurrent
+                      ? 'bg-stone-900 text-white shadow-sm'
+                      : (inStock ? 'bg-stone-100 text-stone-600 hover:bg-stone-200' : 'bg-stone-50 text-stone-300 line-through cursor-not-allowed');
+                    return `
+                    <button ${inStock ? `onclick="selectOption('${item.id}', 'shape', '${s}')"` : 'disabled'} ${inStock ? '' : 'title="Sold out"'} class="px-3 py-1 rounded-lg text-xs font-medium transition-all ${cls}">
                       ${s}
                     </button>
-                  `).join('')}
+                  `;}).join('')}
                 </div>
               </div>
             ` : ''}
@@ -380,11 +415,17 @@ function renderNails() {
                   <button onclick="openSizeModal('${item.id}')" class="text-xs text-amber-800 underline hover:text-amber-900">Size Guide</button>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
-                  ${sizes.map(sz => `
-                    <button onclick="selectOption('${item.id}', 'size', '${sz}')" class="px-3 py-1 rounded-lg text-xs font-medium transition-all ${currentSize === sz ? 'bg-stone-900 text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}">
+                  ${sizes.map(sz => {
+                    const inStock = isSizeInStock(item, currentShape, sz);
+                    const isCurrent = currentSize === sz;
+                    const cls = isCurrent
+                      ? 'bg-stone-900 text-white shadow-sm'
+                      : (inStock ? 'bg-stone-100 text-stone-600 hover:bg-stone-200' : 'bg-stone-50 text-stone-300 line-through cursor-not-allowed');
+                    return `
+                    <button ${inStock ? `onclick="selectOption('${item.id}', 'size', '${sz}')"` : 'disabled'} ${inStock ? '' : 'title="Sold out"'} class="px-3 py-1 rounded-lg text-xs font-medium transition-all ${cls}">
                       ${sz}
                     </button>
-                  `).join('')}
+                  `;}).join('')}
                 </div>
               </div>
             ` : ''}
@@ -392,9 +433,13 @@ function renderNails() {
         </div>
         <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
           <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
+          ${(isShapeInStock(item, currentShape) && isSizeInStock(item, currentShape, currentSize)) ? `
           <button onclick="addNailToCart('${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
             + Add
-          </button>
+          </button>` : `
+          <button disabled class="bg-stone-200 text-stone-400 cursor-not-allowed text-xs font-bold px-5 py-2.5 rounded-xl">
+            ${(i18n[currentLang] && i18n[currentLang].soldOutBtn) ? i18n[currentLang].soldOutBtn : 'Sold Out'}
+          </button>`}
         </div>
       </div>
     `;
@@ -433,9 +478,13 @@ function renderMerch() {
         </div>
         <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
           <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
+          ${item.stockQuantity > 0 ? `
           <button onclick="addSimpleToCart('merch', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
             + Add
-          </button>
+          </button>` : `
+          <button disabled class="bg-stone-200 text-stone-400 cursor-not-allowed text-xs font-bold px-5 py-2.5 rounded-xl">
+            ${(i18n[currentLang] && i18n[currentLang].soldOutBtn) ? i18n[currentLang].soldOutBtn : 'Sold Out'}
+          </button>`}
         </div>
       </div>
     `;
@@ -475,9 +524,13 @@ function renderFurniture() {
         </div>
         <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
           <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
+          ${item.stockQuantity > 0 ? `
           <button onclick="addSimpleToCart('furniture', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
             + Add
-          </button>
+          </button>` : `
+          <button disabled class="bg-stone-200 text-stone-400 cursor-not-allowed text-xs font-bold px-5 py-2.5 rounded-xl">
+            ${(i18n[currentLang] && i18n[currentLang].soldOutBtn) ? i18n[currentLang].soldOutBtn : 'Sold Out'}
+          </button>`}
         </div>
       </div>
     `;
@@ -550,9 +603,41 @@ function updateDimensionsModalContent(unit) {
   }
 }
 
+// 商品完全没有 nail_variant_stock 记录时视为"库存未配置"，沿用老行为不阻拦购买
+function nailStockConfigured(item) {
+  return !!item.stockMap && Object.keys(item.stockMap).length > 0;
+}
+// 某个甲型下是否还有至少一个尺寸有货
+function isShapeInStock(item, shape) {
+  if (!nailStockConfigured(item)) return true;
+  const sizesForShape = item.stockMap[shape] || {};
+  const sizes = Array.isArray(item.sizes) ? item.sizes : [];
+  if (sizes.length === 0) return Object.values(sizesForShape).some(v => v);
+  return sizes.some(sz => !!sizesForShape[sz]);
+}
+// 某个甲型 + 尺寸的组合是否有货
+function isSizeInStock(item, shape, size) {
+  if (!nailStockConfigured(item)) return true;
+  if (!shape) return true;
+  const sizesForShape = item.stockMap[shape] || {};
+  return !!sizesForShape[size];
+}
+
 function selectOption(id, type, value) {
   if (!activeSelections[id]) activeSelections[id] = {};
   activeSelections[id][type] = value;
+  if (type === 'shape') {
+    const item = window.productsData.nails.find(n => n.id === id);
+    if (item) {
+      const sizes = Array.isArray(item.sizes) ? item.sizes : [];
+      const currentSize = activeSelections[id].size;
+      // 切换甲型后，如果原来选的尺寸在新甲型下缺货，自动换成这个甲型下第一个有货的尺寸
+      if (!isSizeInStock(item, value, currentSize)) {
+        const firstAvailable = sizes.find(sz => isSizeInStock(item, value, sz));
+        if (firstAvailable) activeSelections[id].size = firstAvailable;
+      }
+    }
+  }
   renderNails();
 }
 
@@ -565,6 +650,12 @@ function addNailToCart(id) {
   const item = window.productsData.nails.find(n => n.id === id);
   if (!item) return;
   const sel = activeSelections[id] || {};
+  // 兜底检查：就算按钮意外被点到（比如页面没来得及重新渲染），这里再挡一次已售罄的规格
+  if (!isShapeInStock(item, sel.shape) || !isSizeInStock(item, sel.shape, sel.size)) {
+    alert((i18n[currentLang] && i18n[currentLang].variantSoldOutAlert) ? i18n[currentLang].variantSoldOutAlert : 'Sorry, this shape/size is currently sold out.');
+    renderNails();
+    return;
+  }
   const cartItemId = `${id}-${sel.shape || ''}-${sel.size || ''}`;
   const existing = cart.find(c => c.cartItemId === cartItemId);
   if (existing) {
@@ -590,6 +681,12 @@ function addSimpleToCart(category, id) {
   const item = window.productsData[category].find(i => i.id === id);
   if (!item) return;
   const existing = cart.find(c => c.cartItemId === id);
+  const nextQty = (existing ? existing.qty : 0) + 1;
+  if (nextQty > (item.stockQuantity || 0)) {
+    alert((i18n[currentLang] && i18n[currentLang].variantSoldOutAlert) ? i18n[currentLang].variantSoldOutAlert : 'Sorry, this item is currently sold out or you have reached the available stock.');
+    renderPage();
+    return;
+  }
   if (existing) {
     existing.qty += 1;
   } else {
@@ -636,22 +733,57 @@ function updateCartUI() {
         ${item.shape ? `<p class="text-[11px] text-stone-500 mt-0.5">${item.shape} /${item.size}</p>` : ''}
         <p class="text-xs font-extrabold text-amber-700 mt-1">$${item.price.toFixed(2)}</p>
       </div>
-      <div class="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-stone-200">
+      <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-stone-200">
         <button onclick="changeQty('${item.cartItemId}', -1)" class="text-stone-500 hover:text-stone-900 font-bold px-1 text-xs">-</button>
-        <span class="text-xs font-bold w-4 text-center text-stone-800">${item.qty}</span>
+        <input type="number" min="1" step="1" value="${item.qty}"
+          onchange="setQty('${item.cartItemId}', this.value)"
+          class="w-9 text-xs font-bold text-center text-stone-800 border-0 focus:ring-0 focus:outline-none bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
         <button onclick="changeQty('${item.cartItemId}', 1)" class="text-stone-500 hover:text-stone-900 font-bold px-1 text-xs">+</button>
       </div>
     </div>
   `).join('');
 }
 
+// 亚克力制品/古董家具能查到确切总库存，用来当数量上限；穿戴甲按甲型+尺寸只公开"有没有货"的布尔值，
+// 查不到具体数字，这里就不做硬性数量上限（下单时后台触发器仍然会把库存扣到 0 为止，不会扣成负数）
+function getMaxQtyForCartItem(item) {
+  if (!item.category || item.category === 'nails') return Infinity;
+  const productItem = window.productsData[item.category]?.find(p => p.id === item.productId);
+  return productItem ? (productItem.stockQuantity || 0) : Infinity;
+}
+
 function changeQty(cartItemId, delta) {
   const item = cart.find(c => c.cartItemId === cartItemId);
   if (!item) return;
-  item.qty += delta;
+  const maxQty = getMaxQtyForCartItem(item);
+  const nextQty = item.qty + delta;
+  if (delta > 0 && nextQty > maxQty) {
+    alert((i18n[currentLang] && i18n[currentLang].variantSoldOutAlert) ? i18n[currentLang].variantSoldOutAlert : 'Sorry, you have reached the available stock.');
+    return;
+  }
+  item.qty = nextQty;
   if (item.qty <= 0) {
     cart = cart.filter(c => c.cartItemId !== cartItemId);
   }
+  updateCartUI();
+}
+
+// 购物车数量输入框手动填数字：清理非法输入、按库存封顶，填 0 或空则直接从购物车移除
+function setQty(cartItemId, rawValue) {
+  const item = cart.find(c => c.cartItemId === cartItemId);
+  if (!item) return;
+  let val = parseInt(rawValue, 10);
+  if (isNaN(val) || val < 1) {
+    cart = cart.filter(c => c.cartItemId !== cartItemId);
+    updateCartUI();
+    return;
+  }
+  const maxQty = getMaxQtyForCartItem(item);
+  if (val > maxQty) {
+    alert((i18n[currentLang] && i18n[currentLang].variantSoldOutAlert) ? i18n[currentLang].variantSoldOutAlert : 'Sorry, you have reached the available stock.');
+    val = maxQty;
+  }
+  item.qty = val;
   updateCartUI();
 }
 
@@ -823,11 +955,18 @@ function openCheckoutModal() {
 // 统一刷新结算弹窗里的小计/税费/运费/总计，运费没算出来之前显示 "--"
 function updateCheckoutTotalsUI() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const tax = subtotal * 0.08;
+  const tax = subtotal * siteTaxRate;
   const shippingCost = selectedShippingRate ? selectedShippingRate.amount : 0;
   const total = subtotal + tax + shippingCost;
   document.getElementById('checkout-subtotal').innerText = `$${subtotal.toFixed(2)}`;
   document.getElementById('checkout-tax').innerText = `$${tax.toFixed(2)}`;
+  // 税率标签跟着后台设置的百分比动态显示（而不是写死的 "8%"）
+  const taxLabelEl = document.querySelector('[data-i18n="taxLabel"]');
+  if (taxLabelEl) {
+    const pct = (siteTaxRate * 100).toFixed(2).replace(/\.?0+$/, '');
+    const isZh = currentLang === 'zh';
+    taxLabelEl.innerText = isZh ? `预估税费 (${pct}%):` : `Est. Tax (${pct}%):`;
+  }
   const shippingEl = document.getElementById('checkout-shipping');
   if (shippingEl) {
     shippingEl.innerText = selectedShippingRate ? `$${shippingCost.toFixed(2)}` : '--';
