@@ -46,7 +46,7 @@ function tryonEditorBuildModal() {
   modal.id = 'modal-tryon-editor';
   modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden';
   modal.innerHTML = `
-    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl space-y-4 max-h-[92vh] overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-3">
         <h3 class="text-base font-bold text-gray-900">虚拟试戴 · 指甲框图 — <span id="tryon-editor-prod-id" class="text-stone-700 font-mono"></span></h3>
         <button onclick="closeTryonEditorModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -71,12 +71,12 @@ function tryonEditorBuildModal() {
       </div>
 
       <div class="flex justify-between items-center pt-2 border-t">
-        <button onclick="resetTryonEditorFinger()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold border border-gray-300">
+        <button onclick="resetTryonEditorFinger()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
           <i class="fa-solid fa-rotate-left"></i> 重置当前手指的框
         </button>
         <div class="flex gap-3">
           <button onclick="closeTryonEditorModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">取消</button>
-          <button onclick="saveTryonEditorConfig()" id="tryon-editor-save-btn" class="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm">保存框图</button>
+          <button onclick="saveTryonEditorConfig()" id="tryon-editor-save-btn" class="px-5 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white shadow-sm">保存框图</button>
         </div>
       </div>
     </div>
@@ -158,7 +158,7 @@ function renderTryonEditorImagePicker() {
   if (!wrap) return;
   wrap.innerHTML = tryonEditorImagesList.map((url, i) => `
     <button onclick="selectTryonEditorImage(tryonEditorImagesList[${i}])" class="border-2 rounded-lg overflow-hidden ${url === tryonEditorImageUrl ? 'border-amber-600' : 'border-transparent hover:border-stone-300'}" title="用这张图框图">
-      <img src="${url}" class="w-14 h-14 object-cover block">
+      <img src="${url}" class="w-16 h-16 object-cover block">
     </button>
   `).join('');
 }
