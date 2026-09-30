@@ -25,6 +25,12 @@ const ADMIN_I18N = {
     heroTitleLabel: "Hero Main Heading",
     heroDescLabel: "Hero Description",
     heroBgLabel: "Hero Banner Background Image (custom upload)",
+    nailsVideoLabel: "Nails Section - Handmade Process Video (custom upload)",
+    nailsVideoHint: "Please compress it before uploading (a few MB up to ~15MB). A 30-60 second looping clip works best. Re-uploading replaces the current video.",
+    removeVideoBtn: "Remove this video",
+    nailsVideoTooLargeWarning: "This video is larger than 50MB, which may be slow to load for visitors and use up storage/bandwidth quickly. Continue uploading anyway?",
+    nailsVideoUploadFailed: "Video upload failed: ",
+    nailsVideoUploadCancelled: "Video upload cancelled.",
     taxRateLabel: "Checkout Tax Rate (%)",
     taxRateHint: "Customers are charged this percentage as tax at checkout, e.g. 8 means 8%. Takes effect immediately after saving.",
     saveSiteConfigBtn: "Save Site Settings",
@@ -214,6 +220,12 @@ const ADMIN_I18N = {
     heroTitleLabel: "Hero 大图标题 (Main Heading)",
     heroDescLabel: "Hero 描述文案 (Description)",
     heroBgLabel: "Hero 顶部横幅背景图 (自定义上传)",
+    nailsVideoLabel: "穿戴甲栏目 - 手工制作视频（自定义上传）",
+    nailsVideoHint: "建议提前压缩好体积（几MB到十几MB以内），时长30-60秒的循环片段效果最好。重新上传会替换掉当前视频。",
+    removeVideoBtn: "移除这个视频",
+    nailsVideoTooLargeWarning: "这个视频超过50MB，访客加载可能会比较慢，也会更快用掉存储和流量额度。确定要继续上传吗？",
+    nailsVideoUploadFailed: "视频上传失败：",
+    nailsVideoUploadCancelled: "已取消上传视频。",
     taxRateLabel: "结算税率 (%)",
     taxRateHint: "顾客结算页会按这个百分比算税费，比如填 8 就是 8%。改完保存后前台立刻生效。",
     saveSiteConfigBtn: "保存站点配置",
@@ -2222,9 +2234,31 @@ async function loadSiteSettings() {
       const rate = (cfg.tax_rate === null || cfg.tax_rate === undefined) ? 0.08 : parseFloat(cfg.tax_rate);
       document.getElementById("cfg-tax-rate").value = (rate * 100).toString();
     }
+    // 重新加载配置时，之前点的"移除视频"标记也要清掉，避免误删
+    nailsVideoRemoved = false;
+    if (document.getElementById("cfg-nails-video-preview-container")) {
+      const container = document.getElementById("cfg-nails-video-preview-container");
+      const player = document.getElementById("cfg-nails-video-preview");
+      if (cfg.nails_video_url) {
+        player.src = cfg.nails_video_url;
+        container.classList.remove("hidden");
+      } else {
+        container.classList.add("hidden");
+      }
+    }
   } catch (err) {
     console.error("加载站点配置失败:", err);
   }
+}
+
+// 点"移除这个视频"：只是标记一下，真正删除要等点了"保存站点配置"才生效（跟其它字段保持一致的保存逻辑）
+let nailsVideoRemoved = false;
+function removeNailsVideo() {
+  nailsVideoRemoved = true;
+  const container = document.getElementById("cfg-nails-video-preview-container");
+  if (container) container.classList.add("hidden");
+  const fileInput = document.getElementById("cfg-nails-video-file");
+  if (fileInput) fileInput.value = "";
 }
 
 // 保存站点配置并上传自定义 Hero 背景图
@@ -2261,6 +2295,36 @@ async function handleSaveSettings(e) {
       heroBgUrl = publicUrlData.publicUrl;
     }
 
+    // 穿戴甲手工制作视频：跟 Hero 背景图同一套逻辑（先取云端现有值，避免没重新上传时被清空）
+    let nailsVideoUrl = "";
+    try {
+      const { data: existingVideo } = await supabaseClient.from("site_settings").select("nails_video_url").eq("id", 1).single();
+      if (existingVideo && existingVideo.nails_video_url) nailsVideoUrl = existingVideo.nails_video_url;
+    } catch (e) { /* 表可能还没有数据，忽略 */ }
+
+    const videoFileInput = document.getElementById("cfg-nails-video-file");
+    if (videoFileInput && videoFileInput.files && videoFileInput.files[0]) {
+      const videoFile = videoFileInput.files[0];
+      // 视频不像图片那样可以在浏览器里简单压缩，这里只做一个体积提醒，真正压缩建议上传前用工具处理好
+      if (videoFile.size > 50 * 1024 * 1024) {
+        const proceed = confirm(t('nailsVideoTooLargeWarning'));
+        if (!proceed) throw new Error(t('nailsVideoUploadCancelled'));
+      }
+      const videoExt = (videoFile.name.split('.').pop() || 'mp4').toLowerCase();
+      const videoFileName = `nails_intro_${Date.now()}.${videoExt}`;
+
+      const { error: videoUploadError } = await supabaseClient.storage
+        .from("product-media")
+        .upload(videoFileName, videoFile, { contentType: videoFile.type || 'video/mp4', upsert: true });
+
+      if (videoUploadError) throw new Error(t('nailsVideoUploadFailed') + videoUploadError.message);
+
+      const { data: videoPublicUrlData } = supabaseClient.storage.from("product-media").getPublicUrl(videoFileName);
+      nailsVideoUrl = videoPublicUrlData.publicUrl;
+    } else if (nailsVideoRemoved) {
+      nailsVideoUrl = "";
+    }
+
     // 输入框填的是百分比数字（比如 8），存进数据库前换算成小数（0.08）；
     // 留空或填了非法值时兜底用 8%，避免税率意外存成 NaN 或 0 导致漏收税
     const taxRateInput = document.getElementById("cfg-tax-rate") ? parseFloat(document.getElementById("cfg-tax-rate").value) : NaN;
@@ -2273,7 +2337,8 @@ async function handleSaveSettings(e) {
       hero_title: document.getElementById("cfg-hero-title") ? document.getElementById("cfg-hero-title").value : "",
       hero_desc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
       hero_bg: heroBgUrl,
-      tax_rate: taxRate
+      tax_rate: taxRate,
+      nails_video_url: nailsVideoUrl
     };
 
     // 写入 Supabase 的 site_settings 表（单行 id=1），所有访客都会看到这份配置
@@ -2283,6 +2348,7 @@ async function handleSaveSettings(e) {
     logAdminActivity('settings_update', '');
     loadAdminActivityLog();
 
+    nailsVideoRemoved = false;
     alert(t('siteConfigSaveSuccess'));
     await loadSiteSettings();
 

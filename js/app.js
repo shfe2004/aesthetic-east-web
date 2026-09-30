@@ -10,6 +10,8 @@ let selectedShippingRate = null;
 let currentShippoShipmentId = null;
 // 结算税率，从后台 site_settings 里读，读不到时兜底用 8%（跟原来硬编码的值保持一致）
 let siteTaxRate = 0.08;
+// 穿戴甲手工制作视频的地址，读到了才显示这个模块；真正开始加载视频文件延迟到它滚动进可视区域时
+let nailsVideoUrl = null;
 let activeSelections = {};
 let isSpinning = false;
 let spinStartX = 0;
@@ -91,7 +93,8 @@ const i18n = {
     fillAddressFirst: "Please fill in your address, city, state and zip first.",
     soldOutBtn: "Sold Out",
     variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock.",
-    orderFailedGeneric: "Order failed, please adjust the quantity and try again."
+    orderFailedGeneric: "Order failed, please adjust the quantity and try again.",
+    nailsVideoCaption: "Handmade, start to finish"
   },
   zh: {
     topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
@@ -141,7 +144,8 @@ const i18n = {
     fillAddressFirst: "请先填写详细地址、城市、州和邮编。",
     soldOutBtn: "已售罄",
     variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。",
-    orderFailedGeneric: "下单失败，请调整购买数量后重试。"
+    orderFailedGeneric: "下单失败，请调整购买数量后重试。",
+    nailsVideoCaption: "纯手工制作全过程"
   }
 };
 
@@ -155,6 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderPage();
   setupZoomEvents();
   setupSpin360Events();
+  setupNailsVideoLazyPlay();
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeZoomModal();
@@ -305,6 +310,11 @@ async function loadSiteDynamicConfig() {
     }
     if (cfg.tax_rate !== null && cfg.tax_rate !== undefined) {
       siteTaxRate = parseFloat(cfg.tax_rate);
+    }
+    if (cfg.nails_video_url) {
+      nailsVideoUrl = cfg.nails_video_url;
+      const wrap = document.getElementById('nails-video-wrap');
+      if (wrap) wrap.classList.remove('hidden');
     }
   } catch (err) {
     console.error("加载站点配置失败，使用页面默认文案:", err);
@@ -909,6 +919,38 @@ function apply360Rotation() {
   if (img) {
     img.style.transform = `perspective(1000px) rotateY(${currentRotationY}deg)`;
   }
+}
+
+// 穿戴甲手工制作视频：滚动到可视区域才真正开始下载/播放（节省流量），
+// 滚出可视区域就暂停（不清空 src，浏览器通常有缓存，再滚回来不用重新下载）
+function setupNailsVideoLazyPlay() {
+  const wrap = document.getElementById('nails-video-wrap');
+  const video = document.getElementById('nails-video');
+  if (!wrap || !video || !nailsVideoUrl) return;
+
+  if (!('IntersectionObserver' in window)) {
+    // 极少数老浏览器没有这个 API 时，退化成直接加载播放，不做懒加载优化
+    video.src = nailsVideoUrl;
+    video.autoplay = true;
+    video.play().catch(() => {});
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        if (!video.src) {
+          video.src = nailsVideoUrl;
+          video.load();
+        }
+        video.play().catch(() => { /* 部分浏览器策略问题导致自动播放失败时，静默忽略，不影响页面其它功能 */ });
+      } else {
+        video.pause();
+      }
+    });
+  }, { threshold: 0.25 });
+
+  observer.observe(wrap);
 }
 
 function setupSpin360Events() {

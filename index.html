@@ -84,6 +84,13 @@
           <p class="text-xs text-stone-400 mt-0.5" data-i18n="nailsSubTitle">Click image to enlarge · View custom size specs inside</p>
         </div>
       </div>
+
+      <!-- 手工制作视频：后台没上传视频时这里整块隐藏，不影响页面布局 -->
+      <div id="nails-video-wrap" class="hidden mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-stone-900 relative max-w-2xl mx-auto">
+        <video id="nails-video" class="w-full h-full object-cover block" muted loop playsinline preload="none"></video>
+        <span class="absolute bottom-3 left-3 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full" data-i18n="nailsVideoCaption">Handmade, start to finish</span>
+      </div>
+
       <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div class="col-span-full text-center py-12 text-stone-400" data-i18n="loadingText">Loading...</div>
       </div>

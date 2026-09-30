@@ -93,6 +93,17 @@
           </div>
         </div>
 
+        <!-- 新增：穿戴甲手工制作视频上传与预览 -->
+        <div class="space-y-2 pt-2 border-t border-gray-100">
+          <label class="block text-sm font-medium text-gray-700" data-i18n="nailsVideoLabel">穿戴甲栏目 - 手工制作视频（自定义上传）</label>
+          <p class="text-xs text-gray-400" data-i18n="nailsVideoHint">建议提前压缩好体积（几MB到十几MB以内），时长30-60秒的循环片段效果最好。重新上传会替换掉当前视频。</p>
+          <input type="file" id="cfg-nails-video-file" accept="video/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
+          <div id="cfg-nails-video-preview-container" class="mt-2 hidden space-y-2">
+            <video id="cfg-nails-video-preview" src="" controls muted class="w-full max-h-48 rounded-lg border shadow-sm bg-black"></video>
+            <button type="button" onclick="removeNailsVideo()" class="text-xs text-red-600 hover:text-red-800 underline" data-i18n="removeVideoBtn">移除这个视频</button>
+          </div>
+        </div>
+
         <button type="submit" class="bg-stone-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-stone-800 transition" data-i18n="saveSiteConfigBtn">
           保存站点配置
         </button>
