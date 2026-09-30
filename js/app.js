@@ -94,7 +94,12 @@ const i18n = {
     soldOutBtn: "Sold Out",
     variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock.",
     orderFailedGeneric: "Order failed, please adjust the quantity and try again.",
-    nailsVideoCaption: "Handmade, start to finish"
+    nailsVideoCaption: "Handmade, start to finish",
+    tryOnBtn: "Try On",
+    tryonModalTitle: "Virtual Try-On",
+    tryonDisclaimer: "Simulated preview on a standard hand model — actual color, shine and fit may vary from real nails.",
+    tryonSwitchLabel: "Try another design:",
+    tryonLoadError: "Could not load this design's preview image."
   },
   zh: {
     topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
@@ -145,7 +150,12 @@ const i18n = {
     soldOutBtn: "已售罄",
     variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。",
     orderFailedGeneric: "下单失败，请调整购买数量后重试。",
-    nailsVideoCaption: "纯手工制作全过程"
+    nailsVideoCaption: "纯手工制作全过程",
+    tryOnBtn: "虚拟试戴",
+    tryonModalTitle: "虚拟试戴",
+    tryonDisclaimer: "此效果为在标准手模上的模拟贴图预览，实际颜色、光泽与佩戴效果可能与真实产品略有差异。",
+    tryonSwitchLabel: "试试其他款式：",
+    tryonLoadError: "该款式的预览图片加载失败。"
   }
 };
 
@@ -389,6 +399,9 @@ function renderNails() {
             </span>
             <button onclick="event.stopPropagation(); open360Modal('${item.id}')" class="absolute bottom-3 right-3 bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors shadow-sm">
               <i class="fa-solid fa-rotate"></i> 360°
+            </button>
+            <button onclick="event.stopPropagation(); openTryOnModal('${item.id}')" class="absolute bottom-3 left-3 bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors shadow-sm">
+              <i class="fa-solid fa-hand-sparkles"></i> ${(i18n[currentLang] && i18n[currentLang].tryOnBtn) ? i18n[currentLang].tryOnBtn : 'Try On'}
             </button>
           </div>
           <div class="flex gap-2 p-3 bg-stone-50/50 border-b border-stone-100 overflow-x-auto">

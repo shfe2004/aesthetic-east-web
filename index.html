@@ -174,6 +174,28 @@
     </div>
   </div>
 
+  <!-- 虚拟试戴 Modal -->
+  <div id="modal-tryon" onclick="closeTryOnModal()" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-stone-100">
+        <h3 class="font-serif text-base font-bold text-stone-900" data-i18n="tryonModalTitle">Virtual Try-On</h3>
+        <button onclick="closeTryOnModal()" class="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-500 transition-colors flex-shrink-0">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-4">
+        <div class="bg-stone-50 rounded-xl overflow-hidden">
+          <canvas id="tryon-canvas" class="w-full h-auto block"></canvas>
+        </div>
+        <p class="text-[11px] text-stone-400 mt-2" data-i18n="tryonDisclaimer">Simulated preview on a standard hand model — actual color, shine and fit may vary from real nails.</p>
+        <div class="mt-3">
+          <span class="text-xs font-semibold text-stone-400 uppercase tracking-wider block mb-1.5" data-i18n="tryonSwitchLabel">Try another design:</span>
+          <div id="tryon-thumbs" class="flex gap-2 overflow-x-auto pb-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 尺寸/规格指南弹窗 (毫米mm与英寸in实时双向换算) -->
   <div id="modal-dimensions" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full mx-4 overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -371,6 +393,8 @@
   <!-- 引入外部控制脚本 -->
   <script src="js/supabase-client.js"></script>
   <script src="js/shipping-config.js"></script>
+  <script src="js/tryon-config.js"></script>
+  <script src="js/tryon.js"></script>
   <script src="js/app.js"></script>
   <!-- 双语翻译字典、语言切换与 data-i18n 渲染逻辑现在统一由 js/app.js 维护，
        这里不再重复声明，避免和 app.js 里的 `let currentLang` 撞名导致 SyntaxError。 -->
