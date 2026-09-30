@@ -90,7 +90,8 @@ const i18n = {
     shippingNotCalculatedYet: "Please calculate shipping before completing payment.",
     fillAddressFirst: "Please fill in your address, city, state and zip first.",
     soldOutBtn: "Sold Out",
-    variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock."
+    variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock.",
+    orderFailedGeneric: "Order failed, please adjust the quantity and try again."
   },
   zh: {
     topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
@@ -139,7 +140,8 @@ const i18n = {
     shippingNotCalculatedYet: "请先点击「计算运费」再完成支付。",
     fillAddressFirst: "请先填写详细地址、城市、州和邮编。",
     soldOutBtn: "已售罄",
-    variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。"
+    variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。",
+    orderFailedGeneric: "下单失败，请调整购买数量后重试。"
   }
 };
 
@@ -1098,48 +1100,64 @@ async function processPayment(e) {
   const { subtotal, tax, shippingCost, total } = updateCheckoutTotalsUI();
   const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
-  try {
-    const { error: orderError } = await supabaseClient.from('orders').insert([{
-      id: orderId,
-      status: 'pending_test_payment',
-      first_name: firstName,
-      last_name: lastName,
-      email: email,
-      phone: phone,
-      address: address,
-      city: city,
-      state: state,
-      zip: zip,
-      subtotal: subtotal,
-      tax: tax,
-      total: total,
-      shipping_cost: shippingCost,
-      shipping_carrier: selectedShippingRate.manual ? null : selectedShippingRate.carrier,
-      shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
-      shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
-      shippo_shipment_id: currentShippoShipmentId,
-      needs_manual_shipping: !!selectedShippingRate.manual
-    }]);
-    if (orderError) throw orderError;
+  // 建单和查库存、扣库存放进同一个数据库函数（一个事务）里做：
+  // 只要购物车里有任何一项数量超过实际库存，整单直接被数据库拒绝，不会写入任何数据，
+  // 也就不会再出现"选了5件、库存只有1件，也照样按5件收钱成交"的情况。
+  const orderPayload = {
+    id: orderId,
+    status: 'pending_test_payment',
+    first_name: firstName,
+    last_name: lastName,
+    email: email,
+    phone: phone,
+    address: address,
+    city: city,
+    state: state,
+    zip: zip,
+    subtotal: subtotal,
+    tax: tax,
+    total: total,
+    shipping_cost: shippingCost,
+    shipping_carrier: selectedShippingRate.manual ? null : selectedShippingRate.carrier,
+    shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
+    shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
+    shippo_shipment_id: currentShippoShipmentId,
+    needs_manual_shipping: !!selectedShippingRate.manual
+  };
+  const itemsPayload = cart.map(item => ({
+    product_id: item.productId || item.cartItemId,
+    title: item.title,
+    unit_price: item.price,
+    qty: item.qty,
+    variant_shape: item.shape || null,
+    variant_size: item.size || null
+  }));
 
-    if (cart.length > 0) {
-      const itemRows = cart.map(item => ({
-        order_id: orderId,
-        product_id: item.productId || item.cartItemId,
-        title: item.title,
-        unit_price: item.price,
-        qty: item.qty,
-        variant_shape: item.shape || null,
-        variant_size: item.size || null
-      }));
-      const { error: itemsError } = await supabaseClient.from('order_items').insert(itemRows);
-      if (itemsError) throw itemsError;
-    }
-  } catch (err) {
-    // 订单落库失败不阻断这次模拟结算流程（顾客体验优先），但打印出来方便排查——
-    // 常见原因是还没在 Supabase 里跑 complete_missing_features.sql 建表。
-    console.error('订单保存失败（未影响本次模拟结算流程，请检查是否已建好 orders/order_items 表）:', err);
+  const { error: rpcError } = await supabaseClient.rpc('create_order_with_stock_check', {
+    p_order: orderPayload,
+    p_items: itemsPayload
+  });
+
+  if (rpcError) {
+    console.error('下单失败:', rpcError);
+    // 数据库那边报的是库存不足的具体原因（中文），直接展示给顾客；其它意外错误则给通用提示
+    const isStockError = rpcError.message && rpcError.message.indexOf('库存不足') !== -1;
+    alert(isStockError ? rpcError.message : ((i18n[currentLang] && i18n[currentLang].orderFailedGeneric) ? i18n[currentLang].orderFailedGeneric : 'Order failed, please adjust the quantity and try again.'));
+
+    // 下单失败大概率是因为库存刚好被别人买完/数据有变化，刷新一下商品数据让页面反映最新库存
+    const cloudData = await fetchProductsIndependentJoin();
+    if (cloudData) { window.productsData = cloudData; }
+    renderPage();
+
+    payBtn.disabled = false;
+    payBtn.innerText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
+    return;
   }
+
+  // 下单成功：同样刷新一次商品/库存数据，这样别的还在浏览页面的顾客能马上看到最新库存状态，
+  // 不用手动刷新页面才发现某个规格已经被买光了
+  const cloudData = await fetchProductsIndependentJoin();
+  if (cloudData) { window.productsData = cloudData; }
 
   setTimeout(() => {
     document.getElementById('checkout-form').classList.add('hidden');
@@ -1151,6 +1169,7 @@ async function processPayment(e) {
     selectedShippingRate = null;
     currentShippoShipmentId = null;
     updateCartUI();
+    renderPage();
     payBtn.disabled = false;
     payBtn.innerText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
   }, 1200);
