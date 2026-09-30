@@ -238,7 +238,11 @@ async function fetchProductsIndependentJoin() {
         // 全品类通用的长宽高尺寸字段（后台维护的毫米 mm 数据）
         length: parseFloat(item.length || 0),
         width: parseFloat(item.width || 0),
-        height: parseFloat(item.height || 0)
+        height: parseFloat(item.height || 0),
+        // 虚拟试戴"框图方案"：后台用框图工具配置过的商品才会有这两个字段，
+        // 没配置过的（null）前台会自动回退到整图贴纸的老方案，见 js/tryon.js
+        tryonSourceImageUrl: item.tryon_source_image_url || '',
+        tryonNailQuads: item.tryon_nail_quads || null
       };
 
       if (item.category_id === 'nails') {

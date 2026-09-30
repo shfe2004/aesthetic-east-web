@@ -68,18 +68,37 @@ function tryonDrawTriangle(ctx, img, srcPts, dstPts) {
   ctx.restore();
 }
 
-// 把整张设计图当成一张矩形贴纸，拆成两个三角形，分别仿射贴到 quad（4个角点）里
+// 通用版本：把 srcImg 上的任意四边形区域（srcQuad，4个角点，像素坐标）拆成两个三角形，
+// 分别仿射贴到目标 dstQuad（4个角点）里。这是"框图方案"的核心——源不再局限于整张图片，
+// 而是图片里的任意一块四边形区域（比如从整卡照片上框出来的一颗指甲）。
+function tryonDrawQuadToQuad(ctx, img, srcQuad, dstQuad) {
+  tryonDrawTriangle(ctx, img, [srcQuad[0], srcQuad[1], srcQuad[2]], [dstQuad[0], dstQuad[1], dstQuad[2]]);
+  tryonDrawTriangle(ctx, img, [srcQuad[0], srcQuad[2], srcQuad[3]], [dstQuad[0], dstQuad[2], dstQuad[3]]);
+}
+
+// 把 0~1 的比例坐标（存进数据库的格式，见 sql/add_tryon_card_config.sql）转换成
+// 某张具体图片（已知实际宽高）上的像素坐标
+function tryonQuadFractionToPixel(quadFrac, imgW, imgH) {
+  return quadFrac.map(([fx, fy]) => [fx * imgW, fy * imgH]);
+}
+
+// 老的"整图当贴纸"方案：把整张设计图当成一张矩形贴纸，贴到 quad（4个角点）里。
+// 没有在后台框图配置过的商品，仍然走这条路径（低保真但零配置成本）。
 function tryonDrawDesignOnZone(ctx, designImg, quad) {
   const w = designImg.naturalWidth || designImg.width;
   const h = designImg.naturalHeight || designImg.height;
   if (!w || !h) return;
   const src = [[0, 0], [w, 0], [w, h], [0, h]];
-  tryonDrawTriangle(ctx, designImg, [src[0], src[1], src[2]], [quad[0], quad[1], quad[2]]);
-  tryonDrawTriangle(ctx, designImg, [src[0], src[2], src[3]], [quad[0], quad[2], quad[3]]);
+  tryonDrawQuadToQuad(ctx, designImg, src, quad);
 }
 
-async function tryonRenderCanvas(designSrc) {
+// options（可选）：{ tryonSourceImageUrl, tryonNailQuads } —— 来自后台"框图工具"的配置
+// （见 sql/add_tryon_card_config.sql）。传了且能正常加载图片时，每根手指优先用框图裁剪出来的
+// 精确区域；没传、传了但图片加载失败、或某根手指还没框过时，那根手指自动回退到整图贴纸方案，
+// 保证任何商品（不管有没有配置过）都能正常展示试戴效果。
+async function tryonRenderCanvas(designSrc, options) {
   if (!tryonCtx) return;
+  options = options || {};
   const hand = await tryonEnsureHandLoaded();
   tryonCanvasEl.width = TRYON_HAND_IMAGE.width;
   tryonCanvasEl.height = TRYON_HAND_IMAGE.height;
@@ -94,7 +113,34 @@ async function tryonRenderCanvas(designSrc) {
     console.warn('[tryon] design image failed to load:', designSrc, e);
     return;
   }
-  TRYON_NAIL_ZONES.forEach(zone => tryonDrawDesignOnZone(tryonCtx, designImg, zone.quad));
+
+  // 有配置的话，尝试把"整卡"参考图也加载好；加载失败就当没配置处理（全部回退整图方案）
+  let cardImg = null;
+  const quads = options.tryonNailQuads;
+  const cardUrl = options.tryonSourceImageUrl;
+  if (quads && cardUrl) {
+    try {
+      cardImg = await tryonLoadImage(cardUrl);
+    } catch (e) {
+      console.warn('[tryon] card reference image failed to load, falling back to whole-image mode:', cardUrl, e);
+      cardImg = null;
+    }
+  }
+
+  TRYON_NAIL_ZONES.forEach(zone => {
+    const fingerQuadFrac = (cardImg && quads) ? quads[zone.finger] : null;
+    if (Array.isArray(fingerQuadFrac) && fingerQuadFrac.length === 4) {
+      const cw = cardImg.naturalWidth || cardImg.width;
+      const ch = cardImg.naturalHeight || cardImg.height;
+      if (cw && ch) {
+        const srcQuad = tryonQuadFractionToPixel(fingerQuadFrac, cw, ch);
+        tryonDrawQuadToQuad(tryonCtx, cardImg, srcQuad, zone.quad);
+        return;
+      }
+    }
+    // 这根手指没配置框图（或配置不完整）——回退到整图贴纸方案
+    tryonDrawDesignOnZone(tryonCtx, designImg, zone.quad);
+  });
 }
 
 function tryonGetImageForItem(item) {
@@ -127,7 +173,7 @@ function openTryOnModal(itemId) {
   tryonCurrentItemId = itemId;
   document.getElementById('modal-tryon')?.classList.remove('hidden');
   renderTryOnThumbs();
-  tryonRenderCanvas(tryonGetImageForItem(item));
+  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads });
 }
 
 function closeTryOnModal() {
@@ -140,5 +186,5 @@ function switchTryOnDesign(itemId) {
   if (!item) return;
   tryonCurrentItemId = itemId;
   renderTryOnThumbs();
-  tryonRenderCanvas(tryonGetImageForItem(item));
+  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads });
 }

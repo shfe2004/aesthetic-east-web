@@ -27,7 +27,7 @@ const TRYON_HAND_IMAGE = {
 };
 
 const TRYON_NAIL_ZONES = [
-  { finger: 'thumb', label: { en: 'Thumb', zh: '拇指' }, quad: [[792, 765], [998, 775], [1000, 838], [788, 845]] },
+  { finger: 'thumb', label: { en: 'Thumb', zh: '拇指' }, quad: [[792, 765], [788, 845], [1000, 838], [998, 775]] },
   { finger: 'index', label: { en: 'Index', zh: '食指' }, quad: [[700, 500], [762, 483], [825, 618], [768, 650]] },
   { finger: 'middle', label: { en: 'Middle', zh: '中指' }, quad: [[552, 402], [658, 395], [648, 585], [572, 590]] },
   { finger: 'ring', label: { en: 'Ring', zh: '无名指' }, quad: [[400, 400], [468, 392], [495, 645], [425, 650]] },

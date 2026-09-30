@@ -935,6 +935,9 @@ function renderProductRows(products) {
             <button onclick="openEditProductModal('${item.id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(item.subtitle_en || '')}', ${parseFloat(item.price) || 0}, '${encodeURIComponent(item.tag_key || '')}', '${encodeURIComponent(item.spin_image || '')}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
               <i class="fa-solid fa-pen-to-square"></i> ${t('editInfoBtn')}
             </button>
+            ${isNails ? `<button onclick="openTryonEditorModal('${item.id}')" class="block px-2.5 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 rounded text-xs font-bold border border-pink-300 shadow-sm">
+              <i class="fa-solid fa-hand-sparkles"></i> 试戴框图
+            </button>` : ''}
             <button onclick="deleteProduct('${item.id}')" class="block text-red-600 hover:text-red-800 text-xs font-semibold">${t('deleteBtn')}</button>
           </td>
         </tr>
