@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupZoomEvents();
   setupSpin360Events();
   setupNailsVideoLazyPlay();
+  scrollToDeepLinkedProduct();
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeZoomModal();
@@ -379,7 +380,7 @@ function renderNails() {
     const sizes = Array.isArray(item.sizes) ? item.sizes : [];
     const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
     return `
-      <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
+      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
         <div>
           <div class="relative bg-stone-100 aspect-square overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
             <img id="main-img-${item.id}" src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -465,7 +466,7 @@ function renderMerch() {
     const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
     const hasDimensions = (item.length > 0 || item.width > 0 || item.height > 0);
     return `
-      <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
+      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
         <div>
           <div class="relative bg-stone-100 aspect-square overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
             <img src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -511,7 +512,7 @@ function renderFurniture() {
     const hasDimensions = (item.length > 0 || item.width > 0 || item.height > 0);
 
     return `
-      <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
+      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
         <div>
           <div class="relative bg-stone-100 aspect-[4/3] overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
             <img src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -951,6 +952,22 @@ function setupNailsVideoLazyPlay() {
   }, { threshold: 0.25 });
 
   observer.observe(wrap);
+}
+
+// 支持形如 你的网址/?product=nail-20-28 的深链接（Meta 商品目录里每个商品的 link 字段用的就是这种）：
+// 打开页面后自动滚动到对应的商品卡片，并短暂高亮一下，方便从 IG/FB 广告点进来的顾客一眼找到那件商品
+function scrollToDeepLinkedProduct() {
+  const params = new URLSearchParams(window.location.search);
+  const targetId = params.get('product');
+  if (!targetId) return;
+  // 商品是异步加载渲染的，这里等一小段时间再找，避免卡片还没渲染出来就扑空
+  setTimeout(() => {
+    const el = document.getElementById(`product-card-${targetId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-4', 'ring-amber-500');
+    setTimeout(() => el.classList.remove('ring-4', 'ring-amber-500'), 2500);
+  }, 400);
 }
 
 function setupSpin360Events() {
