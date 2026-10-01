@@ -74,14 +74,17 @@ function tryonEditorBuildModal() {
 
       <div class="flex items-center gap-3 flex-wrap bg-stone-50 border border-stone-200 rounded-lg p-3">
         <button onclick="runTryonEditorCutout()" id="tryon-editor-cutout-btn" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> 自动抠图（当前手指）
+          <i class="fa-solid fa-wand-magic-sparkles"></i> AI自动抠图
+        </button>
+        <button onclick="runTryonEditorColorCutout()" id="tryon-editor-colorcut-btn" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm">
+          <i class="fa-solid fa-droplet"></i> 按颜色去背景
         </button>
         <button onclick="clearTryonEditorCutout()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
           清除当前手指的抠图
         </button>
         <img id="tryon-editor-cutout-preview" class="hidden h-12 w-12 object-contain border rounded" style="background-image:repeating-conic-gradient(#ddd 0 25%, #fff 0 50%); background-size:10px 10px;" alt="抠图预览">
         <span id="tryon-editor-cutout-status" class="text-xs text-gray-500"></span>
-        <span class="text-[11px] text-gray-400 w-full">抠图是免费的浏览器端AI，在你自己电脑上跑，第一次用会下载一个几MB的模型（之后会被浏览器缓存，不用重复下载）；抠完会比矩形框图更贴合指甲真实形状，但不保证每次都完美，效果不满意可以点"清除当前手指的抠图"退回矩形框图方案。</span>
+        <span class="text-[11px] text-gray-400 w-full">两个按钮都会生成"抠图"，用哪个算哪个（后点的会覆盖前面的结果）。"AI自动抠图"是通用AI模型，碰到卡片底色和指甲图案深浅接近时，有时会把图案本身也当成背景抠掉；"按颜色去背景"是直接按卡片底色扣除，更适合卡片底色比较纯净单一的情况，两个都可以试试看哪个效果更好。效果都不满意可以点"清除当前手指的抠图"退回矩形框图方案。</span>
       </div>
 
       <div class="flex justify-between items-center pt-2 border-t">
@@ -308,6 +311,42 @@ async function tryonEditorLoadBgRemoval() {
   return tryonEditorBgRemovalFn;
 }
 
+// 共用：按这根手指框出来的区域，从原始分辨率的参考图上截一块矩形裁剪画布。
+// paddingRatio 控制额外留多少边（0 表示贴着框边缘裁，不留边）。
+function tryonEditorCropToCanvas(quad, paddingRatio) {
+  const naturalW = tryonEditorImg.naturalWidth || tryonEditorImg.width;
+  const naturalH = tryonEditorImg.naturalHeight || tryonEditorImg.height;
+  const xs = quad.map(p => p[0] * naturalW);
+  const ys = quad.map(p => p[1] * naturalH);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const padX = (maxX - minX) * paddingRatio;
+  const padY = (maxY - minY) * paddingRatio;
+  const cropX = Math.max(0, minX - padX);
+  const cropY = Math.max(0, minY - padY);
+  const cropW = Math.min(naturalW, maxX + padX) - cropX;
+  const cropH = Math.min(naturalH, maxY + padY) - cropY;
+
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = Math.max(1, Math.round(cropW));
+  cropCanvas.height = Math.max(1, Math.round(cropH));
+  cropCanvas.getContext('2d').drawImage(tryonEditorImg, cropX, cropY, cropW, cropH, 0, 0, cropCanvas.width, cropCanvas.height);
+  return cropCanvas;
+}
+
+// 共用：把抠图/去背景的结果上传到 Supabase（跟商品图片同一个 bucket），存到这根手指名下
+async function tryonEditorUploadCutout(finger, blob, methodTag) {
+  const fileName = `tryon_cutout_${methodTag}_${tryonEditorProdId}_${finger}_${Date.now()}.png`;
+  const { error: uploadError } = await supabaseClient.storage
+    .from('product-media')
+    .upload(fileName, blob, { contentType: 'image/png', upsert: true });
+  if (uploadError) throw uploadError;
+  const { data: publicUrlData } = supabaseClient.storage.from('product-media').getPublicUrl(fileName);
+  tryonEditorCutouts[finger] = publicUrlData.publicUrl;
+  renderTryonEditorCutoutPreview();
+  renderTryonEditorFingerTabs();
+}
+
 async function runTryonEditorCutout() {
   const finger = tryonEditorActiveFinger;
   const quad = tryonEditorQuads[finger];
@@ -328,47 +367,97 @@ async function runTryonEditorCutout() {
     if (btn) { btn.disabled = true; btn.innerHTML = '处理中…（第一次用要下载AI模型，稍等几秒到几十秒）'; }
     if (statusEl) statusEl.innerText = '';
 
-    // 1. 用原始分辨率的参考图（不是画布上缩小显示用的尺寸），按这根手指的框算出一块
-    //    带 15% 余量的矩形裁剪区域——留余量是为了给AI模型一点指甲周围的上下文，
-    //    抠的时候更容易分清"指甲图案"和"卡片背景"的边界。
-    const naturalW = tryonEditorImg.naturalWidth || tryonEditorImg.width;
-    const naturalH = tryonEditorImg.naturalHeight || tryonEditorImg.height;
-    const xs = quad.map(p => p[0] * naturalW);
-    const ys = quad.map(p => p[1] * naturalH);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const padX = (maxX - minX) * 0.15;
-    const padY = (maxY - minY) * 0.15;
-    const cropX = Math.max(0, minX - padX);
-    const cropY = Math.max(0, minY - padY);
-    const cropW = Math.min(naturalW, maxX + padX) - cropX;
-    const cropH = Math.min(naturalH, maxY + padY) - cropY;
-
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width = Math.max(1, Math.round(cropW));
-    cropCanvas.height = Math.max(1, Math.round(cropH));
-    const cropCtx = cropCanvas.getContext('2d');
-    cropCtx.drawImage(tryonEditorImg, cropX, cropY, cropW, cropH, 0, 0, cropCanvas.width, cropCanvas.height);
-
-    // 2. 跑浏览器端AI抠图
+    // 留一点点边（6%）给AI模型一点点上下文，但不留太多——留太多卡片背景反而容易让它
+    // 把指甲图案本身也误判成"背景"的一部分（尤其是卡片底色和图案颜色深浅接近的时候）。
+    const cropCanvas = tryonEditorCropToCanvas(quad, 0.06);
     const removeBackground = await tryonEditorLoadBgRemoval();
     const cropBlob = await new Promise(resolve => cropCanvas.toBlob(resolve, 'image/png'));
     const resultBlob = await removeBackground(cropBlob);
-
-    // 3. 上传到 Supabase（跟商品图片用同一个 bucket），拿公开链接存起来
-    const fileName = `tryon_cutout_${tryonEditorProdId}_${finger}_${Date.now()}.png`;
-    const { error: uploadError } = await supabaseClient.storage
-      .from('product-media')
-      .upload(fileName, resultBlob, { contentType: 'image/png', upsert: true });
-    if (uploadError) throw uploadError;
-    const { data: publicUrlData } = supabaseClient.storage.from('product-media').getPublicUrl(fileName);
-
-    tryonEditorCutouts[finger] = publicUrlData.publicUrl;
-    renderTryonEditorCutoutPreview();
-    renderTryonEditorFingerTabs();
+    await tryonEditorUploadCutout(finger, resultBlob, 'ai');
   } catch (err) {
     console.error('[tryon-editor] 自动抠图失败:', err);
-    alert('自动抠图失败：' + (err && err.message ? err.message : err) + '\n\n常见原因是网络问题导致AI模型下载失败。这根手指会继续用矩形框图方案，不影响其它手指，也可以稍后重试。');
+    alert('自动抠图失败：' + (err && err.message ? err.message : err) + '\n\n常见原因是网络问题导致AI模型下载失败。这根手指会继续用矩形框图方案，不影响其它手指，也可以稍后重试，或者试试旁边的"按颜色去背景"。');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+  }
+}
+
+// "按颜色去背景"：不用AI，纯色值判断——从裁剪区域最外面一圈像素采样出"卡片底色"
+// （取中位数，比平均值更不容易被角落里混进来的一点点指甲图案带偏），然后把跟这个颜色
+// 相近的像素都变透明，中间留一个过渡带做羽化，避免生硬的锯齿边。
+// 这是经典计算机视觉的"色度抠图"思路，不依赖AI判断"什么是前景/背景"，所以碰到卡片底色
+// 和指甲图案深浅接近、AI容易把图案本身也当成背景抠掉的情况，这个方法反而更可靠——
+// 代价是如果卡片底色本身不均匀（比如有渐变、反光），效果会打折扣，两个工具可以都试试看。
+function tryonEditorColorCutoutProcess(cropCanvas) {
+  const w = cropCanvas.width, h = cropCanvas.height;
+  const ctx = cropCanvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  const borderSamples = [];
+  const margin = Math.max(1, Math.round(Math.min(w, h) * 0.04));
+  for (let x = 0; x < w; x++) {
+    for (let t = 0; t < margin; t++) {
+      let i = (t * w + x) * 4;
+      borderSamples.push([data[i], data[i + 1], data[i + 2]]);
+      i = ((h - 1 - t) * w + x) * 4;
+      borderSamples.push([data[i], data[i + 1], data[i + 2]]);
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let t = 0; t < margin; t++) {
+      let i = (y * w + t) * 4;
+      borderSamples.push([data[i], data[i + 1], data[i + 2]]);
+      i = (y * w + (w - 1 - t)) * 4;
+      borderSamples.push([data[i], data[i + 1], data[i + 2]]);
+    }
+  }
+  const median = (arr) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+  const bgR = median(borderSamples.map(s => s[0]));
+  const bgG = median(borderSamples.map(s => s[1]));
+  const bgB = median(borderSamples.map(s => s[2]));
+
+  const THRESHOLD = 42; // 容差：越大，去掉的颜色范围越宽
+  const FEATHER = 24;   // 羽化宽度：透明到不透明之间的柔和过渡
+  for (let p = 0; p < data.length; p += 4) {
+    const dr = data[p] - bgR, dg = data[p + 1] - bgG, db = data[p + 2] - bgB;
+    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+    let alpha;
+    if (dist <= THRESHOLD) alpha = 0;
+    else if (dist >= THRESHOLD + FEATHER) alpha = 255;
+    else alpha = Math.round(((dist - THRESHOLD) / FEATHER) * 255);
+    data[p + 3] = Math.min(data[p + 3], alpha);
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+async function runTryonEditorColorCutout() {
+  const finger = tryonEditorActiveFinger;
+  const quad = tryonEditorQuads[finger];
+  if (!quad || !tryonEditorImg) {
+    alert('先把这根手指的框拖到指甲位置上，再做去背景。');
+    return;
+  }
+  if (!tryonEditorImg.crossOrigin) {
+    alert('这张参考图片不支持跨域读取，暂时没法去背景。换一张参考图片试试，或者继续用矩形框图方案。');
+    return;
+  }
+
+  const btn = document.getElementById('tryon-editor-colorcut-btn');
+  const originalBtnHtml = btn ? btn.innerHTML : '';
+
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '处理中…'; }
+
+    // 按颜色去背景不需要留边——留边只会把更多卡片底色框进来，贴着框边缘裁，
+    // 让采样到的"卡片底色"更准
+    const cropCanvas = tryonEditorCropToCanvas(quad, 0);
+    tryonEditorColorCutoutProcess(cropCanvas);
+    const resultBlob = await new Promise(resolve => cropCanvas.toBlob(resolve, 'image/png'));
+    await tryonEditorUploadCutout(finger, resultBlob, 'color');
+  } catch (err) {
+    console.error('[tryon-editor] 按颜色去背景失败:', err);
+    alert('按颜色去背景失败：' + (err && err.message ? err.message : err));
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
   }
