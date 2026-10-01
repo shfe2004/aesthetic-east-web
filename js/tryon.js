@@ -92,10 +92,13 @@ function tryonDrawDesignOnZone(ctx, designImg, quad) {
   tryonDrawQuadToQuad(ctx, designImg, src, quad);
 }
 
-// options（可选）：{ tryonSourceImageUrl, tryonNailQuads } —— 来自后台"框图工具"的配置
-// （见 sql/add_tryon_card_config.sql）。传了且能正常加载图片时，每根手指优先用框图裁剪出来的
-// 精确区域；没传、传了但图片加载失败、或某根手指还没框过时，那根手指自动回退到整图贴纸方案，
-// 保证任何商品（不管有没有配置过）都能正常展示试戴效果。
+// options（可选）：{ tryonSourceImageUrl, tryonNailQuads, tryonNailCutouts } —— 来自后台
+// "框图工具"/"自动抠图"的配置（见 sql/add_tryon_card_config.sql、sql/add_tryon_cutouts_column.sql）。
+// 每根手指按下面优先级独立选用效果最好的一档，某一档缺失或加载失败都会自动降级到下一档，
+// 保证任何商品（不管处理到哪一步）都能正常展示试戴效果，不会报错或留白：
+//   1. tryonNailCutouts[手指] —— AI抠图结果（PNG，指甲真实轮廓，四周透明），效果最好
+//   2. tryonNailQuads[手指] + tryonSourceImageUrl —— 矩形框图裁剪，有方形边缘，效果一般
+//   3. 都没有 —— 整张商品图当贴纸，效果最粗糙，兜底
 async function tryonRenderCanvas(designSrc, options) {
   if (!tryonCtx) return;
   options = options || {};
@@ -114,7 +117,7 @@ async function tryonRenderCanvas(designSrc, options) {
     return;
   }
 
-  // 有配置的话，尝试把"整卡"参考图也加载好；加载失败就当没配置处理（全部回退整图方案）
+  // 有配置的话，尝试把"整卡"参考图也加载好；加载失败就当没配置处理（框图这一档整体跳过）
   let cardImg = null;
   const quads = options.tryonNailQuads;
   const cardUrl = options.tryonSourceImageUrl;
@@ -122,25 +125,46 @@ async function tryonRenderCanvas(designSrc, options) {
     try {
       cardImg = await tryonLoadImage(cardUrl);
     } catch (e) {
-      console.warn('[tryon] card reference image failed to load, falling back to whole-image mode:', cardUrl, e);
+      console.warn('[tryon] card reference image failed to load, falling back:', cardUrl, e);
       cardImg = null;
     }
   }
+  const cutouts = options.tryonNailCutouts;
 
-  TRYON_NAIL_ZONES.forEach(zone => {
-    const fingerQuadFrac = (cardImg && quads) ? quads[zone.finger] : null;
-    if (Array.isArray(fingerQuadFrac) && fingerQuadFrac.length === 4) {
-      const cw = cardImg.naturalWidth || cardImg.width;
-      const ch = cardImg.naturalHeight || cardImg.height;
-      if (cw && ch) {
-        const srcQuad = tryonQuadFractionToPixel(fingerQuadFrac, cw, ch);
-        tryonDrawQuadToQuad(tryonCtx, cardImg, srcQuad, zone.quad);
-        return;
+  for (const zone of TRYON_NAIL_ZONES) {
+    let drawn = false;
+
+    // 第一档：AI抠图结果
+    const cutoutUrl = cutouts ? cutouts[zone.finger] : null;
+    if (cutoutUrl) {
+      try {
+        const cutoutImg = await tryonLoadImage(cutoutUrl);
+        tryonDrawDesignOnZone(tryonCtx, cutoutImg, zone.quad);
+        drawn = true;
+      } catch (e) {
+        console.warn('[tryon] 抠图加载失败，这根手指回退到下一档:', zone.finger, cutoutUrl, e);
       }
     }
-    // 这根手指没配置框图（或配置不完整）——回退到整图贴纸方案
-    tryonDrawDesignOnZone(tryonCtx, designImg, zone.quad);
-  });
+
+    // 第二档：矩形框图裁剪
+    if (!drawn) {
+      const fingerQuadFrac = (cardImg && quads) ? quads[zone.finger] : null;
+      if (Array.isArray(fingerQuadFrac) && fingerQuadFrac.length === 4) {
+        const cw = cardImg.naturalWidth || cardImg.width;
+        const ch = cardImg.naturalHeight || cardImg.height;
+        if (cw && ch) {
+          const srcQuad = tryonQuadFractionToPixel(fingerQuadFrac, cw, ch);
+          tryonDrawQuadToQuad(tryonCtx, cardImg, srcQuad, zone.quad);
+          drawn = true;
+        }
+      }
+    }
+
+    // 第三档：整图贴纸兜底
+    if (!drawn) {
+      tryonDrawDesignOnZone(tryonCtx, designImg, zone.quad);
+    }
+  }
 }
 
 function tryonGetImageForItem(item) {
@@ -173,7 +197,7 @@ function openTryOnModal(itemId) {
   tryonCurrentItemId = itemId;
   document.getElementById('modal-tryon')?.classList.remove('hidden');
   renderTryOnThumbs();
-  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads });
+  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads, tryonNailCutouts: item.tryonNailCutouts });
 }
 
 function closeTryOnModal() {
@@ -186,5 +210,5 @@ function switchTryOnDesign(itemId) {
   if (!item) return;
   tryonCurrentItemId = itemId;
   renderTryOnThumbs();
-  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads });
+  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads, tryonNailCutouts: item.tryonNailCutouts });
 }

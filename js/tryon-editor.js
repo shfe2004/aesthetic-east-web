@@ -33,10 +33,12 @@ let tryonEditorImageUrl = null;
 let tryonEditorImagesList = [];
 let tryonEditorImg = null;
 let tryonEditorQuads = {};
+let tryonEditorCutouts = {}; // { finger: 抠图结果PNG的公开链接 } —— 方案C：浏览器端AI自动抠图
 let tryonEditorActiveFinger = 'thumb';
 let tryonEditorCanvasEl = null;
 let tryonEditorCtx = null;
 let tryonEditorDrag = null;
+let tryonEditorBgRemovalFn = null; // 缓存动态加载的AI抠图函数，避免重复加载模型
 
 function tryonEditorBuildModal() {
   let modal = document.getElementById('modal-tryon-editor');
@@ -68,6 +70,18 @@ function tryonEditorBuildModal() {
 
       <div class="border rounded-lg overflow-hidden bg-stone-100 flex justify-center">
         <canvas id="tryon-editor-canvas" style="touch-action:none; cursor:crosshair; max-width:100%;"></canvas>
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap bg-stone-50 border border-stone-200 rounded-lg p-3">
+        <button onclick="runTryonEditorCutout()" id="tryon-editor-cutout-btn" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> 自动抠图（当前手指）
+        </button>
+        <button onclick="clearTryonEditorCutout()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
+          清除当前手指的抠图
+        </button>
+        <img id="tryon-editor-cutout-preview" class="hidden h-12 w-12 object-contain border rounded" style="background-image:repeating-conic-gradient(#ddd 0 25%, #fff 0 50%); background-size:10px 10px;" alt="抠图预览">
+        <span id="tryon-editor-cutout-status" class="text-xs text-gray-500"></span>
+        <span class="text-[11px] text-gray-400 w-full">抠图是免费的浏览器端AI，在你自己电脑上跑，第一次用会下载一个几MB的模型（之后会被浏览器缓存，不用重复下载）；抠完会比矩形框图更贴合指甲真实形状，但不保证每次都完美，效果不满意可以点"清除当前手指的抠图"退回矩形框图方案。</span>
       </div>
 
       <div class="flex justify-between items-center pt-2 border-t">
@@ -104,6 +118,15 @@ async function openTryonEditorModal(prodId) {
     } catch (e) { existingQuads = {}; }
   }
   tryonEditorQuads = existingQuads || {};
+
+  let existingCutouts = {};
+  const rawCutouts = item.tryon_nail_cutouts;
+  if (rawCutouts) {
+    try {
+      existingCutouts = JSON.parse(JSON.stringify(typeof rawCutouts === 'string' ? JSON.parse(rawCutouts) : rawCutouts));
+    } catch (e) { existingCutouts = {}; }
+  }
+  tryonEditorCutouts = existingCutouts || {};
 
   document.getElementById('tryon-editor-prod-id').innerText = prodId;
 
@@ -144,6 +167,7 @@ async function openTryonEditorModal(prodId) {
   renderTryonEditorImagePicker();
   await selectTryonEditorImage(initialUrl);
   renderTryonEditorFingerTabs();
+  renderTryonEditorCutoutPreview();
 
   document.getElementById('modal-tryon-editor').classList.remove('hidden');
 }
@@ -207,12 +231,14 @@ function renderTryonEditorFingerTabs() {
   if (!wrap) return;
   wrap.innerHTML = TRYON_EDITOR_FINGERS.map(f => {
     const configured = !!tryonEditorQuads[f.key];
+    const hasCutout = !!tryonEditorCutouts[f.key];
     const active = f.key === tryonEditorActiveFinger;
     const color = TRYON_EDITOR_COLORS[f.key];
     const style = active
       ? `background:${color}; color:#fff; border-color:${color};`
       : `background:#fff; color:${color}; border-color:${color};`;
-    return `<button onclick="switchTryonEditorFinger('${f.key}')" class="px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-colors" style="${style}">${f.label}${configured ? ' ✓' : ''}</button>`;
+    const badge = hasCutout ? ' 🪄' : (configured ? ' ✓' : '');
+    return `<button onclick="switchTryonEditorFinger('${f.key}')" class="px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-colors" style="${style}">${f.label}${badge}</button>`;
   }).join('');
 }
 
@@ -220,6 +246,7 @@ function switchTryonEditorFinger(finger) {
   tryonEditorActiveFinger = finger;
   ensureTryonEditorFingerQuad(finger);
   renderTryonEditorFingerTabs();
+  renderTryonEditorCutoutPreview();
   drawTryonEditor();
 }
 
@@ -228,6 +255,103 @@ function resetTryonEditorFinger() {
   ensureTryonEditorFingerQuad(tryonEditorActiveFinger);
   renderTryonEditorFingerTabs();
   drawTryonEditor();
+}
+
+function renderTryonEditorCutoutPreview() {
+  const img = document.getElementById('tryon-editor-cutout-preview');
+  const statusEl = document.getElementById('tryon-editor-cutout-status');
+  const url = tryonEditorCutouts[tryonEditorActiveFinger];
+  if (img) {
+    if (url) {
+      img.src = url;
+      img.classList.remove('hidden');
+    } else {
+      img.classList.add('hidden');
+      img.src = '';
+    }
+  }
+  if (statusEl) {
+    statusEl.innerText = url ? '这根手指已有抠图，试戴会优先用它。' : '这根手指还没抠图，试戴会用矩形框图/整图代替。';
+  }
+}
+
+function clearTryonEditorCutout() {
+  delete tryonEditorCutouts[tryonEditorActiveFinger];
+  renderTryonEditorCutoutPreview();
+  renderTryonEditorFingerTabs();
+}
+
+// 方案C核心：把当前手指框出来的区域（带一点余量）从原图上裁下来，交给浏览器端AI模型
+// 抠掉背景，只留下指甲图案本身（不规则轮廓、四周透明），再上传到 Supabase 拿到公开链接。
+// 全程在管理员自己的浏览器里跑，不经过任何服务器，第一次用会下载一次模型文件（几MB，
+// 浏览器会缓存），之后同一台电脑上用会快很多。
+async function tryonEditorLoadBgRemoval() {
+  if (tryonEditorBgRemovalFn) return tryonEditorBgRemovalFn;
+  const mod = await import('https://esm.sh/@imgly/background-removal@1.5.8');
+  tryonEditorBgRemovalFn = mod.removeBackground;
+  return tryonEditorBgRemovalFn;
+}
+
+async function runTryonEditorCutout() {
+  const finger = tryonEditorActiveFinger;
+  const quad = tryonEditorQuads[finger];
+  if (!quad || !tryonEditorImg) {
+    alert('先把这根手指的框拖到指甲位置上，再做自动抠图。');
+    return;
+  }
+
+  const btn = document.getElementById('tryon-editor-cutout-btn');
+  const originalBtnHtml = btn ? btn.innerHTML : '';
+  const statusEl = document.getElementById('tryon-editor-cutout-status');
+
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '处理中…（第一次用要下载AI模型，稍等几秒到几十秒）'; }
+    if (statusEl) statusEl.innerText = '';
+
+    // 1. 用原始分辨率的参考图（不是画布上缩小显示用的尺寸），按这根手指的框算出一块
+    //    带 15% 余量的矩形裁剪区域——留余量是为了给AI模型一点指甲周围的上下文，
+    //    抠的时候更容易分清"指甲图案"和"卡片背景"的边界。
+    const naturalW = tryonEditorImg.naturalWidth || tryonEditorImg.width;
+    const naturalH = tryonEditorImg.naturalHeight || tryonEditorImg.height;
+    const xs = quad.map(p => p[0] * naturalW);
+    const ys = quad.map(p => p[1] * naturalH);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const padX = (maxX - minX) * 0.15;
+    const padY = (maxY - minY) * 0.15;
+    const cropX = Math.max(0, minX - padX);
+    const cropY = Math.max(0, minY - padY);
+    const cropW = Math.min(naturalW, maxX + padX) - cropX;
+    const cropH = Math.min(naturalH, maxY + padY) - cropY;
+
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = Math.max(1, Math.round(cropW));
+    cropCanvas.height = Math.max(1, Math.round(cropH));
+    const cropCtx = cropCanvas.getContext('2d');
+    cropCtx.drawImage(tryonEditorImg, cropX, cropY, cropW, cropH, 0, 0, cropCanvas.width, cropCanvas.height);
+
+    // 2. 跑浏览器端AI抠图
+    const removeBackground = await tryonEditorLoadBgRemoval();
+    const cropBlob = await new Promise(resolve => cropCanvas.toBlob(resolve, 'image/png'));
+    const resultBlob = await removeBackground(cropBlob);
+
+    // 3. 上传到 Supabase（跟商品图片用同一个 bucket），拿公开链接存起来
+    const fileName = `tryon_cutout_${tryonEditorProdId}_${finger}_${Date.now()}.png`;
+    const { error: uploadError } = await supabaseClient.storage
+      .from('product-media')
+      .upload(fileName, resultBlob, { contentType: 'image/png', upsert: true });
+    if (uploadError) throw uploadError;
+    const { data: publicUrlData } = supabaseClient.storage.from('product-media').getPublicUrl(fileName);
+
+    tryonEditorCutouts[finger] = publicUrlData.publicUrl;
+    renderTryonEditorCutoutPreview();
+    renderTryonEditorFingerTabs();
+  } catch (err) {
+    console.error('[tryon-editor] 自动抠图失败:', err);
+    alert('自动抠图失败：' + (err && err.message ? err.message : err) + '\n\n常见原因是网络问题导致AI模型下载失败。这根手指会继续用矩形框图方案，不影响其它手指，也可以稍后重试。');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+  }
 }
 
 function drawTryonEditor() {
@@ -365,7 +489,11 @@ async function saveTryonEditorConfig() {
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = '保存中...'; }
     const { error } = await supabaseClient
       .from('products')
-      .update({ tryon_source_image_url: tryonEditorImageUrl, tryon_nail_quads: tryonEditorQuads })
+      .update({
+        tryon_source_image_url: tryonEditorImageUrl,
+        tryon_nail_quads: tryonEditorQuads,
+        tryon_nail_cutouts: tryonEditorCutouts
+      })
       .eq('id', tryonEditorProdId);
     if (error) throw error;
 

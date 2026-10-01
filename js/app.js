@@ -242,7 +242,9 @@ async function fetchProductsIndependentJoin() {
         // 虚拟试戴"框图方案"：后台用框图工具配置过的商品才会有这两个字段，
         // 没配置过的（null）前台会自动回退到整图贴纸的老方案，见 js/tryon.js
         tryonSourceImageUrl: item.tryon_source_image_url || '',
-        tryonNailQuads: item.tryon_nail_quads || null
+        tryonNailQuads: item.tryon_nail_quads || null,
+        // 方案C：浏览器端AI抠图的结果（每根手指一张透明背景PNG），见 sql/add_tryon_cutouts_column.sql
+        tryonNailCutouts: item.tryon_nail_cutouts || null
       };
 
       if (item.category_id === 'nails') {
