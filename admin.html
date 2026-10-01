@@ -110,6 +110,17 @@
       </form>
     </div>
 
+    <!-- 1.5 虚拟试戴 · 手模型指甲位置标定（全站共用的一份坐标，不是针对单个商品） -->
+    <div class="bg-white rounded-xl shadow-md p-6 border border-amber-200 flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-gray-800">🖐️ 虚拟试戴 · 手模型指甲位置标定</h2>
+        <p class="text-xs text-gray-500 mt-1">如果试戴贴图跟手模型照片里实际的指甲长短/宽窄/方向对不上，在这里直接拖动调整——全站所有商品共用这一份位置，改一次全部生效。</p>
+      </div>
+      <button onclick="openTryonHandCalibrator()" class="px-4 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white shadow-sm">
+        打开标定工具
+      </button>
+    </div>
+
     <!-- 2. 上架新商品表单 (自动编码 ID) -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="addProductSectionTitle">📦 添加新商品</h2>
@@ -376,6 +387,8 @@
 
   <script src="js/supabase-client.js"></script>
   <script src="js/admin.js"></script>
+  <script src="js/tryon-config.js"></script>
   <script src="js/tryon-editor.js"></script>
+  <script src="js/tryon-hand-calibrator.js"></script>
 </body>
 </html>

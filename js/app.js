@@ -331,6 +331,11 @@ async function loadSiteDynamicConfig() {
     if (cfg.tax_rate !== null && cfg.tax_rate !== undefined) {
       siteTaxRate = parseFloat(cfg.tax_rate);
     }
+    // 虚拟试戴·手模型标定结果（见 sql/add_tryon_hand_zones_column.sql）：后台标定过就用
+    // 标定过的精确坐标，没标定过就保持 js/tryon.js 里的默认兜底坐标，不影响正常使用。
+    if (cfg.tryon_hand_zones && typeof tryonApplyHandZonesOverride === 'function') {
+      tryonApplyHandZonesOverride(cfg.tryon_hand_zones);
+    }
     if (cfg.nails_video_url) {
       nailsVideoUrl = cfg.nails_video_url;
       const wrap = document.getElementById('nails-video-wrap');

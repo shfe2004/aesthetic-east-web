@@ -23,6 +23,28 @@ let tryonCurrentItemId = null;
 let tryonHandLoadPromise = null;
 const tryonImageCache = {};
 
+// 手模型上每根手指的实际贴图位置——默认用 js/tryon-config.js 里硬编码的 TRYON_NAIL_ZONES
+// （人工估算标定，不是像素级精确）。后台"手模型标定工具"保存过结果后（见
+// sql/add_tryon_hand_zones_column.sql），会在站点配置加载时调用 tryonApplyHandZonesOverride
+// 把这里替换成管理员自己可视化标定过的精确坐标，不需要改代码/重新发布就能让前台生效。
+let TRYON_ACTIVE_ZONES = TRYON_NAIL_ZONES;
+
+function tryonApplyHandZonesOverride(savedZones) {
+  if (!Array.isArray(savedZones) || savedZones.length === 0) return;
+  try {
+    const w = TRYON_HAND_IMAGE.width, h = TRYON_HAND_IMAGE.height;
+    const merged = TRYON_NAIL_ZONES.map(zone => {
+      const saved = savedZones.find(s => s.finger === zone.finger);
+      if (!saved || !Array.isArray(saved.quad) || saved.quad.length !== 4) return zone;
+      const quad = saved.quad.map(([fx, fy]) => [fx * w, fy * h]);
+      return Object.assign({}, zone, { quad });
+    });
+    TRYON_ACTIVE_ZONES = merged;
+  } catch (e) {
+    console.warn('[tryon] 手模型标定数据格式异常，使用默认坐标:', e);
+  }
+}
+
 function tryonLoadImage(src) {
   if (tryonImageCache[src]) return tryonImageCache[src];
   const p = new Promise((resolve, reject) => {
@@ -214,7 +236,7 @@ async function tryonRenderCanvas(designSrc, options) {
   const shapeKey = options.tryonNailShape || 'square';
   const shapeFlip = !!options.tryonNailShapeFlip;
 
-  for (const zone of TRYON_NAIL_ZONES) {
+  for (const zone of TRYON_ACTIVE_ZONES) {
     let drawn = false;
 
     // 不管接下来这根手指实际用的是哪一档（抠图/框图/整图兜底），统一先按指甲形状
