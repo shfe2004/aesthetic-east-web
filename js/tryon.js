@@ -3,18 +3,13 @@
 // 让顾客不用摄像头/上传自己的手，就能大致看看这款设计"戴在手上"是什么效果，
 // 点缩略图可以随时切换试别的款式。
 //
-// 原理：手模照片上每根手指的指甲位置，是 js/tryon-config.js 里人工标定好的一个四边形（4个角点）。
-// 每次切换设计时，把该商品的图片当作一张矩形"贴纸"，通过数学上的仿射变换（把矩形拆成两个三角形分别计算），
-// 挤压/拉伸/旋转成贴合指甲四边形的形状，画到手模图对应位置上。
-//
-// 现阶段的已知局限（跟用户讨论过，先低成本验证效果，后续视反馈决定是否升级）：
-// 1. 用的是商品的正常展示图（不是专门拍摄的"平铺指甲图案"素材），所以贴上去以后，
-//    图片里其他不相关的内容（比如整只手、包装盒边缘）也会被一起挤压进指甲形状里，
-//    可能出现变形、看起来不自然的情况——这是意料之中的效果上限，不是bug。
-// 2. 手模照片和标定坐标是人工估算的，不是像素级精确，如果测试后发现哪根手指明显贴歪了，
-//    告诉我具体哪根手指、偏移方向，我可以直接在 js/tryon-config.js 里调整对应的坐标数字。
-// 3. 如果以后想要更逼真的效果，需要为每款设计准备"平铺正面指甲图案图"素材，到时候可以在
-//    后台给每个商品单独配置一张"试戴专用图"，而不是复用商品主图——这是升级版方案，现在先跳过。
+// 原理：手模照片上每根手指的指甲位置，是 js/tryon-config.js 里标定好的一个四边形（4个角点，
+// 可以在后台"手模型指甲位置标定"工具里可视化调整，见 js/tryon-hand-calibrator.js）。
+// 配置过"框图工具"/自动抠图的商品（见 js/tryon-editor.js），贴图时会先把对应内容按它自己
+// 真实的长宽比例"拉直"好，再整体等比缩放+旋转贴到手模型指根位置——不做独立的x/y拉伸，
+// 所以长指甲贴出来就是长、窄指甲贴出来就是窄，不同设计之间的长短宽窄差异是真实的。
+// 没有配置过的商品，仍然走最老的"整张商品图当贴纸、直接拉伸贴满框"方案兜底，见下面
+// tryonRenderCanvas 第三档。
 
 let tryonCanvasEl = null;
 let tryonCtx = null;
@@ -195,13 +190,97 @@ function tryonDrawDesignOnZone(ctx, designImg, quad) {
   tryonDrawQuadToQuad(ctx, designImg, src, quad);
 }
 
-// options（可选）：{ tryonSourceImageUrl, tryonNailQuads, tryonNailCutouts } —— 来自后台
-// "框图工具"/"自动抠图"的配置（见 sql/add_tryon_card_config.sql、sql/add_tryon_cutouts_column.sql）。
+// ========== 等比贴图（不拉伸变形，保留每款设计本身真实的长宽比例） ==========
+// 之前框图/抠图这两档，都是直接把素材仿射拉伸贴满手模型上那个固定的框——框多长就拉多长、
+// 框多宽就压多宽，不同设计的指甲贴上去之后，长短宽窄看起来都差不多（被"捏"成了手模型
+// 本身指甲的形状），这跟商品真实的长短宽窄效果不符。
+//
+// 改成：先把素材（框图裁剪/抠图结果）按它自己的真实长宽比例"拉直"好，再整体等比缩放+
+// 旋转，贴到手模型指根位置，缩放比例只按"贴图宽度要跟手模型这根手指的指根宽度对上"来算，
+// 长度完全由素材自己的比例决定——长指甲就会自然地显长，窄指甲就会自然地显窄，不同设计
+// 之间的长短宽窄差异就是真实的，不会被强行揉成同一个形状。
+
+// 把 srcQuad（可能是任意旋转的四边形）"拉直"成一张保留真实长宽比例的矩形画布——
+// 跟 js/tryon-editor.js 的 tryonEditorCropToCanvas 完全同样的算法，这里是前台渲染用，
+// 单独拷贝一份（两边一贯互不依赖的做法）。
+function tryonStraightenQuadToCanvas(img, srcQuad, paddingRatio) {
+  const cx = (srcQuad[0][0] + srcQuad[1][0] + srcQuad[2][0] + srcQuad[3][0]) / 4;
+  const cy = (srcQuad[0][1] + srcQuad[1][1] + srcQuad[2][1] + srcQuad[3][1]) / 4;
+  const expanded = srcQuad.map(([x, y]) => [cx + (x - cx) * (1 + paddingRatio), cy + (y - cy) * (1 + paddingRatio)]);
+
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  const outW = Math.max(8, Math.round((dist(expanded[0], expanded[1]) + dist(expanded[3], expanded[2])) / 2));
+  const outH = Math.max(8, Math.round((dist(expanded[0], expanded[3]) + dist(expanded[1], expanded[2])) / 2));
+  const dstQuad = [[0, 0], [outW, 0], [outW, outH], [0, outH]];
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  tryonDrawTriangle(ctx, img, [expanded[0], expanded[1], expanded[2]], [dstQuad[0], dstQuad[1], dstQuad[2]]);
+  tryonDrawTriangle(ctx, img, [expanded[0], expanded[2], expanded[3]], [dstQuad[0], dstQuad[2], dstQuad[3]]);
+  return canvas;
+}
+
+// 指甲形状蒙版的轮廓点，换算成某块素材自己的实际像素宽高（而不是单位正方形）——
+// 这个形状是素材自己局部坐标系里的裁剪范围，跟它最终贴到手模型哪个位置、旋转多少度无关。
+function tryonNailShapePointsPx(shapeKey, w, h) {
+  return tryonNailShapePoints(shapeKey).map(([u, v]) => [u * w, v * h]);
+}
+
+// 把一块已经按真实比例"拉直"好的素材（content，宽 contentW、高 contentH，局部坐标
+// y=0 是指根端、y=contentH 是甲尖端），整体等比缩放+旋转，贴到手模型 destQuad 对应的
+// 指根位置、按指根→甲尖方向摆正——不做任何独立的 x/y 方向拉伸，贴图保持素材自己真实的
+// 长宽比例。flip：手模型这个框标定方向反了的话翻一下，翻的是"贴到手模型的哪一头"，
+// 不影响素材自己形状蒙版的朝向（那是素材自己局部坐标系的事，两者无关）。
+function tryonPlaceContentOnZone(ctx, content, contentW, contentH, destQuad, shapeKey, flip, widthFitRatio) {
+  if (!contentW || !contentH) return;
+  const base0 = destQuad[0], base1 = destQuad[1]; // 指根两端（约定：框的"上边"）
+  const tip0 = destQuad[3], tip1 = destQuad[2];   // 甲尖两端（框的"下边"）
+  const baseCenter = [(base0[0] + base1[0]) / 2, (base0[1] + base1[1]) / 2];
+  const tipCenter = [(tip0[0] + tip1[0]) / 2, (tip0[1] + tip1[1]) / 2];
+  const destWidth = Math.hypot(base1[0] - base0[0], base1[1] - base0[1]);
+  if (!destWidth) return;
+
+  let dirX = tipCenter[0] - baseCenter[0], dirY = tipCenter[1] - baseCenter[1];
+  const dirLen = Math.hypot(dirX, dirY) || 1;
+  dirX /= dirLen; dirY /= dirLen;
+  let anchor = baseCenter;
+  if (flip) {
+    dirX = -dirX; dirY = -dirY;
+    anchor = tipCenter;
+  }
+  const perpX = -dirY, perpY = dirX; // 垂直于"指根→甲尖"方向，也就是指甲宽度方向
+
+  const scale = (destWidth * (widthFitRatio || 1)) / contentW;
+  const a = perpX * scale, b = perpY * scale; // 局部 x（宽度方向）映射到画布的系数
+  const c = dirX * scale, d = dirY * scale;   // 局部 y（指根→甲尖方向）映射到画布的系数
+  const e = anchor[0] - a * (contentW / 2);
+  const f = anchor[1] - b * (contentW / 2);
+
+  ctx.save();
+  const shapePts = tryonNailShapePointsPx(shapeKey, contentW, contentH);
+  ctx.beginPath();
+  shapePts.forEach(([x, y], i) => {
+    const px = a * x + c * y + e, py = b * x + d * y + f;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+  ctx.clip();
+
+  ctx.transform(a, b, c, d, e, f);
+  ctx.drawImage(content, 0, 0, contentW, contentH);
+  ctx.restore();
+}
+
+// options（可选）：{ tryonSourceImageUrl, tryonNailQuads, tryonNailCutouts, tryonNailShape,
+// tryonNailShapeFlip } —— 来自后台"框图工具"/"自动抠图"的配置（见
+// sql/add_tryon_card_config.sql、sql/add_tryon_cutouts_column.sql、sql/add_tryon_nail_shape.sql）。
 // 每根手指按下面优先级独立选用效果最好的一档，某一档缺失或加载失败都会自动降级到下一档，
 // 保证任何商品（不管处理到哪一步）都能正常展示试戴效果，不会报错或留白：
-//   1. tryonNailCutouts[手指] —— AI抠图结果（PNG，指甲真实轮廓，四周透明），效果最好
-//   2. tryonNailQuads[手指] + tryonSourceImageUrl —— 矩形框图裁剪，有方形边缘，效果一般
-//   3. 都没有 —— 整张商品图当贴纸，效果最粗糙，兜底
+//   1. tryonNailCutouts[手指] —— AI/颜色/手动抠图结果，等比贴图，效果最好
+//   2. tryonNailQuads[手指] + tryonSourceImageUrl —— 矩形框图裁剪，等比贴图，效果其次
+//   3. 都没有 —— 整张商品图直接拉伸贴满框，效果最粗糙，兜底
 async function tryonRenderCanvas(designSrc, options) {
   if (!tryonCtx) return;
   options = options || {};
@@ -239,43 +318,49 @@ async function tryonRenderCanvas(designSrc, options) {
   for (const zone of TRYON_ACTIVE_ZONES) {
     let drawn = false;
 
-    // 不管接下来这根手指实际用的是哪一档（抠图/框图/整图兜底），统一先按指甲形状
-    // 裁一刀——这样方框四个角多出来的部分，不管里面贴的是什么内容，都会被裁掉。
-    tryonCtx.save();
-    tryonClipNailShape(tryonCtx, zone.quad, shapeKey, shapeFlip);
-
-    // 第一档：AI抠图结果
+    // 第一档：AI/颜色/手动抠图结果——这些本来就是从框出来的区域"拉直"裁出来的（见
+    // js/tryon-editor.js 的 tryonEditorCropToCanvas），本身已经保留了真实长宽比例，
+    // 直接按它自己的宽高等比贴上去，不再拉伸变形。
     const cutoutUrl = cutouts ? cutouts[zone.finger] : null;
     if (cutoutUrl) {
       try {
         const cutoutImg = await tryonLoadImage(cutoutUrl);
-        tryonDrawDesignOnZone(tryonCtx, cutoutImg, zone.quad);
-        drawn = true;
+        const cw = cutoutImg.naturalWidth || cutoutImg.width;
+        const ch = cutoutImg.naturalHeight || cutoutImg.height;
+        if (cw && ch) {
+          tryonPlaceContentOnZone(tryonCtx, cutoutImg, cw, ch, zone.quad, shapeKey, shapeFlip, 1);
+          drawn = true;
+        }
       } catch (e) {
         console.warn('[tryon] 抠图加载失败，这根手指回退到下一档:', zone.finger, cutoutUrl, e);
       }
     }
 
-    // 第二档：矩形框图裁剪
+    // 第二档：矩形框图——先把框出来的（可能是旋转过的）四边形区域拉直成一张保留真实
+    // 长宽比例的矩形，再跟第一档一样等比贴上去。
     if (!drawn) {
       const fingerQuadFrac = (cardImg && quads) ? quads[zone.finger] : null;
       if (Array.isArray(fingerQuadFrac) && fingerQuadFrac.length === 4) {
-        const cw = cardImg.naturalWidth || cardImg.width;
-        const ch = cardImg.naturalHeight || cardImg.height;
-        if (cw && ch) {
-          const srcQuad = tryonQuadFractionToPixel(fingerQuadFrac, cw, ch);
-          tryonDrawQuadToQuad(tryonCtx, cardImg, srcQuad, zone.quad);
+        const cw0 = cardImg.naturalWidth || cardImg.width;
+        const ch0 = cardImg.naturalHeight || cardImg.height;
+        if (cw0 && ch0) {
+          const srcQuad = tryonQuadFractionToPixel(fingerQuadFrac, cw0, ch0);
+          const straightCanvas = tryonStraightenQuadToCanvas(cardImg, srcQuad, 0);
+          tryonPlaceContentOnZone(tryonCtx, straightCanvas, straightCanvas.width, straightCanvas.height, zone.quad, shapeKey, shapeFlip, 1);
           drawn = true;
         }
       }
     }
 
-    // 第三档：整图贴纸兜底
+    // 第三档：整图贴纸兜底——用的是商品普通展示图，不是专门拍的平铺指甲图案，没有
+    // "真实指甲比例"可言，继续用老办法直接拉伸贴满框（这一档本来就是效果上限最低的
+    // 兜底方案，配置过框图/抠图的商品不会走到这里）。
     if (!drawn) {
+      tryonCtx.save();
+      tryonClipNailShape(tryonCtx, zone.quad, shapeKey, shapeFlip);
       tryonDrawDesignOnZone(tryonCtx, designImg, zone.quad);
+      tryonCtx.restore();
     }
-
-    tryonCtx.restore();
   }
 }
 
