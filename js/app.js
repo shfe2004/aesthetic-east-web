@@ -244,7 +244,10 @@ async function fetchProductsIndependentJoin() {
         tryonSourceImageUrl: item.tryon_source_image_url || '',
         tryonNailQuads: item.tryon_nail_quads || null,
         // 方案C：浏览器端AI抠图的结果（每根手指一张透明背景PNG），见 sql/add_tryon_cutouts_column.sql
-        tryonNailCutouts: item.tryon_nail_cutouts || null
+        tryonNailCutouts: item.tryon_nail_cutouts || null,
+        // 指甲形状蒙版：贴图时按这个形状裁掉方框四个角，见 sql/add_tryon_nail_shape.sql
+        tryonNailShape: item.tryon_nail_shape || 'square',
+        tryonNailShapeFlip: !!item.tryon_nail_shape_flip
       };
 
       if (item.category_id === 'nails') {

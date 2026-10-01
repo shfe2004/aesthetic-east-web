@@ -82,6 +82,87 @@ function tryonQuadFractionToPixel(quadFrac, imgW, imgH) {
   return quadFrac.map(([fx, fy]) => [fx * imgW, fy * imgH]);
 }
 
+// ========== 指甲形状蒙版（见 sql/add_tryon_nail_shape.sql） ==========
+// 不管贴上去的内容来自哪一档（AI抠图/矩形框图/整图兜底），方框终归是方的，而真实指甲
+// 是圆头/方头/棺材形/杏仁形等各种带弧度的形状——框画得再贴合，四个角也必然会比指甲
+// 实际轮廓多出一小块，这就是"框外的背景也被带进来了"的根本原因，而且这个原因对每张图
+// 都是一样的、完全可预测，不需要靠AI去"猜"每张图的背景再去抠。
+// 所以这里不对每张图做任何像素分析，而是给每个商品配一个固定的"指甲形状"（圆头/方头/
+// 棺材形...），贴图时统一按这个形状裁掉方框四个角——零计算成本、效果100%可预测，
+// 一次配置可以直接套用到成百上千张图，不存在"规模化"的问题。
+const TRYON_NAIL_SHAPE_LIST = [
+  { key: 'square', label: '方头' },
+  { key: 'round', label: '圆头' },
+  { key: 'oval', label: '椭圆' },
+  { key: 'almond', label: '杏仁形' },
+  { key: 'coffin', label: '棺材形' },
+  { key: 'stiletto', label: '尖头' }
+];
+
+// t: 0（指根/甲缘，贴着皮肤那一端）~ 1（甲尖，指甲的自由边）；返回半宽（0~0.5之间，
+// 相对单位正方形）。指根端统一留直边不收窄——这一端实际上会被皮肤盖住一部分，形状
+// 在这里差异不明显，也省得每个形状都要单独处理两端。
+function tryonNailShapeWidthProfile(shapeKey) {
+  const W0 = 0.46; // 主体半宽，四边留一点点余量，方便把源图框边缘也顺带裁掉一点
+  switch (shapeKey) {
+    case 'round':
+      return (t) => (t <= 0.7 ? W0 : W0 * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.7) / 0.3, 2))));
+    case 'oval':
+      return (t) => (t <= 0.5 ? W0 : W0 * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.5) / 0.5, 2))));
+    case 'almond':
+      return (t) => (t <= 0.35 ? W0 : W0 * Math.pow(Math.max(0, 1 - (t - 0.35) / 0.65), 0.85));
+    case 'stiletto':
+      return (t) => (t <= 0.15 ? W0 : W0 * Math.pow(Math.max(0, 1 - (t - 0.15) / 0.85), 1.3));
+    case 'coffin': {
+      const taper = (t) => (t <= 0.25 ? W0 : W0 * Math.pow(Math.max(0, 1 - (t - 0.25) / 0.75), 1.0));
+      const flatFrom = taper(0.88); // 棺材形在接近甲尖处截断收窄，变成一段平的尖端，而不是收到一个尖点
+      return (t) => (t >= 0.88 ? flatFrom : taper(t));
+    }
+    case 'square':
+    default:
+      return () => W0;
+  }
+}
+
+// 把某个形状的轮廓采样成一圈闭合多边形顶点（单位正方形坐标：x 是指甲宽度方向 0~1，
+// y 是指根(0)→甲尖(1) 方向），先沿左边缘走一遍，再沿右边缘走回来，首尾相接。
+function tryonNailShapePoints(shapeKey) {
+  const widthFn = tryonNailShapeWidthProfile(shapeKey);
+  const N = 36;
+  const left = [], right = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const w = widthFn(t);
+    left.push([0.5 - w, t]);
+    right.push([0.5 + w, t]);
+  }
+  return left.concat(right.reverse());
+}
+
+// 双线性插值：把单位正方形里的一个点 (u, v) 映射到目标四边形（[左上,右上,右下,左下]）
+// 里的实际像素坐标。不要求四边形是严格的矩形/平行四边形，对手模图上那种带一点点透视感
+// 的指甲框近似效果已经足够好，拿来算"形状蒙版"的裁剪边界完全够用。
+function tryonBilinearQuad(u, v, quad) {
+  const [tl, tr, br, bl] = quad;
+  const x = (1 - u) * (1 - v) * tl[0] + u * (1 - v) * tr[0] + u * v * br[0] + (1 - u) * v * bl[0];
+  const y = (1 - u) * (1 - v) * tl[1] + u * (1 - v) * tr[1] + u * v * br[1] + (1 - u) * v * bl[1];
+  return [x, y];
+}
+
+// flip：如果某个商品的手模框标定方向和这里默认约定的"指根在上(y=0)/甲尖在下(y=1)"刚好
+// 相反，勾一下"翻转指甲方向"就行，不用重新标定框。
+function tryonClipNailShape(ctx, destQuad, shapeKey, flip) {
+  const pts = tryonNailShapePoints(shapeKey || 'square');
+  ctx.beginPath();
+  pts.forEach(([u, vRaw], i) => {
+    const v = flip ? 1 - vRaw : vRaw;
+    const [px, py] = tryonBilinearQuad(u, v, destQuad);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+  ctx.clip();
+}
+
 // 老的"整图当贴纸"方案：把整张设计图当成一张矩形贴纸，贴到 quad（4个角点）里。
 // 没有在后台框图配置过的商品，仍然走这条路径（低保真但零配置成本）。
 function tryonDrawDesignOnZone(ctx, designImg, quad) {
@@ -130,9 +211,16 @@ async function tryonRenderCanvas(designSrc, options) {
     }
   }
   const cutouts = options.tryonNailCutouts;
+  const shapeKey = options.tryonNailShape || 'square';
+  const shapeFlip = !!options.tryonNailShapeFlip;
 
   for (const zone of TRYON_NAIL_ZONES) {
     let drawn = false;
+
+    // 不管接下来这根手指实际用的是哪一档（抠图/框图/整图兜底），统一先按指甲形状
+    // 裁一刀——这样方框四个角多出来的部分，不管里面贴的是什么内容，都会被裁掉。
+    tryonCtx.save();
+    tryonClipNailShape(tryonCtx, zone.quad, shapeKey, shapeFlip);
 
     // 第一档：AI抠图结果
     const cutoutUrl = cutouts ? cutouts[zone.finger] : null;
@@ -164,6 +252,8 @@ async function tryonRenderCanvas(designSrc, options) {
     if (!drawn) {
       tryonDrawDesignOnZone(tryonCtx, designImg, zone.quad);
     }
+
+    tryonCtx.restore();
   }
 }
 
@@ -197,7 +287,7 @@ function openTryOnModal(itemId) {
   tryonCurrentItemId = itemId;
   document.getElementById('modal-tryon')?.classList.remove('hidden');
   renderTryOnThumbs();
-  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads, tryonNailCutouts: item.tryonNailCutouts });
+  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads, tryonNailCutouts: item.tryonNailCutouts, tryonNailShape: item.tryonNailShape, tryonNailShapeFlip: item.tryonNailShapeFlip });
 }
 
 function closeTryOnModal() {
@@ -210,5 +300,5 @@ function switchTryOnDesign(itemId) {
   if (!item) return;
   tryonCurrentItemId = itemId;
   renderTryOnThumbs();
-  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads, tryonNailCutouts: item.tryonNailCutouts });
+  tryonRenderCanvas(tryonGetImageForItem(item), { tryonSourceImageUrl: item.tryonSourceImageUrl, tryonNailQuads: item.tryonNailQuads, tryonNailCutouts: item.tryonNailCutouts, tryonNailShape: item.tryonNailShape, tryonNailShapeFlip: item.tryonNailShapeFlip });
 }

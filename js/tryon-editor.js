@@ -28,12 +28,70 @@ const TRYON_EDITOR_COLORS = {
   pinky: '#9b59b6'
 };
 
+// 指甲形状蒙版的选项列表（跟 js/tryon.js 里的 TRYON_NAIL_SHAPE_LIST 保持一致，这里单独
+// 拷贝一份，跟框图工具其它部分一样，不依赖前台渲染文件）
+const TRYON_EDITOR_SHAPE_LIST = [
+  { key: 'square', label: '方头' },
+  { key: 'round', label: '圆头' },
+  { key: 'oval', label: '椭圆' },
+  { key: 'almond', label: '杏仁形' },
+  { key: 'coffin', label: '棺材形' },
+  { key: 'stiletto', label: '尖头' }
+];
+
+// 跟 js/tryon.js 的 tryonNailShapeWidthProfile/tryonNailShapePoints/tryonBilinearQuad
+// 完全同样的算法，这里拷贝一份只是为了在框图时实时预览形状蒙版会裁成什么样子，
+// 方便管理员照着这个轮廓去调整四个角点，让框跟指甲真实边缘对得更准。
+function tryonEditorShapeWidthProfile(shapeKey) {
+  const W0 = 0.46;
+  switch (shapeKey) {
+    case 'round':
+      return (t) => (t <= 0.7 ? W0 : W0 * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.7) / 0.3, 2))));
+    case 'oval':
+      return (t) => (t <= 0.5 ? W0 : W0 * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.5) / 0.5, 2))));
+    case 'almond':
+      return (t) => (t <= 0.35 ? W0 : W0 * Math.pow(Math.max(0, 1 - (t - 0.35) / 0.65), 0.85));
+    case 'stiletto':
+      return (t) => (t <= 0.15 ? W0 : W0 * Math.pow(Math.max(0, 1 - (t - 0.15) / 0.85), 1.3));
+    case 'coffin': {
+      const taper = (t) => (t <= 0.25 ? W0 : W0 * Math.pow(Math.max(0, 1 - (t - 0.25) / 0.75), 1.0));
+      const flatFrom = taper(0.88);
+      return (t) => (t >= 0.88 ? flatFrom : taper(t));
+    }
+    case 'square':
+    default:
+      return () => W0;
+  }
+}
+
+function tryonEditorShapePoints(shapeKey) {
+  const widthFn = tryonEditorShapeWidthProfile(shapeKey);
+  const N = 36;
+  const left = [], right = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const w = widthFn(t);
+    left.push([0.5 - w, t]);
+    right.push([0.5 + w, t]);
+  }
+  return left.concat(right.reverse());
+}
+
+function tryonEditorBilinearQuad(u, v, quad) {
+  const [tl, tr, br, bl] = quad;
+  const x = (1 - u) * (1 - v) * tl[0] + u * (1 - v) * tr[0] + u * v * br[0] + (1 - u) * v * bl[0];
+  const y = (1 - u) * (1 - v) * tl[1] + u * (1 - v) * tr[1] + u * v * br[1] + (1 - u) * v * bl[1];
+  return [x, y];
+}
+
 let tryonEditorProdId = null;
 let tryonEditorImageUrl = null;
 let tryonEditorImagesList = [];
 let tryonEditorImg = null;
 let tryonEditorQuads = {};
 let tryonEditorCutouts = {}; // { finger: 抠图结果PNG的公开链接 } —— 方案C：浏览器端AI自动抠图
+let tryonEditorNailShape = 'square'; // 指甲形状蒙版，见 sql/add_tryon_nail_shape.sql
+let tryonEditorNailShapeFlip = false;
 let tryonEditorActiveFinger = 'thumb';
 let tryonEditorCanvasEl = null;
 let tryonEditorCtx = null;
@@ -68,6 +126,11 @@ function tryonEditorBuildModal() {
         <div id="tryon-editor-finger-tabs" class="flex gap-2 flex-wrap"></div>
       </div>
 
+      <div>
+        <label class="block text-xs font-bold text-gray-500 mb-1.5">这批指甲大概是什么形状？（贴图时会按这个形状裁掉方框四个角，画布上会实时预览轮廓，照着调整角点即可）</label>
+        <div id="tryon-editor-shape-picker" class="flex gap-2 flex-wrap items-center"></div>
+      </div>
+
       <div class="border rounded-lg overflow-hidden bg-stone-100 flex justify-center">
         <canvas id="tryon-editor-canvas" style="touch-action:none; cursor:crosshair; max-width:100%;"></canvas>
       </div>
@@ -79,12 +142,15 @@ function tryonEditorBuildModal() {
         <button onclick="runTryonEditorColorCutout()" id="tryon-editor-colorcut-btn" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm">
           <i class="fa-solid fa-droplet"></i> 按颜色去背景
         </button>
+        <button onclick="openTryonEditorTouchup()" id="tryon-editor-touchup-btn" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm">
+          <i class="fa-solid fa-paintbrush"></i> 手动精修
+        </button>
         <button onclick="clearTryonEditorCutout()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
           清除当前手指的抠图
         </button>
         <img id="tryon-editor-cutout-preview" class="hidden h-12 w-12 object-contain border rounded" style="background-image:repeating-conic-gradient(#ddd 0 25%, #fff 0 50%); background-size:10px 10px;" alt="抠图预览">
         <span id="tryon-editor-cutout-status" class="text-xs text-gray-500"></span>
-        <span class="text-[11px] text-gray-400 w-full">两个按钮都会生成"抠图"，用哪个算哪个（后点的会覆盖前面的结果）。"AI自动抠图"是通用AI模型，碰到卡片底色和指甲图案深浅接近时，有时会把图案本身也当成背景抠掉；"按颜色去背景"是直接按卡片底色扣除，更适合卡片底色比较纯净单一的情况，两个都可以试试看哪个效果更好。效果都不满意可以点"清除当前手指的抠图"退回矩形框图方案。</span>
+        <span class="text-[11px] text-gray-400 w-full">"AI自动抠图"和"按颜色去背景"碰到参考图是实拍手部照片（背景是皮肤/卡片，不是干净纯色）时，经常识别不准——要么把图案本身当成背景抠掉，要么连指甲周围的背景一起留下来、位置方向也会跟着跑偏。这种情况最可靠的是点"手动精修"，自己用画笔沿着指甲的真实边缘把背景手动擦掉（如果已经跑过AI或颜色方法，会在那个结果基础上继续修，不用从头来）。效果都不满意可以点"清除当前手指的抠图"退回矩形框图方案。</span>
       </div>
 
       <div class="flex justify-between items-center pt-2 border-t">
@@ -130,6 +196,8 @@ async function openTryonEditorModal(prodId) {
     } catch (e) { existingCutouts = {}; }
   }
   tryonEditorCutouts = existingCutouts || {};
+  tryonEditorNailShape = item.tryon_nail_shape || 'square';
+  tryonEditorNailShapeFlip = !!item.tryon_nail_shape_flip;
 
   document.getElementById('tryon-editor-prod-id').innerText = prodId;
 
@@ -171,6 +239,7 @@ async function openTryonEditorModal(prodId) {
   await selectTryonEditorImage(initialUrl);
   renderTryonEditorFingerTabs();
   renderTryonEditorCutoutPreview();
+  renderTryonEditorShapePicker();
 
   document.getElementById('modal-tryon-editor').classList.remove('hidden');
 }
@@ -188,6 +257,33 @@ function renderTryonEditorImagePicker() {
       <img src="${url}" class="w-16 h-16 object-cover block">
     </button>
   `).join('');
+}
+
+function renderTryonEditorShapePicker() {
+  const wrap = document.getElementById('tryon-editor-shape-picker');
+  if (!wrap) return;
+  const shapeBtns = TRYON_EDITOR_SHAPE_LIST.map(s => `
+    <button onclick="setTryonEditorShape('${s.key}')" class="px-3 py-1.5 rounded-lg text-xs font-bold border ${s.key === tryonEditorNailShape ? 'bg-stone-900 hover:bg-stone-800 text-white border-stone-900' : 'bg-stone-100 hover:bg-stone-200 text-gray-900 border-stone-300'}">
+      ${s.label}
+    </button>
+  `).join('');
+  wrap.innerHTML = shapeBtns + `
+    <label class="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+      <input type="checkbox" id="tryon-editor-shape-flip" onchange="toggleTryonEditorShapeFlip(this.checked)" ${tryonEditorNailShapeFlip ? 'checked' : ''}>
+      翻转指甲方向
+    </label>
+  `;
+}
+
+function setTryonEditorShape(shapeKey) {
+  tryonEditorNailShape = shapeKey;
+  renderTryonEditorShapePicker();
+  drawTryonEditor();
+}
+
+function toggleTryonEditorShapeFlip(checked) {
+  tryonEditorNailShapeFlip = !!checked;
+  drawTryonEditor();
 }
 
 function selectTryonEditorImage(url) {
@@ -500,6 +596,265 @@ async function runTryonEditorColorCutout() {
   }
 }
 
+// 共用：带跨域权限加载一张图片（手动精修要把已有抠图结果画到画布上继续编辑，
+// 编辑完还要导出成 PNG，这两步都要求图片是带跨域许可加载的，否则画布会被"污染"，
+// 导出时报错，参见 selectTryonEditorImage 里同样的说明）。
+function tryonEditorLoadImageCORS(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// 方案E：手动精修——AI 和按颜色两种自动抠图本质上都是在"猜"哪里是背景、哪里是指甲，
+// 碰到参考图是实拍手部照片（背景是皮肤、反光、阴影，不是干净的纯色卡片）时，这两种猜测
+// 都容易出错：要么把图案误判成背景抠掉，要么背景没抠干净、位置方向也跟着错。
+// 手动精修彻底绕开"猜"——管理员直接用画笔沿着指甲的真实边缘手动擦除背景，擦多少、
+// 擦哪里完全由人眼判断，不依赖任何算法，所以不管参考图多复杂都能做到完全准确。
+let tryonEditorTouchup = null;
+
+function tryonEditorBuildTouchupOverlay() {
+  let overlay = document.getElementById('tryon-touchup-overlay');
+  if (overlay) return overlay;
+
+  overlay = document.createElement('div');
+  overlay.id = 'tryon-touchup-overlay';
+  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden';
+  overlay.innerHTML = `
+    <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="text-base font-bold text-gray-900">手动精修抠图 — <span id="tryon-touchup-finger-label" class="text-stone-700"></span></h3>
+        <button onclick="closeTryonEditorTouchup()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="text-xs text-gray-500 bg-stone-50 border border-stone-200 rounded-lg p-3 leading-relaxed">
+        用"擦除刷"沿着指甲的真实边缘，把外面的背景（卡片/皮肤）手动涂掉；涂多了用"恢复刷"找回来，或者点"撤销"。指甲内部的图案不用管，保持不透明就行，只需要处理最外面那一圈边缘。
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap bg-stone-50 border border-stone-200 rounded-lg p-3">
+        <button id="tryon-touchup-mode-erase" onclick="setTryonTouchupMode('erase')" class="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm">
+          <i class="fa-solid fa-eraser"></i> 擦除刷
+        </button>
+        <button id="tryon-touchup-mode-restore" onclick="setTryonTouchupMode('restore')" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
+          <i class="fa-solid fa-paintbrush"></i> 恢复刷
+        </button>
+        <label class="text-xs font-bold text-gray-500 flex items-center gap-2">
+          笔刷大小
+          <input id="tryon-touchup-size" type="range" min="4" max="60" value="16" oninput="tryonEditorTouchup && (tryonEditorTouchup.brushSize = parseInt(this.value,10))">
+        </label>
+        <button onclick="undoTryonTouchup()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
+          <i class="fa-solid fa-rotate-left"></i> 撤销
+        </button>
+        <button onclick="resetTryonTouchup()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300">
+          重置为原图
+        </button>
+      </div>
+
+      <div class="border rounded-lg overflow-hidden bg-stone-100 flex justify-center">
+        <canvas id="tryon-touchup-canvas" style="touch-action:none; cursor:crosshair; max-width:100%; background-image:repeating-conic-gradient(#ddd 0 25%, #fff 0 50%); background-size:16px 16px;"></canvas>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2 border-t">
+        <button onclick="closeTryonEditorTouchup()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">取消</button>
+        <button onclick="saveTryonEditorTouchup()" id="tryon-touchup-save-btn" class="px-5 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white shadow-sm">完成并保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const canvasEl = overlay.querySelector('#tryon-touchup-canvas');
+  canvasEl.addEventListener('pointerdown', tryonTouchupPointerDown);
+  canvasEl.addEventListener('pointermove', tryonTouchupPointerMove);
+  canvasEl.addEventListener('pointerup', tryonTouchupPointerUp);
+  canvasEl.addEventListener('pointercancel', tryonTouchupPointerUp);
+  return overlay;
+}
+
+async function openTryonEditorTouchup() {
+  const finger = tryonEditorActiveFinger;
+  const quad = tryonEditorQuads[finger];
+  if (!quad || !tryonEditorImg) {
+    alert('先把这根手指的框拖到指甲位置上，再做手动精修。');
+    return;
+  }
+  if (!tryonEditorImg.crossOrigin) {
+    alert('这张参考图片不支持跨域读取，暂时没法手动精修导出结果。换一张参考图片试试，或者继续用矩形框图方案。');
+    return;
+  }
+
+  tryonEditorBuildTouchupOverlay();
+
+  // 留一点点边（15%），方便管理员看清指甲真实边缘在哪里再动手擦——这圈边会在管理员
+  // 自己擦除背景的过程中被清理掉，不会残留在最终结果里。
+  const workCanvas = tryonEditorCropToCanvas(quad, 0.15);
+  const w = workCanvas.width, h = workCanvas.height;
+
+  const canvasEl = document.getElementById('tryon-touchup-canvas');
+  canvasEl.width = w;
+  canvasEl.height = h;
+  const ctx = canvasEl.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+
+  // 如果这根手指已经跑过AI或按颜色抠图，就在那个结果基础上继续手动修，不用从零开始擦
+  // 一整圈背景；加载失败（比如链接已经失效）就从没处理过的干净原图开始。
+  const existingUrl = tryonEditorCutouts[finger];
+  let startedFromExisting = false;
+  if (existingUrl) {
+    try {
+      const existingImg = await tryonEditorLoadImageCORS(existingUrl);
+      ctx.drawImage(existingImg, 0, 0, w, h);
+      startedFromExisting = true;
+    } catch (e) {
+      console.warn('[tryon-editor] 加载已有抠图失败，手动精修将从原图开始:', e);
+    }
+  }
+  if (!startedFromExisting) {
+    ctx.drawImage(workCanvas, 0, 0);
+  }
+
+  tryonEditorTouchup = {
+    finger,
+    workCanvas,
+    canvasEl,
+    ctx,
+    mode: 'erase',
+    brushSize: 16,
+    painting: false,
+    lastPos: null,
+    history: []
+  };
+
+  document.getElementById('tryon-touchup-finger-label').innerText =
+    (TRYON_EDITOR_FINGERS.find(f => f.key === finger) || {}).label || finger;
+  document.getElementById('tryon-touchup-size').value = '16';
+  setTryonTouchupMode('erase');
+
+  document.getElementById('tryon-touchup-overlay').classList.remove('hidden');
+}
+
+function closeTryonEditorTouchup() {
+  document.getElementById('tryon-touchup-overlay')?.classList.add('hidden');
+  tryonEditorTouchup = null;
+}
+
+function setTryonTouchupMode(mode) {
+  if (!tryonEditorTouchup) return;
+  tryonEditorTouchup.mode = mode;
+  const eraseBtn = document.getElementById('tryon-touchup-mode-erase');
+  const restoreBtn = document.getElementById('tryon-touchup-mode-restore');
+  const activeCls = 'px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-sm';
+  const inactiveCls = 'px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold border border-stone-300';
+  if (eraseBtn) eraseBtn.className = mode === 'erase' ? activeCls : inactiveCls;
+  if (restoreBtn) restoreBtn.className = mode === 'restore' ? activeCls : inactiveCls;
+}
+
+// 在画布某一点"盖一个笔刷印章"：擦除刷用 destination-out 直接把这个圆形区域的透明度
+// 清零（不管原来是什么颜色）；恢复刷反过来，从干净的原图 workCanvas 里把这个圆形区域
+// 的像素（包括透明度）原样找回来。
+function tryonTouchupStampAt(x, y) {
+  const t = tryonEditorTouchup;
+  if (!t) return;
+  const r = t.brushSize;
+  t.ctx.save();
+  t.ctx.beginPath();
+  t.ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (t.mode === 'erase') {
+    t.ctx.globalCompositeOperation = 'destination-out';
+    t.ctx.fill();
+  } else {
+    t.ctx.clip();
+    t.ctx.drawImage(t.workCanvas, 0, 0);
+  }
+  t.ctx.restore();
+}
+
+// 鼠标/手指移动较快时，两次 pointermove 之间间隔的距离可能比笔刷半径还大，只在端点盖
+// 印章会留下一串孤立的圆点、中间漏掉——这里沿线补齐，保证画出来是连续的一条笔触。
+function tryonTouchupStampLine(x0, y0, x1, y1) {
+  const t = tryonEditorTouchup;
+  if (!t) return;
+  const dist = Math.hypot(x1 - x0, y1 - y0);
+  const step = Math.max(1, t.brushSize / 3);
+  const steps = Math.max(1, Math.ceil(dist / step));
+  for (let i = 0; i <= steps; i++) {
+    const p = i / steps;
+    tryonTouchupStampAt(x0 + (x1 - x0) * p, y0 + (y1 - y0) * p);
+  }
+}
+
+function tryonTouchupGetPos(e) {
+  const canvasEl = tryonEditorTouchup.canvasEl;
+  const rect = canvasEl.getBoundingClientRect();
+  const scaleX = canvasEl.width / rect.width;
+  const scaleY = canvasEl.height / rect.height;
+  return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+}
+
+function tryonTouchupPushHistory() {
+  const t = tryonEditorTouchup;
+  if (!t) return;
+  t.history.push(t.ctx.getImageData(0, 0, t.canvasEl.width, t.canvasEl.height));
+  if (t.history.length > 20) t.history.shift(); // 限制撤销步数，避免占用太多内存
+}
+
+function tryonTouchupPointerDown(e) {
+  if (!tryonEditorTouchup) return;
+  e.preventDefault();
+  tryonTouchupPushHistory();
+  const pos = tryonTouchupGetPos(e);
+  tryonTouchupStampAt(pos.x, pos.y);
+  tryonEditorTouchup.lastPos = pos;
+  tryonEditorTouchup.painting = true;
+  tryonEditorTouchup.canvasEl.setPointerCapture(e.pointerId);
+}
+
+function tryonTouchupPointerMove(e) {
+  if (!tryonEditorTouchup || !tryonEditorTouchup.painting) return;
+  e.preventDefault();
+  const pos = tryonTouchupGetPos(e);
+  const last = tryonEditorTouchup.lastPos;
+  tryonTouchupStampLine(last.x, last.y, pos.x, pos.y);
+  tryonEditorTouchup.lastPos = pos;
+}
+
+function tryonTouchupPointerUp() {
+  if (tryonEditorTouchup) tryonEditorTouchup.painting = false;
+}
+
+function undoTryonTouchup() {
+  const t = tryonEditorTouchup;
+  if (!t || t.history.length === 0) return;
+  t.ctx.putImageData(t.history.pop(), 0, 0);
+}
+
+function resetTryonTouchup() {
+  const t = tryonEditorTouchup;
+  if (!t) return;
+  tryonTouchupPushHistory();
+  t.ctx.clearRect(0, 0, t.canvasEl.width, t.canvasEl.height);
+  t.ctx.drawImage(t.workCanvas, 0, 0);
+}
+
+async function saveTryonEditorTouchup() {
+  const t = tryonEditorTouchup;
+  if (!t) return;
+  const saveBtn = document.getElementById('tryon-touchup-save-btn');
+  try {
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = '保存中...'; }
+    const blob = await new Promise(resolve => t.canvasEl.toBlob(resolve, 'image/png'));
+    await tryonEditorUploadCutout(t.finger, blob, 'manual');
+    closeTryonEditorTouchup();
+  } catch (err) {
+    console.error('[tryon-editor] 手动精修保存失败:', err);
+    alert('保存失败：' + (err && err.message ? err.message : err));
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = '完成并保存'; }
+  }
+}
+
 function drawTryonEditor() {
   if (!tryonEditorCtx || !tryonEditorImg) return;
   const w = tryonEditorCanvasEl.width, h = tryonEditorCanvasEl.height;
@@ -529,6 +884,23 @@ function drawTryonEditor() {
     tryonEditorCtx.restore();
 
     if (isActive) {
+      // 预览一下这个形状蒙版实际会裁成什么样子——虚线画在框内部，方便管理员照着
+      // 这个轮廓去调整四个角点，让框跟指甲真实边缘对得更准，而不是凭感觉瞎调。
+      const shapePts = tryonEditorShapePoints(tryonEditorNailShape);
+      tryonEditorCtx.save();
+      tryonEditorCtx.beginPath();
+      shapePts.forEach(([u, vRaw], i) => {
+        const v = tryonEditorNailShapeFlip ? 1 - vRaw : vRaw;
+        const [px, py] = tryonEditorBilinearQuad(u, v, pxQuad);
+        if (i === 0) tryonEditorCtx.moveTo(px, py); else tryonEditorCtx.lineTo(px, py);
+      });
+      tryonEditorCtx.closePath();
+      tryonEditorCtx.setLineDash([4, 3]);
+      tryonEditorCtx.lineWidth = 1.5;
+      tryonEditorCtx.strokeStyle = '#ffffff';
+      tryonEditorCtx.stroke();
+      tryonEditorCtx.restore();
+
       pxQuad.forEach(([x, y]) => {
         tryonEditorCtx.beginPath();
         tryonEditorCtx.arc(x, y, 8, 0, Math.PI * 2);
@@ -638,7 +1010,9 @@ async function saveTryonEditorConfig() {
       .update({
         tryon_source_image_url: tryonEditorImageUrl,
         tryon_nail_quads: tryonEditorQuads,
-        tryon_nail_cutouts: tryonEditorCutouts
+        tryon_nail_cutouts: tryonEditorCutouts,
+        tryon_nail_shape: tryonEditorNailShape,
+        tryon_nail_shape_flip: tryonEditorNailShapeFlip
       })
       .eq('id', tryonEditorProdId);
     if (error) throw error;
