@@ -313,24 +313,61 @@ async function tryonEditorLoadBgRemoval() {
 
 // 共用：按这根手指框出来的区域，从原始分辨率的参考图上截一块矩形裁剪画布。
 // paddingRatio 控制额外留多少边（0 表示贴着框边缘裁，不留边）。
-function tryonEditorCropToCanvas(quad, paddingRatio) {
+// 跟 js/tryon.js 里 tryonDrawTriangle 完全同样的三点仿射变换算法（这里单独拷贝一份，
+// 避免框图工具这个文件依赖前台渲染文件，两边各自独立、互不影响）。
+function tryonEditorWarpTriangle(ctx, img, srcPts, dstPts) {
+  const [x0, y0] = srcPts[0], [x1, y1] = srcPts[1], [x2, y2] = srcPts[2];
+  const [X0, Y0] = dstPts[0], [X1, Y1] = dstPts[1], [X2, Y2] = dstPts[2];
+  const denom = x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1);
+  if (Math.abs(denom) < 1e-6) return;
+  const a = (X0 * (y1 - y2) + X1 * (y2 - y0) + X2 * (y0 - y1)) / denom;
+  const b = (Y0 * (y1 - y2) + Y1 * (y2 - y0) + Y2 * (y0 - y1)) / denom;
+  const c = (X0 * (x2 - x1) + X1 * (x0 - x2) + X2 * (x1 - x0)) / denom;
+  const d = (Y0 * (x2 - x1) + Y1 * (x0 - x2) + Y2 * (x1 - x0)) / denom;
+  const e = (X0 * (x1 * y2 - x2 * y1) + X1 * (x2 * y0 - x0 * y2) + X2 * (x0 * y1 - x1 * y0)) / denom;
+  const f = (Y0 * (x1 * y2 - x2 * y1) + Y1 * (x2 * y0 - x0 * y2) + Y2 * (x0 * y1 - x1 * y0)) / denom;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(dstPts[0][0], dstPts[0][1]);
+  ctx.lineTo(dstPts[1][0], dstPts[1][1]);
+  ctx.lineTo(dstPts[2][0], dstPts[2][1]);
+  ctx.closePath();
+  ctx.clip();
+  ctx.transform(a, b, c, d, e, f);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+}
+
+// 重要修正：框出来的框可以是任意旋转/倾斜的四边形（不是"正着摆"的矩形），之前这里直接按
+// 四个角点的最小/最大坐标截一个"正的"矩形出来——框一旦是斜的，这个矩形就会比实际框大一圈、
+// 还带着别的东西（这就是"选框外的部分也被选中"的原因），而且抠图结果当成"一张普通矩形图"
+// 贴回手模型时，也丢失了原来框的旋转角度，导致贴歪、贴偏（这就是"方向/位置不对"的原因）。
+//
+// 现在改成：用跟框图裁剪同样的仿射变换，把这个四边形本身"拉直"成一张方方正正的矩形图
+// （四个角点严格对应框的四个角，不多不少），抠图在这张拉直后的图上做；之后试戴贴图时，
+// 把这张矩形图当"普通设计图"贴到手模对应的框里，效果就会跟矩形框图方案的贴合角度完全一致。
+// paddingRatio 控制整体按四边形自己的中心放大一点点（不是简单扩大外接矩形），留一点点边给
+// AI 一点上下文，又不会把框外的东西牵连进来。
+function tryonEditorCropToCanvas(quadFrac, paddingRatio) {
   const naturalW = tryonEditorImg.naturalWidth || tryonEditorImg.width;
   const naturalH = tryonEditorImg.naturalHeight || tryonEditorImg.height;
-  const xs = quad.map(p => p[0] * naturalW);
-  const ys = quad.map(p => p[1] * naturalH);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const padX = (maxX - minX) * paddingRatio;
-  const padY = (maxY - minY) * paddingRatio;
-  const cropX = Math.max(0, minX - padX);
-  const cropY = Math.max(0, minY - padY);
-  const cropW = Math.min(naturalW, maxX + padX) - cropX;
-  const cropH = Math.min(naturalH, maxY + padY) - cropY;
+  const srcQuad = quadFrac.map(([fx, fy]) => [fx * naturalW, fy * naturalH]);
+
+  const cx = (srcQuad[0][0] + srcQuad[1][0] + srcQuad[2][0] + srcQuad[3][0]) / 4;
+  const cy = (srcQuad[0][1] + srcQuad[1][1] + srcQuad[2][1] + srcQuad[3][1]) / 4;
+  const expanded = srcQuad.map(([x, y]) => [cx + (x - cx) * (1 + paddingRatio), cy + (y - cy) * (1 + paddingRatio)]);
+
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  const outW = Math.max(8, Math.round((dist(expanded[0], expanded[1]) + dist(expanded[3], expanded[2])) / 2));
+  const outH = Math.max(8, Math.round((dist(expanded[0], expanded[3]) + dist(expanded[1], expanded[2])) / 2));
+  const dstQuad = [[0, 0], [outW, 0], [outW, outH], [0, outH]];
 
   const cropCanvas = document.createElement('canvas');
-  cropCanvas.width = Math.max(1, Math.round(cropW));
-  cropCanvas.height = Math.max(1, Math.round(cropH));
-  cropCanvas.getContext('2d').drawImage(tryonEditorImg, cropX, cropY, cropW, cropH, 0, 0, cropCanvas.width, cropCanvas.height);
+  cropCanvas.width = outW;
+  cropCanvas.height = outH;
+  const ctx = cropCanvas.getContext('2d');
+  tryonEditorWarpTriangle(ctx, tryonEditorImg, [expanded[0], expanded[1], expanded[2]], [dstQuad[0], dstQuad[1], dstQuad[2]]);
+  tryonEditorWarpTriangle(ctx, tryonEditorImg, [expanded[0], expanded[2], expanded[3]], [dstQuad[0], dstQuad[2], dstQuad[3]]);
   return cropCanvas;
 }
 
