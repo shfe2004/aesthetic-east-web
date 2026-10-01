@@ -191,8 +191,8 @@ function selectTryonEditorImage(url) {
   return new Promise((resolve) => {
     tryonEditorImageUrl = url;
     renderTryonEditorImagePicker();
-    const img = new Image();
-    img.onload = () => {
+
+    const finishLoad = (img) => {
       const MAX_W = 640;
       const naturalW = img.naturalWidth || img.width || 1;
       const naturalH = img.naturalHeight || img.height || 1;
@@ -204,12 +204,28 @@ function selectTryonEditorImage(url) {
       drawTryonEditor();
       resolve();
     };
-    img.onerror = () => {
-      console.warn('[tryon-editor] 参考图加载失败:', url);
-      alert('这张参考图加载失败，换一张试试。');
-      resolve();
+
+    // "自动抠图"要从画布上把像素数据读出来再传给AI模型，这要求画完图的画布是"跨域许可"的
+    // （浏览器安全限制：画了一张没有明确允许跨域读取的图片之后，画布会被标记为"受污染"，
+    // 禁止导出像素数据，报错 "Tainted canvases may not be exported"）。所以这里先带着
+    // crossOrigin 权限请求加载——Supabase 的公开图片链接默认就支持这个，正常情况下不会有影响。
+    const imgCors = new Image();
+    imgCors.crossOrigin = 'anonymous';
+    imgCors.onload = () => finishLoad(imgCors);
+    imgCors.onerror = () => {
+      // 极少数图片来源不支持跨域权限加载时，退回普通加载方式——这样至少框图/预览功能
+      // 还能正常用，只是这张图没法用"自动抠图"（点击时会给出明确提示，不会是浏览器报错）。
+      console.warn('[tryon-editor] 带跨域权限加载参考图失败，退回普通模式（这张图的自动抠图功能将不可用）:', url);
+      const imgPlain = new Image();
+      imgPlain.onload = () => finishLoad(imgPlain);
+      imgPlain.onerror = () => {
+        console.warn('[tryon-editor] 参考图加载失败:', url);
+        alert('这张参考图加载失败，换一张试试。');
+        resolve();
+      };
+      imgPlain.src = url;
     };
-    img.src = url;
+    imgCors.src = url;
   });
 }
 
@@ -297,6 +313,10 @@ async function runTryonEditorCutout() {
   const quad = tryonEditorQuads[finger];
   if (!quad || !tryonEditorImg) {
     alert('先把这根手指的框拖到指甲位置上，再做自动抠图。');
+    return;
+  }
+  if (!tryonEditorImg.crossOrigin) {
+    alert('这张参考图片不支持跨域读取，暂时没法自动抠图。换一张参考图片试试，或者继续用矩形框图方案。');
     return;
   }
 
