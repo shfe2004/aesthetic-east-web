@@ -5,6 +5,12 @@
 // 语言状态：优先读取 localStorage 里保存的选择（与后台管理页共用同一个 key，切换一次全站同步）
 let currentLang = localStorage.getItem('site_lang') || 'en';
 let cart = [];
+// 购物车里每一项的实时库存核对结果：key 是购物车项自己的 cartItemId，value 是
+// { qtyAvailable, sufficient }，由 refreshCartStockStatus() 向后端 check_cart_stock 这个
+// RPC 查询后填充。这样库存不够能在购物车里就提醒顾客，不用等到结算最后一步才发现
+// （最后一步的 create_order_with_stock_check 仍然保留，作为真正下单时的最终防线）。
+let cartStockStatus = {};
+let cartStockCheckSeq = 0;
 // 当前订单选中的快递方式（点击"计算运费"后由 Shippo 返回，顾客选一个后存在这里）
 let selectedShippingRate = null;
 let currentShippoShipmentId = null;
@@ -95,6 +101,11 @@ const i18n = {
     soldOutBtn: "Sold Out",
     variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock.",
     orderFailedGeneric: "Order failed, please adjust the quantity and try again.",
+    cartStockInsufficientOne: "Only 1 left in stock",
+    cartStockInsufficientMany: "Only {n} left in stock",
+    cartStockOutOfStock: "Out of stock",
+    cartStockWarningBanner: "Some items in your bag exceed available stock. Please adjust the quantity before checkout.",
+    checkingStockBtn: "Checking stock...",
     nailsVideoCaption: "Handmade, start to finish",
     tryOnBtn: "Try On",
     tryonModalTitle: "Virtual Try-On",
@@ -152,6 +163,11 @@ const i18n = {
     soldOutBtn: "已售罄",
     variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。",
     orderFailedGeneric: "下单失败，请调整购买数量后重试。",
+    cartStockInsufficientOne: "仅剩 1 件库存",
+    cartStockInsufficientMany: "仅剩 {n} 件库存",
+    cartStockOutOfStock: "已无库存",
+    cartStockWarningBanner: "购物车内有商品数量超过现有库存，请先调整数量再结算。",
+    checkingStockBtn: "正在核对库存...",
     nailsVideoCaption: "纯手工制作全过程",
     tryOnBtn: "虚拟试戴",
     tryonModalTitle: "虚拟试戴",
@@ -744,6 +760,48 @@ function switchImage(id, src) {
   if (img) img.src = src;
 }
 
+// 向后端 check_cart_stock 这个 RPC 核对一遍购物车里每一项现在是否还有足够库存
+// （古董家具数量本来就是1，不参与这个检查；穿戴甲/亚克力制品都会查）。
+// 用"请求序号"丢弃过时结果的写法跟运费询价那边是同一个套路：购物车在请求还没返回时
+// 又被改了（比如连续点了好几次加减号），只采纳最后一次请求的结果。
+async function refreshCartStockStatus() {
+  if (cart.length === 0) {
+    cartStockStatus = {};
+    updateCartUI();
+    return;
+  }
+  const mySeq = ++cartStockCheckSeq;
+  const snapshot = cart.slice(); // 这次查询对应的购物车快照，用下标对齐结果，不靠重新拼 key
+  const items = snapshot.map(item => ({
+    product_id: item.productId,
+    qty: item.qty,
+    variant_shape: item.shape || null,
+    variant_size: item.size || null
+  }));
+  try {
+    const { data, error } = await supabaseClient.rpc('check_cart_stock', { p_items: items });
+    if (mySeq !== cartStockCheckSeq) return; // 购物车在请求过程中又变了，这次结果已经过时，丢弃
+    if (error) throw error;
+    const statusMap = {};
+    (data || []).forEach((row, idx) => {
+      const cartItem = snapshot[idx];
+      if (cartItem) statusMap[cartItem.cartItemId] = { qtyAvailable: row.qty_available, sufficient: row.sufficient };
+    });
+    cartStockStatus = statusMap;
+  } catch (err) {
+    console.error('购物车库存核对失败:', err);
+    // 查询本身失败就不拦着顾客——这只是提前提醒，真正兜底的原子检查在下单那一步还在
+  }
+  updateCartUI();
+}
+
+// 购物车数量用 +/- 按钮连续点击时，库存核对加个小防抖，不用每点一下就请求一次
+let cartStockCheckTimer = null;
+function scheduleCartStockCheck() {
+  if (cartStockCheckTimer) clearTimeout(cartStockCheckTimer);
+  cartStockCheckTimer = setTimeout(refreshCartStockStatus, 400);
+}
+
 function addNailToCart(id) {
   const item = window.productsData.nails.find(n => n.id === id);
   if (!item) return;
@@ -773,6 +831,7 @@ function addNailToCart(id) {
   }
   updateCartUI();
   openCartDrawer();
+  refreshCartStockStatus();
 }
 
 function addSimpleToCart(category, id) {
@@ -800,6 +859,7 @@ function addSimpleToCart(category, id) {
   }
   updateCartUI();
   openCartDrawer();
+  refreshCartStockStatus();
 }
 
 function updateCartUI() {
@@ -813,6 +873,24 @@ function updateCartUI() {
     badge.style.display = totalCount > 0 ? 'flex' : 'none';
   }
   if (totalEl) totalEl.innerText = `$${subtotal.toFixed(2)}`;
+
+  // 任意一项库存核对结果为"不够"，就不让顾客进到结算页，先在购物车里把它解决掉
+  const anyInsufficient = cart.some(item => {
+    const status = cartStockStatus[item.cartItemId];
+    return status && status.sufficient === false;
+  });
+  const checkoutBtn = document.getElementById('proceed-checkout-btn');
+  const warningBanner = document.getElementById('cart-stock-warning-banner');
+  if (checkoutBtn) {
+    checkoutBtn.disabled = anyInsufficient;
+    checkoutBtn.classList.toggle('opacity-50', anyInsufficient);
+    checkoutBtn.classList.toggle('cursor-not-allowed', anyInsufficient);
+  }
+  if (warningBanner) {
+    warningBanner.classList.toggle('hidden', !anyInsufficient);
+    warningBanner.textContent = i18n[currentLang] ? i18n[currentLang].cartStockWarningBanner : 'Some items in your bag exceed available stock. Please adjust the quantity before checkout.';
+  }
+
   if (!container) return;
   if (cart.length === 0) {
     container.innerHTML = `
@@ -823,13 +901,30 @@ function updateCartUI() {
     `;
     return;
   }
-  container.innerHTML = cart.map(item => `
-    <div class="flex items-center gap-4 bg-stone-50 p-3.5 rounded-xl border border-stone-100">
+  container.innerHTML = cart.map(item => {
+    const status = cartStockStatus[item.cartItemId];
+    let stockWarningHtml = '';
+    if (status && status.sufficient === false) {
+      const avail = status.qtyAvailable;
+      const lang = i18n[currentLang] || i18n.en;
+      let text;
+      if (!avail || avail <= 0) {
+        text = lang.cartStockOutOfStock;
+      } else if (avail === 1) {
+        text = lang.cartStockInsufficientOne;
+      } else {
+        text = (lang.cartStockInsufficientMany || 'Only {n} left in stock').replace('{n}', avail);
+      }
+      stockWarningHtml = `<p class="text-[11px] text-red-600 font-semibold mt-1"><i class="fa-solid fa-triangle-exclamation"></i> ${text}</p>`;
+    }
+    return `
+    <div class="flex items-center gap-4 bg-stone-50 p-3.5 rounded-xl border ${status && status.sufficient === false ? 'border-red-300' : 'border-stone-100'}">
       <img src="${item.image}" class="w-16 h-16 object-cover rounded-lg bg-white shadow-sm">
       <div class="flex-1 min-w-0">
         <h4 class="text-xs font-bold text-stone-900 truncate">${item.title}</h4>
         ${item.shape ? `<p class="text-[11px] text-stone-500 mt-0.5">${item.shape} /${item.size}</p>` : ''}
         <p class="text-xs font-extrabold text-amber-700 mt-1">$${item.price.toFixed(2)}</p>
+        ${stockWarningHtml}
       </div>
       <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-stone-200">
         <button onclick="changeQty('${item.cartItemId}', -1)" class="text-stone-500 hover:text-stone-900 font-bold px-1 text-xs">-</button>
@@ -839,7 +934,8 @@ function updateCartUI() {
         <button onclick="changeQty('${item.cartItemId}', 1)" class="text-stone-500 hover:text-stone-900 font-bold px-1 text-xs">+</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // 亚克力制品/古董家具能查到确切总库存，用来当数量上限；穿戴甲按甲型+尺寸只公开"有没有货"的布尔值，
@@ -864,6 +960,7 @@ function changeQty(cartItemId, delta) {
     cart = cart.filter(c => c.cartItemId !== cartItemId);
   }
   updateCartUI();
+  scheduleCartStockCheck();
 }
 
 // 购物车数量输入框手动填数字：清理非法输入、按库存封顶，填 0 或空则直接从购物车移除
@@ -883,6 +980,7 @@ function setQty(cartItemId, rawValue) {
   }
   item.qty = val;
   updateCartUI();
+  scheduleCartStockCheck();
 }
 
 function openCartDrawer() {
@@ -893,6 +991,9 @@ function openCartDrawer() {
   drawer.classList.remove('pointer-events-none');
   overlay.classList.remove('opacity-0');
   panel.classList.remove('translate-x-full');
+  // 每次打开购物车都顺手核对一遍库存——顾客可能隔了一段时间才回来看购物车，
+  // 这段时间里别的顾客可能已经把某个规格买完了
+  refreshCartStockStatus();
 }
 
 function closeCartDrawer() {
@@ -1076,11 +1177,35 @@ function setupSpin360Events() {
   });
 }
 
-function openCheckoutModal() {
+async function openCheckoutModal() {
   if (cart.length === 0) {
     alert(i18n[currentLang] ? i18n[currentLang].cartEmpty : 'Your cart is empty.');
     return;
   }
+
+  // 最后再核对一遍库存：购物车里打开的时候可能够货，但从打开购物车到点"前往结账"这段
+  // 时间里，可能已经被别的顾客买走了——不够的话就把顾客留在购物车里处理，不放他们进结算页，
+  // 省得走到最后一步填完地址、算完运费才被拦下来。
+  const checkoutDrawerBtn = document.getElementById('proceed-checkout-btn');
+  const checkingText = (i18n[currentLang] && i18n[currentLang].checkingStockBtn) ? i18n[currentLang].checkingStockBtn : 'Checking stock...';
+  const originalBtnHtml = checkoutDrawerBtn ? checkoutDrawerBtn.innerHTML : '';
+  if (checkoutDrawerBtn) {
+    checkoutDrawerBtn.disabled = true;
+    checkoutDrawerBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${checkingText}`;
+  }
+  await refreshCartStockStatus(); // 这一步内部也会调用 updateCartUI()，按钮状态会一起刷新
+  if (checkoutDrawerBtn) checkoutDrawerBtn.innerHTML = originalBtnHtml;
+
+  const anyInsufficient = cart.some(item => {
+    const status = cartStockStatus[item.cartItemId];
+    return status && status.sufficient === false;
+  });
+  if (anyInsufficient) {
+    alert(i18n[currentLang] ? i18n[currentLang].cartStockWarningBanner : 'Some items in your bag exceed available stock. Please adjust the quantity before checkout.');
+    openCartDrawer();
+    return;
+  }
+
   // 每次打开结算弹窗都清空上一次选的运费，避免购物车内容变了运费还是旧的
   selectedShippingRate = null;
   currentShippoShipmentId = null;
@@ -1299,85 +1424,114 @@ async function processPayment(e) {
 
   const payBtn = document.getElementById('pay-submit-btn');
   const processingText = (i18n[currentLang] && i18n[currentLang].processingBtn) ? i18n[currentLang].processingBtn : 'Processing...';
+  const originalPayBtnText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
   payBtn.disabled = true;
   payBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${processingText}`;
 
-  const { subtotal, tax, shippingCost, total } = updateCheckoutTotalsUI();
-  const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  // 整个下单流程包一层 try/catch/finally：之前这里没有兜底，万一中间任何一步意外抛出异常
+  // （比如网络瞬断、Supabase 请求本身失败而不是"正常返回一个错误对象"），按钮会卡在
+  // "处理中..."再也点不动、顾客就此卡死在结算页出不去。现在不管成功、失败、还是报错，
+  // finally 里都会把按钮恢复成可点击状态。
+  // 用这个标记区分"下单成功、按钮恢复交给下面那个 setTimeout 去做"还是"失败/异常、
+  // 按钮要在 finally 里立刻恢复"——比在 finally 里反过来猜 DOM 状态更直接可靠。
+  let orderSucceeded = false;
+  try {
+    const { subtotal, tax, shippingCost, total } = updateCheckoutTotalsUI();
+    const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
-  // 建单和查库存、扣库存放进同一个数据库函数（一个事务）里做：
-  // 只要购物车里有任何一项数量超过实际库存，整单直接被数据库拒绝，不会写入任何数据，
-  // 也就不会再出现"选了5件、库存只有1件，也照样按5件收钱成交"的情况。
-  const orderPayload = {
-    id: orderId,
-    status: 'pending_test_payment',
-    first_name: firstName,
-    last_name: lastName,
-    email: email,
-    phone: phone,
-    address: address,
-    city: city,
-    state: state,
-    zip: zip,
-    subtotal: subtotal,
-    tax: tax,
-    total: total,
-    shipping_cost: shippingCost,
-    shipping_carrier: selectedShippingRate.manual ? null : selectedShippingRate.carrier,
-    shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
-    shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
-    shippo_shipment_id: currentShippoShipmentId,
-    needs_manual_shipping: !!selectedShippingRate.manual
-  };
-  const itemsPayload = cart.map(item => ({
-    product_id: item.productId || item.cartItemId,
-    title: item.title,
-    unit_price: item.price,
-    qty: item.qty,
-    variant_shape: item.shape || null,
-    variant_size: item.size || null
-  }));
+    // 建单和查库存、扣库存放进同一个数据库函数（一个事务）里做：
+    // 只要购物车里有任何一项数量超过实际库存，整单直接被数据库拒绝，不会写入任何数据，
+    // 也就不会再出现"选了5件、库存只有1件，也照样按5件收钱成交"的情况。
+    const orderPayload = {
+      id: orderId,
+      status: 'pending_test_payment',
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      phone: phone,
+      address: address,
+      city: city,
+      state: state,
+      zip: zip,
+      subtotal: subtotal,
+      tax: tax,
+      total: total,
+      shipping_cost: shippingCost,
+      shipping_carrier: selectedShippingRate.manual ? null : selectedShippingRate.carrier,
+      shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
+      shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
+      shippo_shipment_id: currentShippoShipmentId,
+      needs_manual_shipping: !!selectedShippingRate.manual
+    };
+    const itemsPayload = cart.map(item => ({
+      product_id: item.productId || item.cartItemId,
+      title: item.title,
+      unit_price: item.price,
+      qty: item.qty,
+      variant_shape: item.shape || null,
+      variant_size: item.size || null
+    }));
 
-  const { error: rpcError } = await supabaseClient.rpc('create_order_with_stock_check', {
-    p_order: orderPayload,
-    p_items: itemsPayload
-  });
+    const { error: rpcError } = await supabaseClient.rpc('create_order_with_stock_check', {
+      p_order: orderPayload,
+      p_items: itemsPayload
+    });
 
-  if (rpcError) {
-    console.error('下单失败:', rpcError);
-    // 数据库那边报的是库存不足的具体原因（中文），直接展示给顾客；其它意外错误则给通用提示
-    const isStockError = rpcError.message && rpcError.message.indexOf('库存不足') !== -1;
-    alert(isStockError ? rpcError.message : ((i18n[currentLang] && i18n[currentLang].orderFailedGeneric) ? i18n[currentLang].orderFailedGeneric : 'Order failed, please adjust the quantity and try again.'));
+    if (rpcError) {
+      // 把 Supabase 返回的完整错误对象（message/details/hint/code）都打出来，而不是只打
+      // message——以后再遇到"显示通用提示但原因不明"的情况，打开浏览器控制台（F12）就能
+      // 看到完整原因，不用再靠猜。
+      console.error('下单失败，完整错误信息:', {
+        message: rpcError.message, details: rpcError.details, hint: rpcError.hint, code: rpcError.code
+      });
+      // 数据库那边报的是库存不足的具体原因（中文），直接展示给顾客；其它意外错误则给通用提示
+      const isStockError = rpcError.message && rpcError.message.indexOf('库存不足') !== -1;
+      alert(isStockError ? rpcError.message : ((i18n[currentLang] && i18n[currentLang].orderFailedGeneric) ? i18n[currentLang].orderFailedGeneric : 'Order failed, please adjust the quantity and try again.'));
 
-    // 下单失败大概率是因为库存刚好被别人买完/数据有变化，刷新一下商品数据让页面反映最新库存
+      // 下单失败大概率是因为库存刚好被别人买完/数据有变化，刷新一下商品数据和购物车里的
+      // 库存核对结果，让页面反映最新库存，顾客不用自己刷新页面
+      const cloudData = await fetchProductsIndependentJoin();
+      if (cloudData) { window.productsData = cloudData; }
+      renderPage();
+      await refreshCartStockStatus();
+      return;
+    }
+
+    // 下单成功：同样刷新一次商品/库存数据，这样别的还在浏览页面的顾客能马上看到最新库存状态，
+    // 不用手动刷新页面才发现某个规格已经被买光了
     const cloudData = await fetchProductsIndependentJoin();
     if (cloudData) { window.productsData = cloudData; }
-    renderPage();
+    orderSucceeded = true;
 
-    payBtn.disabled = false;
-    payBtn.innerText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
-    return;
+    setTimeout(() => {
+      document.getElementById('checkout-form').classList.add('hidden');
+      document.getElementById('checkout-success').classList.remove('hidden');
+      document.getElementById('success-cust-name').innerText = `${firstName} ${lastName}`;
+      const orderIdEl = document.getElementById('success-order-id');
+      if (orderIdEl) orderIdEl.innerText = orderId;
+      cart = [];
+      cartStockStatus = {};
+      selectedShippingRate = null;
+      currentShippoShipmentId = null;
+      updateCartUI();
+      renderPage();
+      payBtn.disabled = false;
+      payBtn.innerText = originalPayBtnText;
+    }, 1200);
+  } catch (err) {
+    // 意料之外的异常（网络瞬断、Supabase 请求本身抛出而不是正常返回错误对象等）：
+    // 同样打印完整信息方便排查，并且照常提示顾客、恢复按钮，而不是让页面卡死。
+    console.error('下单流程出现意外异常:', err);
+    alert((i18n[currentLang] && i18n[currentLang].orderFailedGeneric) ? i18n[currentLang].orderFailedGeneric : 'Order failed, please adjust the quantity and try again.');
+  } finally {
+    // 成功时按钮的恢复已经交给上面那个 setTimeout 去做（要配合"支付成功"动画的节奏，
+    // 1.2 秒后才恢复）；这里只处理"没走到成功流程"的情况——库存不足/下单失败，或者
+    // 中途抛出了意料之外的异常——确保按钮无论如何都不会卡在"处理中..."。
+    if (!orderSucceeded) {
+      payBtn.disabled = false;
+      payBtn.innerText = originalPayBtnText;
+    }
   }
-
-  // 下单成功：同样刷新一次商品/库存数据，这样别的还在浏览页面的顾客能马上看到最新库存状态，
-  // 不用手动刷新页面才发现某个规格已经被买光了
-  const cloudData = await fetchProductsIndependentJoin();
-  if (cloudData) { window.productsData = cloudData; }
-
-  setTimeout(() => {
-    document.getElementById('checkout-form').classList.add('hidden');
-    document.getElementById('checkout-success').classList.remove('hidden');
-    document.getElementById('success-cust-name').innerText = `${firstName} ${lastName}`;
-    const orderIdEl = document.getElementById('success-order-id');
-    if (orderIdEl) orderIdEl.innerText = orderId;
-    cart = [];
-    selectedShippingRate = null;
-    currentShippoShipmentId = null;
-    updateCartUI();
-    renderPage();
-    payBtn.disabled = false;
-    payBtn.innerText = (i18n[currentLang] && i18n[currentLang].payBtn) ? i18n[currentLang].payBtn : 'Complete Payment (Test Mode)';
-  }, 1200);
 }
 
 // --- 穿戴甲尺码对照弹窗：行业标准参考值 + 商家自定义覆盖，mm/in 双向换算 ---

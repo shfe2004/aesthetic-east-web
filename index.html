@@ -142,7 +142,12 @@
           <span data-i18n="subtotalLabel">Subtotal</span>
           <span id="cart-total">$0.00</span>
         </div>
-        <button onclick="openCheckoutModal()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-xl transition shadow-md flex items-center justify-center gap-2">
+        <!-- 库存核对结果（check_cart_stock）如果发现购物车里有任何一项数量超过现有库存，
+             这个横幅会显示出来，同时下面的按钮会被禁用，不让顾客带着超量的购物车进到结算页，
+             省得走到最后一步填完地址才被拦下来——具体是哪一项不够货，在上面每个商品自己的
+             卡片里也会单独标红提示。 -->
+        <p id="cart-stock-warning-banner" class="hidden text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 text-center font-medium"></p>
+        <button id="proceed-checkout-btn" onclick="openCheckoutModal()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-xl transition shadow-md flex items-center justify-center gap-2 disabled:hover:bg-stone-900">
           <span data-i18n="checkoutBtn">Proceed to Checkout</span>
           <i class="fa-solid fa-arrow-right text-xs"></i>
         </button>
