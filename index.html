@@ -78,21 +78,23 @@
 
     <!-- 1. 穿戴甲专区 -->
     <section>
-      <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
+      <div class="flex items-center justify-between mb-6 border-b border-stone-200 pb-3 gap-3">
         <div>
           <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="nailsSectionTitle">Handcrafted Press-On Nails</h2>
           <p class="text-xs text-stone-400 mt-0.5" data-i18n="nailsSubTitle">Click image to enlarge · View custom size specs inside</p>
         </div>
-      </div>
 
-      <!-- 手工制作视频：后台没上传视频时这里整块隐藏，不影响页面布局。
-           之前用 max-w-2xl（接近 42rem 宽）配合视频本身的竖版比例，整个播放窗口占了很大
-           一块页面空间；现在改成固定的小尺寸卡片——宽度封顶，并用 aspect-[9/16] 锁定高度
-           （不管视频本身实际比例是多少，容器高度都是可预期的，配合已有的 object-cover
-           自动裁切填满），整体缩成一个小预览窗，不再占据主要版面。 -->
-      <div id="nails-video-wrap" class="hidden mb-6 w-32 sm:w-40 aspect-[9/16] rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-stone-900 relative">
-        <video id="nails-video" class="w-full h-full object-cover block" muted loop playsinline preload="none"></video>
-        <span class="absolute bottom-1.5 left-1.5 right-1.5 bg-black/60 text-white text-[8px] leading-tight px-1.5 py-1 rounded-full text-center" data-i18n="nailsVideoCaption">Handmade, start to finish</span>
+        <!-- 手工制作视频：改成一个小圆形"工艺徽章"，跟分区标题并排放在同一行，不再单独
+             占一块方形版面。后台没上传视频时整个隐藏，不影响布局。徽章本身只是循环播放的
+             无声预览（不出声、不唐突），点一下会弹出居中的大窗口完整播放——交互方式
+             跟页面已有的 360°旋转图/放大图模态是同一套，视觉上更统一。 -->
+        <button id="nails-video-wrap" onclick="openNailsVideoModal()"
+          class="hidden relative flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-amber-700/80 shadow-sm ring-2 ring-white group">
+          <video id="nails-video" class="w-full h-full object-cover block" muted loop playsinline preload="none"></video>
+          <span class="absolute inset-0 bg-black/10 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+            <i class="fa-solid fa-play text-white text-[10px] drop-shadow"></i>
+          </span>
+        </button>
       </div>
 
       <div id="nails-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -179,6 +181,20 @@
       </button>
       <div id="spin-360-container" class="w-full h-full flex items-center justify-center cursor-grab select-none">
         <img id="modal-img-360" src="" class="max-w-full max-h-full object-contain">
+      </div>
+    </div>
+  </div>
+
+  <!-- 手工制作视频 Modal：点一下分区标题旁边的小圆形徽章才会弹出，平时只是个安静的
+       小循环预览，不会一进页面就占着一大块地方自动播放 -->
+  <div id="modal-nails-video" onclick="closeNailsVideoModal()" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div class="relative w-full max-w-xs aspect-[9/16] flex items-center justify-center" onclick="event.stopPropagation()">
+      <button onclick="closeNailsVideoModal()" class="absolute -top-10 right-0 text-white hover:text-amber-400 text-xl font-bold bg-white/25 rounded-full w-8 h-8 flex items-center justify-center z-20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-black relative">
+        <video id="nails-video-modal" class="w-full h-full object-contain block" muted loop playsinline controls></video>
+        <span class="absolute bottom-3 left-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1.5 rounded-full text-center pointer-events-none" data-i18n="nailsVideoCaption">Handmade, start to finish</span>
       </div>
     </div>
   </div>

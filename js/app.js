@@ -1140,6 +1140,28 @@ function setupNailsVideoLazyPlay() {
   observer.observe(wrap);
 }
 
+// 点一下分区标题旁边的小圆形徽章，弹出居中大窗口完整播放手工制作视频
+// （跟页面已有的 360°旋转图/放大图模态是同一套交互：点遮罩或右上角 X 关闭）
+function openNailsVideoModal() {
+  if (!nailsVideoUrl) return;
+  const modal = document.getElementById('modal-nails-video');
+  const video = document.getElementById('nails-video-modal');
+  if (!modal || !video) return;
+  if (!video.src) {
+    video.src = nailsVideoUrl;
+    video.load();
+  }
+  modal.classList.remove('hidden');
+  video.play().catch(() => {});
+}
+
+function closeNailsVideoModal() {
+  const modal = document.getElementById('modal-nails-video');
+  const video = document.getElementById('nails-video-modal');
+  if (modal) modal.classList.add('hidden');
+  if (video) video.pause();
+}
+
 // 支持形如 你的网址/?product=nail-20-28 的深链接（Meta 商品目录里每个商品的 link 字段用的就是这种）：
 // 打开页面后自动滚动到对应的商品卡片，并短暂高亮一下，方便从 IG/FB 广告点进来的顾客一眼找到那件商品
 function scrollToDeepLinkedProduct() {
