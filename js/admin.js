@@ -559,10 +559,13 @@ async function handleAdminSignOut() {
   supabaseClient.auth.signOut();
 }
 
-function onAdminAuthenticated() {
+async function onAdminAuthenticated() {
   isAdminAuthenticated = true;
   const lockScreen = document.getElementById("admin-lock-screen");
   if (lockScreen) lockScreen.style.display = "none";
+  // 分类列表要先加载完，"添加商品"表单的分类下拉框、自动编码前缀才有数据可用，
+  // 所以这里 await 一下，不跟其它互不相关的加载一起并发触发
+  await loadCategories();
   loadAdminProducts();
   loadAdminOrders();
   loadSiteSettings();
@@ -923,8 +926,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (dimensionsSection) {
         dimensionsSection.style.display = isNails ? "none" : "block";
       }
+      loadSubtypesForCategory(e.target.value);
       generateSmartId();
     });
+  }
+
+  const categoryEditorForm = document.getElementById("category-editor-form");
+  if (categoryEditorForm) {
+    categoryEditorForm.addEventListener("submit", handleCategoryEditorSubmit);
+  }
+  const subtypeAddForm = document.getElementById("subtype-add-form");
+  if (subtypeAddForm) {
+    subtypeAddForm.addEventListener("submit", handleAddSubtype);
   }
 
   if (imageInput) {
@@ -984,6 +997,323 @@ function collectSizeChartInputs(scopeSelector) {
   return chart;
 }
 
+// ===================== 分类管理 =====================
+// 内存缓存：分类列表、以及"每个分类下有哪些子类型标签"，避免每次用到都重新查数据库
+let adminCategories = [];
+let adminSubtypesByCategory = {};
+
+async function loadCategories() {
+  const { data, error } = await supabaseClient
+    .from("categories")
+    .select("*")
+    .order("display_order", { ascending: true });
+  if (error) {
+    console.error("加载分类列表失败:", error);
+    adminCategories = [];
+  } else {
+    adminCategories = data || [];
+  }
+  renderCategoryList();
+  populateCategoryDropdown();
+}
+
+function renderCategoryList() {
+  const tbody = document.getElementById("admin-category-list");
+  if (!tbody) return;
+  if (adminCategories.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">还没有任何分类，点右上角"新增分类"添加一个</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = adminCategories.map((cat, idx) => {
+    const subtypeCount = (adminSubtypesByCategory[cat.id] || []).length;
+    return `
+      <tr class="border-b">
+        <td class="p-3" data-label="排序">
+          <div class="flex items-center gap-1">
+            <button onclick="moveCategoryOrder('${cat.id}', -1)" ${idx === 0 ? 'disabled' : ''} class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed text-xs">▲</button>
+            <button onclick="moveCategoryOrder('${cat.id}', 1)" ${idx === adminCategories.length - 1 ? 'disabled' : ''} class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed text-xs">▼</button>
+          </div>
+        </td>
+        <td class="p-3" data-label="分类名称">
+          <div class="font-medium text-gray-800">${cat.name_zh}</div>
+          <div class="text-xs text-gray-400">${cat.name_en} · ${cat.id}</div>
+        </td>
+        <td class="p-3" data-label="编码前缀"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${cat.code_prefix}</code></td>
+        <td class="p-3" data-label="商品类型">${cat.has_variants ? '<span class="text-xs px-2 py-0.5 rounded bg-pink-100 text-pink-800">规格变体（穿戴甲专属）</span>' : '<span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">固定数量库存</span>'}</td>
+        <td class="p-3" data-label="配色风格">${cat.accent === 'amber' ? '<span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800">琥珀棕</span>' : '<span class="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">黑白灰</span>'}</td>
+        <td class="p-3" data-label="子类型标签">
+          <button onclick="openSubtypeEditor('${cat.id}')" class="text-xs text-amber-800 hover:text-amber-900 underline">${subtypeCount > 0 ? `管理（${subtypeCount}个）` : '+ 添加标签'}</button>
+        </td>
+        <td class="p-3" data-label="状态">
+          <button onclick="toggleCategoryActive('${cat.id}', ${!cat.is_active})" class="text-xs px-2 py-0.5 rounded-full font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}">
+            ${cat.is_active ? '前台显示中' : '已隐藏'}
+          </button>
+        </td>
+        <td class="p-3" data-label="操作">
+          <div class="flex gap-2">
+            <button onclick="openCategoryEditor('${cat.id}')" class="text-xs text-blue-700 hover:text-blue-900 font-medium">编辑</button>
+            <button onclick="deleteCategory('${cat.id}')" class="text-xs text-red-600 hover:text-red-800 font-medium">删除</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function populateCategoryDropdown() {
+  const select = document.getElementById("prod-category");
+  if (!select) return;
+  const prevValue = select.value;
+  select.innerHTML = adminCategories.map(cat => `<option value="${cat.id}">${cat.name_zh} (${cat.name_en})</option>`).join('');
+  // 尽量保留用户之前选的分类（比如刚在"分类管理"里加完新分类回来，表单不应该跳回第一个）
+  if (prevValue && adminCategories.some(c => c.id === prevValue)) {
+    select.value = prevValue;
+  }
+  const isNails = select.value === "nails";
+  const nailSection = document.getElementById("nail-options-section");
+  const dimensionsSection = document.getElementById("dimensions-section");
+  if (nailSection) nailSection.style.display = isNails ? "block" : "none";
+  if (dimensionsSection) dimensionsSection.style.display = isNails ? "none" : "block";
+  loadSubtypesForCategory(select.value);
+}
+
+async function loadSubtypesForCategory(categoryId) {
+  const wrap = document.getElementById("prod-subtype-wrap");
+  const select = document.getElementById("prod-subtype");
+  if (!categoryId || !select) {
+    if (wrap) wrap.classList.add("hidden");
+    return;
+  }
+  let subtypes = adminSubtypesByCategory[categoryId];
+  if (!subtypes) {
+    const { data, error } = await supabaseClient
+      .from("product_subtypes")
+      .select("*")
+      .eq("category_id", categoryId)
+      .order("display_order", { ascending: true });
+    subtypes = error ? [] : (data || []);
+    adminSubtypesByCategory[categoryId] = subtypes;
+  }
+  if (subtypes.length === 0) {
+    if (wrap) wrap.classList.add("hidden");
+    select.innerHTML = '<option value="">不设置</option>';
+    return;
+  }
+  if (wrap) wrap.classList.remove("hidden");
+  select.innerHTML = '<option value="">不设置</option>' + subtypes.map(s => `<option value="${s.id}">${s.name_zh} (${s.name_en})</option>`).join('');
+}
+
+function openCategoryEditor(categoryId) {
+  const modal = document.getElementById("modal-category-editor");
+  const title = document.getElementById("category-editor-title");
+  const slugInput = document.getElementById("cat-slug");
+  const errorEl = document.getElementById("category-editor-error");
+  if (!modal) return;
+  errorEl.classList.add("hidden");
+  document.getElementById("category-editor-form").reset();
+
+  if (categoryId) {
+    const cat = adminCategories.find(c => c.id === categoryId);
+    if (!cat) return;
+    title.innerText = `编辑分类 — ${cat.name_zh}`;
+    document.getElementById("cat-edit-id").value = cat.id;
+    slugInput.value = cat.id;
+    slugInput.disabled = true; // 分类标识创建后不允许再改，避免已有商品的 category_id 跟分类对不上
+    document.getElementById("cat-name-zh").value = cat.name_zh;
+    document.getElementById("cat-name-en").value = cat.name_en;
+    document.getElementById("cat-subtitle-zh").value = cat.subtitle_zh || '';
+    document.getElementById("cat-subtitle-en").value = cat.subtitle_en || '';
+    document.getElementById("cat-code-prefix").value = cat.code_prefix;
+    document.getElementById("cat-aspect").value = cat.card_aspect_ratio;
+    document.getElementById("cat-accent").value = cat.accent;
+  } else {
+    title.innerText = "新增分类";
+    document.getElementById("cat-edit-id").value = "";
+    slugInput.disabled = false;
+  }
+  modal.classList.remove("hidden");
+}
+
+function closeCategoryEditor() {
+  document.getElementById("modal-category-editor").classList.add("hidden");
+}
+
+async function handleCategoryEditorSubmit(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById("category-editor-error");
+  errorEl.classList.add("hidden");
+
+  const editingId = document.getElementById("cat-edit-id").value;
+  const slug = document.getElementById("cat-slug").value.trim().toLowerCase();
+  const payload = {
+    id: slug,
+    name_zh: document.getElementById("cat-name-zh").value.trim(),
+    name_en: document.getElementById("cat-name-en").value.trim(),
+    subtitle_zh: document.getElementById("cat-subtitle-zh").value.trim(),
+    subtitle_en: document.getElementById("cat-subtitle-en").value.trim(),
+    code_prefix: document.getElementById("cat-code-prefix").value.trim().toLowerCase(),
+    card_aspect_ratio: document.getElementById("cat-aspect").value,
+    accent: document.getElementById("cat-accent").value
+  };
+
+  if (!/^[a-z0-9_]+$/.test(slug)) {
+    errorEl.innerText = "分类标识只能用英文小写字母、数字、下划线";
+    errorEl.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    if (editingId) {
+      // 编辑：不改 id，只更新其它字段
+      const { error } = await supabaseClient.from("categories").update(payload).eq("id", editingId);
+      if (error) throw error;
+      logAdminActivity('category_update', `id: ${editingId}`);
+    } else {
+      // 新增：display_order 排在最后面
+      const maxOrder = adminCategories.reduce((max, c) => Math.max(max, c.display_order), -1);
+      payload.display_order = maxOrder + 1;
+      payload.is_active = true;
+      payload.has_variants = false; // 新分类一律走"固定数量库存"模式，见表单上方的说明
+      const { error } = await supabaseClient.from("categories").insert([payload]);
+      if (error) throw error;
+      logAdminActivity('category_create', `id: ${slug}`);
+    }
+    closeCategoryEditor();
+    await loadCategories();
+  } catch (err) {
+    console.error("保存分类失败:", err);
+    // 最常见的失败原因是 slug 已经被用过（主键冲突）
+    const msg = (err.message && err.message.indexOf('duplicate key') !== -1)
+      ? '这个分类标识已经被用过了，换一个试试'
+      : ('保存失败：' + (err.message || '未知错误'));
+    errorEl.innerText = msg;
+    errorEl.classList.remove("hidden");
+  }
+}
+
+async function toggleCategoryActive(categoryId, nextActive) {
+  const { error } = await supabaseClient.from("categories").update({ is_active: nextActive }).eq("id", categoryId);
+  if (error) {
+    alert("操作失败：" + error.message);
+    return;
+  }
+  logAdminActivity('category_toggle_active', `id: ${categoryId}, active: ${nextActive}`);
+  await loadCategories();
+}
+
+async function moveCategoryOrder(categoryId, direction) {
+  const idx = adminCategories.findIndex(c => c.id === categoryId);
+  const swapIdx = idx + direction;
+  if (idx === -1 || swapIdx < 0 || swapIdx >= adminCategories.length) return;
+  const a = adminCategories[idx];
+  const b = adminCategories[swapIdx];
+  // 直接互换这两条记录的 display_order 数值即可实现"上移/下移"
+  const { error } = await supabaseClient.from("categories").update({ display_order: b.display_order }).eq("id", a.id);
+  if (!error) {
+    await supabaseClient.from("categories").update({ display_order: a.display_order }).eq("id", b.id);
+  }
+  await loadCategories();
+}
+
+async function deleteCategory(categoryId) {
+  const cat = adminCategories.find(c => c.id === categoryId);
+  if (!cat) return;
+  if (!confirm(`确定要删除分类"${cat.name_zh}"吗？如果这个分类下还有商品，删除会被数据库拒绝（需要先把商品转移到别的分类或删除）。`)) return;
+  const { error } = await supabaseClient.from("categories").delete().eq("id", categoryId);
+  if (error) {
+    // 外键约束冲突（这个分类底下还有商品）会报这个错，给一个人话版本的提示
+    const msg = (error.message && (error.message.indexOf('foreign key') !== -1 || error.message.indexOf('violates') !== -1))
+      ? `无法删除：这个分类下还有商品。请先到"在线商品管理列表"把相关商品转移到其它分类或删除，再来删除这个分类。`
+      : ('删除失败：' + error.message);
+    alert(msg);
+    return;
+  }
+  logAdminActivity('category_delete', `id: ${categoryId}`);
+  delete adminSubtypesByCategory[categoryId];
+  await loadCategories();
+}
+
+// ---- 子类型（筛选标签）管理 ----
+let currentSubtypeEditingCategory = null;
+
+async function openSubtypeEditor(categoryId) {
+  const cat = adminCategories.find(c => c.id === categoryId);
+  if (!cat) return;
+  currentSubtypeEditingCategory = categoryId;
+  document.getElementById("subtype-editor-category-name").innerText = cat.name_zh;
+  document.getElementById("subtype-add-form").reset();
+  await loadSubtypesForCategory(categoryId); // 确保缓存是最新的
+  renderSubtypeList();
+  document.getElementById("modal-subtype-editor").classList.remove("hidden");
+}
+
+function closeSubtypeEditor() {
+  document.getElementById("modal-subtype-editor").classList.add("hidden");
+  currentSubtypeEditingCategory = null;
+}
+
+function renderSubtypeList() {
+  const container = document.getElementById("subtype-list");
+  if (!container || !currentSubtypeEditingCategory) return;
+  const subtypes = adminSubtypesByCategory[currentSubtypeEditingCategory] || [];
+  if (subtypes.length === 0) {
+    container.innerHTML = `<p class="text-xs text-gray-400 py-2">还没有子类型标签，在下面添加第一个</p>`;
+    return;
+  }
+  container.innerHTML = subtypes.map(s => `
+    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+      <span class="text-sm text-gray-700">${s.name_zh} <span class="text-xs text-gray-400">(${s.name_en})</span></span>
+      <button onclick="deleteSubtype(${s.id})" class="text-xs text-red-600 hover:text-red-800">删除</button>
+    </div>
+  `).join('');
+}
+
+async function handleAddSubtype(e) {
+  e.preventDefault();
+  if (!currentSubtypeEditingCategory) return;
+  const nameZh = document.getElementById("subtype-name-zh").value.trim();
+  const nameEn = document.getElementById("subtype-name-en").value.trim();
+  if (!nameZh || !nameEn) return;
+
+  const existing = adminSubtypesByCategory[currentSubtypeEditingCategory] || [];
+  const maxOrder = existing.reduce((max, s) => Math.max(max, s.display_order), -1);
+
+  const { error } = await supabaseClient.from("product_subtypes").insert([{
+    category_id: currentSubtypeEditingCategory,
+    name_zh: nameZh,
+    name_en: nameEn,
+    display_order: maxOrder + 1
+  }]);
+  if (error) {
+    alert(error.message && error.message.indexOf('duplicate key') !== -1
+      ? '这个英文名称在当前分类下已经存在了，换一个试试'
+      : ('添加失败：' + error.message));
+    return;
+  }
+  logAdminActivity('subtype_create', `category: ${currentSubtypeEditingCategory}, name: ${nameEn}`);
+  delete adminSubtypesByCategory[currentSubtypeEditingCategory]; // 清掉缓存，强制下面重新拉取最新列表
+  document.getElementById("subtype-add-form").reset();
+  await loadSubtypesForCategory(currentSubtypeEditingCategory);
+  renderSubtypeList();
+  renderCategoryList(); // 分类列表里"子类型标签"那一列的数量也要跟着刷新
+}
+
+async function deleteSubtype(subtypeId) {
+  if (!confirm('确定删除这个子类型标签吗？用过这个标签的商品不会被删除，只是会失去这个标签，需要手动重新选一个。')) return;
+  const { error } = await supabaseClient.from("product_subtypes").delete().eq("id", subtypeId);
+  if (error) {
+    alert("删除失败：" + error.message);
+    return;
+  }
+  logAdminActivity('subtype_delete', `id: ${subtypeId}`);
+  if (currentSubtypeEditingCategory) {
+    delete adminSubtypesByCategory[currentSubtypeEditingCategory];
+    await loadSubtypesForCategory(currentSubtypeEditingCategory);
+    renderSubtypeList();
+    renderCategoryList();
+  }
+}
+
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
   const category = categorySelect ? categorySelect.value : "nails";
@@ -999,9 +1329,10 @@ async function generateSmartId() {
     const categoryProducts = allProducts ? allProducts.filter(p => p.category_id === category) : [];
     const categoryCount = categoryProducts.length + 1;
 
-    let prefix = "nail";
-    if (category === "merch") prefix = "merch";
-    if (category === "furniture") prefix = "ant";
+    // 编码前缀不再写死，改成从"分类管理"里维护的 categories.code_prefix 取；
+    // adminCategories 是 loadCategories() 加载好缓存在内存里的分类列表
+    const catMeta = (adminCategories || []).find(c => c.id === category);
+    const prefix = catMeta ? catMeta.code_prefix : "item";
 
     const catSeq = String(categoryCount).padStart(2, '0');
     const totalSeq = String(totalCount).padStart(2, '0');
@@ -1277,9 +1608,13 @@ async function handleAddProduct(e) {
       imageUrl = uploadedImageUrls[0];
     }
 
+    const subtypeSelect = document.getElementById("prod-subtype");
+    const subtypeId = (subtypeSelect && subtypeSelect.value) ? parseInt(subtypeSelect.value, 10) : null;
+
     const { error: prodError } = await supabaseClient.from("products").insert([{
       id: id,
       category_id: categoryId,
+      subtype_id: subtypeId,
       title_en: titleEn,
       subtitle_en: subtitleEn,
       price: price,

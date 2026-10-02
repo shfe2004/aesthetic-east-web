@@ -103,30 +103,15 @@
     </section>
 
     <!-- 2. 亚克力周边专区 -->
-    <section>
-      <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
-        <div>
-          <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="merchSectionTitle">Original Acrylic Merch</h2>
-          <p class="text-xs text-stone-400 mt-0.5" data-i18n="merchSubTitle">High definition printing & standees</p>
-        </div>
-      </div>
-      <div id="merch-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="col-span-full text-center py-12 text-stone-400" data-i18n="loadingText">Loading...</div>
-      </div>
-    </section>
-
-    <!-- 3. 古董家具专区 -->
-    <section>
-      <div class="flex items-end justify-between mb-6 border-b border-stone-200 pb-3">
-        <div>
-          <h2 class="text-xl font-bold text-stone-900 font-serif" data-i18n="furnitureSectionTitle">Restored Antique Furniture</h2>
-          <p class="text-xs text-stone-400 mt-0.5" data-i18n="furnitureSubTitle">Authentic 19th-century craftsmanship</p>
-        </div>
-      </div>
-      <div id="furniture-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="col-span-full text-center py-12 text-stone-400" data-i18n="loadingText">Loading...</div>
-      </div>
-    </section>
+    <!-- 3. 其余分类专区（亚克力周边/古董家具，以及以后后台新增的任何分类，比如首饰）：
+         不再像上面穿戴甲那样写死一段 <section>，而是由 js/app.js 的 renderCategorySections()
+         按"分类管理"里维护的分类列表（categories 表，按 display_order 排序、跳过已隐藏的）
+         自动在这里生成对应数量的栏目——加一个分类，这里自动多一块；隐藏/删除一个分类，
+         这里自动少一块，不用再改这个页面。每个栏目用的是同一套卡片样式，所以不管加多少个
+         新分类，整站视觉风格都还是统一的。 -->
+    <div id="dynamic-categories-root" class="space-y-12">
+      <div class="text-center py-12 text-stone-400" data-i18n="loadingText">Loading...</div>
+    </div>
 
   </main>
 

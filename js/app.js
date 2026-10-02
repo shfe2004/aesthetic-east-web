@@ -64,6 +64,7 @@ const i18n = {
     furnitureSectionTitle: "Restored Antique Furniture",
     furnitureSubTitle: "Authentic 19th-century craftsmanship",
     loadingText: "Loading...",
+    noItemsInFilter: "No items yet.",
     cartTitle: "Shopping Bag",
     cartEmpty: "Your cart is empty.",
     subtotalLabel: "Subtotal",
@@ -126,6 +127,7 @@ const i18n = {
     furnitureSectionTitle: "经典修复古董家具",
     furnitureSubTitle: "传承十九世纪正宗东方木作工艺",
     loadingText: "加载中...",
+    noItemsInFilter: "暂无商品。",
     cartTitle: "购物袋",
     cartEmpty: "您的购物车是空的。",
     subtotalLabel: "小计",
@@ -258,12 +260,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 独立并发查询 products、nail_options、product_images，全面组装尺寸与属性
 async function fetchProductsIndependentJoin() {
   try {
-    const [prodRes, optRes, imgRes, stockAvailRes] = await Promise.all([
+    const [prodRes, optRes, imgRes, stockAvailRes, categoriesRes, subtypesRes] = await Promise.all([
       supabaseClient.from("products").select("*").order("created_at", { ascending: false }),
       supabaseClient.from("nail_options").select("*"),
       supabaseClient.from("product_images").select("*"),
       // 只读"有没有货"的布尔视图，读不到具体库存数字（见 sql/add_nail_stock_public_view.sql）
-      supabaseClient.from("nail_variant_availability").select("*")
+      supabaseClient.from("nail_variant_availability").select("*"),
+      // 分类列表和子类型标签：见 sql/add_categories_system.sql。旧数据库没跑过这份 SQL 时
+      // 查询会失败，这里不阻断整个页面——categoriesData 为空数组时，下面 renderCategorySections()
+      // 会什么都不画，只是亚克力/家具/以后新增的分类栏目不显示，穿戴甲那个写死的栏目不受影响。
+      supabaseClient.from("categories").select("*").eq("is_active", true).order("display_order", { ascending: true }),
+      supabaseClient.from("product_subtypes").select("*").order("display_order", { ascending: true })
     ]);
     if (prodRes.error) throw prodRes.error;
     const products = prodRes.data || [];
@@ -271,9 +278,14 @@ async function fetchProductsIndependentJoin() {
     const productImages = imgRes.data || [];
     // 视图可能还没建（旧数据库没跑过那份 SQL），查询失败时不阻断整个页面，只是不做缺货判断
     const stockAvailRows = (!stockAvailRes.error && stockAvailRes.data) ? stockAvailRes.data : [];
+    window.categoriesData = (!categoriesRes.error && categoriesRes.data) ? categoriesRes.data : [];
+    window.subtypesData = (!subtypesRes.error && subtypesRes.data) ? subtypesRes.data : [];
     const nails = [];
     const merch = [];
     const furniture = [];
+    // 通用的"按分类归好类的商品"——包含上面三个分类，也包含后台"分类管理"里新建的
+    // 任何其它分类（比如首饰），renderCategorySections() 就是靠这个画出对应栏目的
+    const byCategory = {};
 
     products.forEach(item => {
       const nailOpt = nailOptions.find(o => o.product_id === item.id) || {};
@@ -321,20 +333,24 @@ async function fetchProductsIndependentJoin() {
         tryonNailCutouts: item.tryon_nail_cutouts || null,
         // 指甲形状蒙版：贴图时按这个形状裁掉方框四个角，见 sql/add_tryon_nail_shape.sql
         tryonNailShape: item.tryon_nail_shape || 'square',
-        tryonNailShapeFlip: !!item.tryon_nail_shape_flip
+        tryonNailShapeFlip: !!item.tryon_nail_shape_flip,
+        // 子类型（分类内部的筛选标签，比如"首饰"分类下的耳环/项链），见 sql/add_categories_system.sql；
+        // 穿戴甲/亚克力/家具这三个现有分类目前都不用这个字段，值会是 null
+        subtypeId: item.subtype_id || null
       };
 
-      if (item.category_id === 'nails') {
-        nails.push(formattedItem);
-      } else if (item.category_id === 'merch') {
-        merch.push(formattedItem);
-      } else if (item.category_id === 'furniture') {
-        furniture.push(formattedItem);
-      }
+      if (item.category_id === 'nails') nails.push(formattedItem);
+      if (item.category_id === 'merch') merch.push(formattedItem);
+      if (item.category_id === 'furniture') furniture.push(formattedItem);
+      if (!byCategory[item.category_id]) byCategory[item.category_id] = [];
+      byCategory[item.category_id].push(formattedItem);
     });
 
-    console.log("【组装成功】全品类商品及尺寸加载完毕:", { nails, merch, furniture });
-    return { nails, merch, furniture };
+    console.log("【组装成功】全品类商品及尺寸加载完毕:", { nails, merch, furniture, byCategory });
+    // 把 byCategory 里每个分类都展开成顶层字段（productsData.jewelry、productsData.merch...），
+    // 这样 addSimpleToCart(category, id) 这些已有函数不用改一行代码，就能直接支持
+    // 后台"分类管理"里新建的任何分类——它们读的就是 window.productsData[category]
+    return Object.assign({ nails, merch, furniture }, byCategory);
   } catch (err) {
     console.error("加载数据库商品出错:", err);
     return null;
@@ -463,9 +479,135 @@ function renderPage() {
     }
   });
   renderNails();
-  renderMerch();
-  renderFurniture();
+  renderCategorySections();
   updateCartUI();
+}
+
+// 当前每个分类栏目选中的子类型筛选（key 是 categoryId，value 是 subtypeId 或 'all'）
+let activeSubtypeFilter = {};
+
+// 按"分类管理"里维护的分类列表（除了穿戴甲——那个栏目因为有试戴/360°/视频徽章这些
+// 专属功能，还是保持写死在 index.html 里，不走这套通用渲染），动态生成亚克力/家具/
+// 以后新增的任何分类栏目，画进 index.html 里的 #dynamic-categories-root 容器。
+function renderCategorySections() {
+  const root = document.getElementById('dynamic-categories-root');
+  if (!root || !window.categoriesData) return;
+
+  const categories = window.categoriesData.filter(c => c.id !== 'nails');
+  if (categories.length === 0) {
+    root.innerHTML = '';
+    return;
+  }
+
+  root.innerHTML = categories.map(cat => {
+    const items = (window.productsData && window.productsData[cat.id]) || [];
+    const subtypes = (window.subtypesData || []).filter(s => s.category_id === cat.id);
+    const titleText = currentLang === 'zh' ? cat.name_zh : cat.name_en;
+    const subtitleText = currentLang === 'zh' ? (cat.subtitle_zh || '') : (cat.subtitle_en || '');
+
+    // 只有维护过子类型标签的分类才会显示"全部/头饰/耳环/..."这排筛选按钮
+    let chipsHtml = '';
+    if (subtypes.length > 0) {
+      const currentFilter = activeSubtypeFilter[cat.id] || 'all';
+      const allLang = currentLang === 'zh' ? '全部' : 'All';
+      chipsHtml = `
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <button onclick="setSubtypeFilter('${cat.id}', 'all')" class="px-3 py-1 rounded-lg text-xs font-medium transition-all ${currentFilter === 'all' ? 'bg-stone-900 text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}">${allLang}</button>
+          ${subtypes.map(s => {
+            const label = currentLang === 'zh' ? s.name_zh : s.name_en;
+            const isActive = String(currentFilter) === String(s.id);
+            return `<button onclick="setSubtypeFilter('${cat.id}', ${s.id})" class="px-3 py-1 rounded-lg text-xs font-medium transition-all ${isActive ? 'bg-stone-900 text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}">${label}</button>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    return `
+      <section>
+        <div class="mb-6 border-b border-stone-200 pb-3">
+          <div class="flex items-end justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-stone-900 font-serif">${titleText}</h2>
+              ${subtitleText ? `<p class="text-xs text-stone-400 mt-0.5">${subtitleText}</p>` : ''}
+            </div>
+          </div>
+          ${chipsHtml}
+        </div>
+        <div id="category-grid-${cat.id}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </section>
+    `;
+  }).join('');
+
+  categories.forEach(cat => renderSimpleCategory(cat));
+}
+
+function setSubtypeFilter(categoryId, subtypeIdOrAll) {
+  activeSubtypeFilter[categoryId] = subtypeIdOrAll;
+  renderCategorySections();
+}
+
+// 通用的"固定数量库存"商品卡片渲染——亚克力/家具现在用这个，以后任何新分类
+// （比如首饰）默认也是这个模式。accent 和 aspect 由分类自己的配置决定视觉风格，
+// 保证不管加多少个新分类，整站看起来还是统一协调的（见 sql/add_categories_system.sql
+// 里 categories.card_aspect_ratio / categories.accent 字段的说明）。
+function renderSimpleCategory(cat) {
+  const container = document.getElementById(`category-grid-${cat.id}`);
+  if (!container || !window.productsData) return;
+
+  const currentFilter = activeSubtypeFilter[cat.id] || 'all';
+  const allItems = window.productsData[cat.id] || [];
+  const items = currentFilter === 'all' ? allItems : allItems.filter(item => String(item.subtypeId) === String(currentFilter));
+
+  const isAmber = cat.accent === 'amber';
+  const tagDefaultClass = isAmber ? 'bg-amber-900 text-amber-100' : 'bg-stone-900 text-white';
+  const btn360Class = isAmber ? 'bg-amber-800/90 hover:bg-amber-900' : 'bg-black/70 hover:bg-black/90';
+  const aspectClass = cat.card_aspect_ratio || 'aspect-square';
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="col-span-full text-center py-12 text-stone-400">${(i18n[currentLang] && i18n[currentLang].noItemsInFilter) ? i18n[currentLang].noItemsInFilter : 'No items yet.'}</div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
+    const hasDimensions = (item.length > 0 || item.width > 0 || item.height > 0);
+    return `
+      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
+        <div>
+          <div class="relative bg-stone-100 ${aspectClass} overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
+            <img src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+            <span class="absolute top-3 left-3 ${item.tagClass || tagDefaultClass} text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
+              ${item.tagKey || 'New'}
+            </span>
+            <button onclick="event.stopPropagation(); open360Modal('${item.id}')" class="absolute bottom-3 right-3 ${btn360Class} backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors shadow-sm">
+              <i class="fa-solid fa-rotate"></i> 360°
+            </button>
+          </div>
+          <div class="p-5 space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 class="text-base font-bold text-stone-900 line-clamp-1">${item.title}</h3>
+                <p class="text-xs text-stone-500 line-clamp-1 mt-0.5">${item.subtitle || ''}</p>
+              </div>
+              ${hasDimensions ? `
+                <button onclick="openDimensionsModal('${item.id}', '${cat.id}')" class="text-xs text-amber-800 hover:text-amber-900 underline flex-shrink-0 font-medium">Size Guide</button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
+          <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
+          ${item.stockQuantity > 0 ? `
+          <button onclick="addSimpleToCart('${cat.id}', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
+            + Add
+          </button>` : `
+          <button disabled class="bg-stone-200 text-stone-400 cursor-not-allowed text-xs font-bold px-5 py-2.5 rounded-xl">
+            ${(i18n[currentLang] && i18n[currentLang].soldOutBtn) ? i18n[currentLang].soldOutBtn : 'Sold Out'}
+          </button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderNails() {
@@ -560,96 +702,10 @@ function renderNails() {
   }).join('');
 }
 
-function renderMerch() {
-  const container = document.getElementById('merch-grid');
-  if (!container || !window.productsData) return;
-  container.innerHTML = window.productsData.merch.map(item => {
-    const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
-    const hasDimensions = (item.length > 0 || item.width > 0 || item.height > 0);
-    return `
-      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
-        <div>
-          <div class="relative bg-stone-100 aspect-square overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
-            <img src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-            <span class="absolute top-3 left-3 ${item.tagClass || 'bg-stone-900 text-white'} text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
-              ${item.tagKey || 'Merch'}
-            </span>
-            <button onclick="event.stopPropagation(); open360Modal('${item.id}')" class="absolute bottom-3 right-3 bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors">
-              <i class="fa-solid fa-rotate"></i> 360°
-            </button>
-          </div>
-          <div class="p-5 space-y-3">
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                <h3 class="text-base font-bold text-stone-900 line-clamp-1">${item.title}</h3>
-                <p class="text-xs text-stone-500 line-clamp-1 mt-0.5">${item.subtitle || ''}</p>
-              </div>
-              ${hasDimensions ? `
-                <button onclick="openDimensionsModal('${item.id}', 'merch')" class="text-xs text-amber-800 hover:text-amber-900 underline flex-shrink-0 font-medium">Size Guide</button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-        <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
-          <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
-          ${item.stockQuantity > 0 ? `
-          <button onclick="addSimpleToCart('merch', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
-            + Add
-          </button>` : `
-          <button disabled class="bg-stone-200 text-stone-400 cursor-not-allowed text-xs font-bold px-5 py-2.5 rounded-xl">
-            ${(i18n[currentLang] && i18n[currentLang].soldOutBtn) ? i18n[currentLang].soldOutBtn : 'Sold Out'}
-          </button>`}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderFurniture() {
-  const container = document.getElementById('furniture-grid');
-  if (!container || !window.productsData) return;
-  container.innerHTML = window.productsData.furniture.map(item => {
-    const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
-    const hasDimensions = (item.length > 0 || item.width > 0 || item.height > 0);
-
-    return `
-      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
-        <div>
-          <div class="relative bg-stone-100 aspect-[4/3] overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
-            <img src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-            <span class="absolute top-3 left-3 ${item.tagClass || 'bg-amber-900 text-amber-100'} text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
-              ${item.tagKey || 'Antique'}
-            </span>
-            <button onclick="event.stopPropagation(); open360Modal('${item.id}')" class="absolute bottom-3 right-3 bg-amber-800/90 hover:bg-amber-900 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors">
-              <i class="fa-solid fa-rotate"></i> 360°
-            </button>
-          </div>
-          <div class="p-5 space-y-3">
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                <h3 class="text-base font-bold text-stone-900 line-clamp-1">${item.title}</h3>
-                <p class="text-xs text-stone-500 line-clamp-1 mt-0.5">${item.subtitle || ''}</p>
-              </div>
-              ${hasDimensions ? `
-                <button onclick="openDimensionsModal('${item.id}', 'furniture')" class="text-xs text-amber-800 hover:text-amber-900 underline flex-shrink-0 font-medium">Size Guide</button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-        <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
-          <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
-          ${item.stockQuantity > 0 ? `
-          <button onclick="addSimpleToCart('furniture', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
-            + Add
-          </button>` : `
-          <button disabled class="bg-stone-200 text-stone-400 cursor-not-allowed text-xs font-bold px-5 py-2.5 rounded-xl">
-            ${(i18n[currentLang] && i18n[currentLang].soldOutBtn) ? i18n[currentLang].soldOutBtn : 'Sold Out'}
-          </button>`}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
+// 原来这里是 renderMerch() / renderFurniture() 两个几乎一模一样的函数，各自写死
+// 对应 '#merch-grid' / '#furniture-grid'。现在亚克力和家具都和以后新增的分类一样，
+// 统一交给上面的 renderCategorySections() / renderSimpleCategory() 动态生成和渲染，
+// 这两个函数已经不再被调用，删掉以免跟新逻辑并存造成混淆。
 
 // --- 通用商品尺寸/规格指南弹窗控制与 毫米(mm) / 英寸(in) 实时双向换算 ---
 function openDimensionsModal(id, category) {
