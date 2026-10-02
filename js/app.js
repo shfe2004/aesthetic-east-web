@@ -630,9 +630,10 @@ function renderNails() {
             <button onclick="event.stopPropagation(); open360Modal('${item.id}')" class="absolute bottom-3 right-3 bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors shadow-sm">
               <i class="fa-solid fa-rotate"></i> 360°
             </button>
-            <button onclick="event.stopPropagation(); openTryOnModal('${item.id}')" class="absolute bottom-3 left-3 bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 transition-colors shadow-sm">
-              <i class="fa-solid fa-hand-sparkles"></i> ${(i18n[currentLang] && i18n[currentLang].tryOnBtn) ? i18n[currentLang].tryOnBtn : 'Try On'}
-            </button>
+            <!-- "Try On" 虚拟试戴按钮已暂时从前台下线：这个功能在手机上弹窗会超出屏幕且关不掉，
+                 属于还没做好的半成品，先藏起来避免影响顾客下单体验。后台"虚拟试戴·手模型指甲位置
+                 标定"那个标定工具还在，数据也都留着，等把手机端的弹窗尺寸问题修好之后随时可以
+                 把这个按钮加回来，不用重新标定。 -->
           </div>
           <div class="flex gap-2 p-3 bg-stone-50/50 border-b border-stone-100 overflow-x-auto">
             ${(item.images && item.images.length > 0 ? item.images : [mainImg]).map(img => `
@@ -1252,6 +1253,25 @@ function setupSpin360Events() {
   window.addEventListener('mouseup', () => {
     isSpinning = false;
     if (container) container.style.cursor = 'grab';
+  });
+  // 手机端之前只绑定了 mouse 系列事件，手指触屏没有鼠标，拖不动图——这里补上对应的
+  // touch 事件，让手机上也能用手指左右滑动来转动 360° 预览图。
+  // touchmove 里 preventDefault() 是为了在拖动旋转图片的同时，不要连带把整个页面往下滚动。
+  container.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    isSpinning = true;
+    spinStartX = e.touches[0].clientX;
+  }, { passive: true });
+  container.addEventListener('touchmove', (e) => {
+    if (!isSpinning || e.touches.length !== 1) return;
+    e.preventDefault();
+    const deltaX = e.touches[0].clientX - spinStartX;
+    currentRotationY += deltaX * 0.8;
+    spinStartX = e.touches[0].clientX;
+    apply360Rotation();
+  }, { passive: false });
+  container.addEventListener('touchend', () => {
+    isSpinning = false;
   });
 }
 

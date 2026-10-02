@@ -184,7 +184,8 @@
     </div>
   </div>
 
-  <!-- 虚拟试戴 Modal -->
+  <!-- 虚拟试戴 Modal：已暂时从前台下线（手机端弹窗会超出屏幕且关不掉），
+       结构先保留在注释里，方便以后修好尺寸问题后原样恢复，不用重新写一遍。
   <div id="modal-tryon" onclick="closeTryOnModal()" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4">
     <div class="relative bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between px-5 py-3 border-b border-stone-100">
@@ -205,6 +206,7 @@
       </div>
     </div>
   </div>
+  -->
 
   <!-- 尺寸/规格指南弹窗 (毫米mm与英寸in实时双向换算) -->
   <div id="modal-dimensions" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
@@ -406,8 +408,15 @@
   <!-- 引入外部控制脚本 -->
   <script src="js/supabase-client.js"></script>
   <script src="js/shipping-config.js"></script>
+  <!-- js/tryon-config.js 和 js/tryon.js（虚拟试戴的标定数据+弹窗逻辑）暂时不在前台加载了——
+       按钮已经下线，加载这两个文件对顾客来说只是白白多下载代码，没有实际用处。
+       后台"虚拟试戴·手模型指甲位置标定"工具用的是另外两个文件（tryon-editor.js /
+       tryon-hand-calibrator.js），不受影响，Tommy 仍然可以照常在后台标定/调整。
+       以后要把这个功能重新放回前台，把下面这两行和上面注释掉的 #modal-tryon、
+       以及 js/app.js 里 renderNails() 里被注释掉的 Try On 按钮一起恢复即可。
   <script src="js/tryon-config.js"></script>
   <script src="js/tryon.js"></script>
+  -->
   <script src="js/app.js"></script>
   <!-- 双语翻译字典、语言切换与 data-i18n 渲染逻辑现在统一由 js/app.js 维护，
        这里不再重复声明，避免和 app.js 里的 `let currentLang` 撞名导致 SyntaxError。 -->

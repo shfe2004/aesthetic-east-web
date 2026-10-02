@@ -180,10 +180,10 @@
     <!-- 1.5 虚拟试戴 · 手模型指甲位置标定（全站共用的一份坐标，不是针对单个商品） -->
     <div class="bg-white rounded-xl shadow-md p-6 border border-amber-200 flex items-center justify-between flex-wrap gap-3">
       <div>
-        <h2 class="text-lg font-bold text-gray-800">🖐️ 虚拟试戴 · 手模型指甲位置标定</h2>
-        <p class="text-xs text-gray-500 mt-1">如果试戴贴图跟手模型照片里实际的指甲长短/宽窄/方向对不上，在这里直接拖动调整——全站所有商品共用这一份位置，改一次全部生效。</p>
+        <h2 class="text-lg font-bold text-gray-800" data-i18n="tryonCalibratorTitle">🖐️ 虚拟试戴 · 手模型指甲位置标定</h2>
+        <p class="text-xs text-gray-500 mt-1" data-i18n="tryonCalibratorDesc">如果试戴贴图跟手模型照片里实际的指甲长短/宽窄/方向对不上，在这里直接拖动调整——全站所有商品共用这一份位置，改一次全部生效。</p>
       </div>
-      <button onclick="openTryonHandCalibrator()" class="px-4 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white shadow-sm">
+      <button onclick="openTryonHandCalibrator()" class="px-4 py-2 rounded-xl text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white shadow-sm" data-i18n="openCalibratorBtn">
         打开标定工具
       </button>
     </div>
@@ -192,28 +192,28 @@
          都在这里自己增删改，不用再找人改代码；前台页面会按这里维护的分类列表自动生成栏目。 -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
-        <h2 class="text-lg font-bold text-gray-800">🗂️ 分类管理</h2>
-        <button onclick="openCategoryEditor(null)" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shadow-sm">
+        <h2 class="text-lg font-bold text-gray-800" data-i18n="categoryMgmtTitle">🗂️ 分类管理</h2>
+        <button onclick="openCategoryEditor(null)" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shadow-sm" data-i18n="addCategoryBtn">
           + 新增分类
         </button>
       </div>
-      <p class="text-xs text-gray-500 mb-4">前台每个大栏目（穿戴甲/亚克力/家具...）对应这里的一条分类。拖动排序框可以调整栏目先后顺序；"隐藏"不会删除数据，只是暂时不在前台显示。删除分类前，需要先把该分类下的商品转移或删除。</p>
+      <p class="text-xs text-gray-500 mb-4" data-i18n="categoryMgmtDesc">前台每个大栏目（穿戴甲/亚克力/家具...）对应这里的一条分类。拖动排序框可以调整栏目先后顺序；"隐藏"不会删除数据，只是暂时不在前台显示。删除分类前，需要先把该分类下的商品转移或删除。</p>
       <div class="overflow-auto border rounded-lg">
         <table class="w-full text-left border-collapse text-sm admin-responsive-table">
           <thead>
             <tr class="bg-gray-100 border-b text-gray-600">
-              <th class="p-3">排序</th>
-              <th class="p-3">分类名称</th>
-              <th class="p-3">编码前缀</th>
-              <th class="p-3">商品类型</th>
-              <th class="p-3">配色风格</th>
-              <th class="p-3">子类型标签</th>
-              <th class="p-3">状态</th>
-              <th class="p-3">操作</th>
+              <th class="p-3" data-i18n="thCatOrder">排序</th>
+              <th class="p-3" data-i18n="thCatName">分类名称</th>
+              <th class="p-3" data-i18n="thCatPrefix">编码前缀</th>
+              <th class="p-3" data-i18n="thCatType">商品类型</th>
+              <th class="p-3" data-i18n="thCatAccent">配色风格</th>
+              <th class="p-3" data-i18n="thCatSubtypes">子类型标签</th>
+              <th class="p-3" data-i18n="thCatStatus">状态</th>
+              <th class="p-3" data-i18n="thCatAction">操作</th>
             </tr>
           </thead>
           <tbody id="admin-category-list">
-            <tr><td colspan="8" class="p-4 text-center text-gray-500">正在加载分类列表...</td></tr>
+            <tr><td colspan="8" class="p-4 text-center text-gray-500" data-i18n="loadingCategories">正在加载分类列表...</td></tr>
           </tbody>
         </table>
       </div>
@@ -223,7 +223,7 @@
     <div id="modal-category-editor" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
       <div class="bg-white rounded-2xl max-w-lg w-full mx-4 overflow-hidden shadow-2xl">
         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-          <h3 id="category-editor-title" class="font-bold text-gray-800">新增分类</h3>
+          <h3 id="category-editor-title" class="font-bold text-gray-800" data-i18n="categoryEditorTitleNew">新增分类</h3>
           <button onclick="closeCategoryEditor()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
             <i class="fa-solid fa-xmark"></i>
           </button>
@@ -231,46 +231,46 @@
         <form id="category-editor-form" class="p-5 space-y-3 max-h-[75vh] overflow-y-auto">
           <input type="hidden" id="cat-edit-id">
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">分类标识（slug，仅英文小写字母/数字/下划线，创建后不可修改，比如 jewelry）</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catSlugLabel">分类标识（slug，仅英文小写字母/数字/下划线，创建后不可修改，比如 jewelry）</label>
             <input type="text" id="cat-slug" pattern="[a-z0-9_]+" required placeholder="jewelry" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">中文名称</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catNameZhLabel">中文名称</label>
               <input type="text" id="cat-name-zh" required placeholder="精致首饰" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">英文名称</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catNameEnLabel">英文名称</label>
               <input type="text" id="cat-name-en" required placeholder="Fine Jewelry" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">中文副标题</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catSubtitleZhLabel">中文副标题</label>
               <input type="text" id="cat-subtitle-zh" placeholder="东方美学 · 手工镶嵌" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">英文副标题</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catSubtitleEnLabel">英文副标题</label>
               <input type="text" id="cat-subtitle-en" placeholder="Oriental elegance, handset" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">编码前缀</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catPrefixLabel">编码前缀</label>
               <input type="text" id="cat-code-prefix" pattern="[a-z0-9]+" required placeholder="jwl" maxlength="8" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">卡片比例</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catAspectLabel">卡片比例</label>
               <select id="cat-aspect" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
-                <option value="aspect-square">正方形（首饰/亚克力类）</option>
-                <option value="aspect-[4/3]">横向 4:3（家具类大件）</option>
+                <option value="aspect-square" data-i18n="catAspectSquareOpt">正方形（首饰/亚克力类）</option>
+                <option value="aspect-[4/3]" data-i18n="catAspectWideOpt">横向 4:3（家具类大件）</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">配色风格</label>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catAccentLabel">配色风格</label>
               <select id="cat-accent" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
-                <option value="stone">黑白灰（现代感）</option>
-                <option value="amber">琥珀棕（复古感）</option>
+                <option value="stone" data-i18n="catAccentStoneOpt">黑白灰（现代感）</option>
+                <option value="amber" data-i18n="catAccentAmberOpt">琥珀棕（复古感）</option>
               </select>
             </div>
           </div>
@@ -280,7 +280,7 @@
                跟亚克力/家具现在的模式一样。如果以后有新的分类也需要"规格+库存矩阵"这类
                复杂配置，需要单独再评估实现方式。 -->
           <p id="category-editor-error" class="text-xs text-red-600 hidden"></p>
-          <button type="submit" class="w-full bg-amber-800 text-white py-2.5 rounded-lg hover:bg-amber-900 font-medium transition text-sm">
+          <button type="submit" class="w-full bg-amber-800 text-white py-2.5 rounded-lg hover:bg-amber-900 font-medium transition text-sm" data-i18n="catSaveBtn">
             保存分类
           </button>
         </form>
@@ -291,18 +291,18 @@
     <div id="modal-subtype-editor" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
       <div class="bg-white rounded-2xl max-w-md w-full mx-4 overflow-hidden shadow-2xl">
         <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-          <h3 class="font-bold text-gray-800">子类型标签 — <span id="subtype-editor-category-name"></span></h3>
+          <h3 class="font-bold text-gray-800"><span data-i18n="subtypeEditorTitlePrefix">子类型标签 — </span><span id="subtype-editor-category-name"></span></h3>
           <button onclick="closeSubtypeEditor()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
         <div class="p-5 space-y-3">
-          <p class="text-xs text-gray-500">这些标签会作为前台该分类栏目里的筛选按钮（比如"全部/头饰/耳环/项链..."）。添加商品时可以选一个子类型，不选也可以。</p>
+          <p class="text-xs text-gray-500" data-i18n="subtypeEditorHint">这些标签会作为前台该分类栏目里的筛选按钮（比如"全部/头饰/耳环/项链..."）。添加商品时可以选一个子类型，不选也可以。</p>
           <div id="subtype-list" class="space-y-2 max-h-64 overflow-y-auto"></div>
           <form id="subtype-add-form" class="flex gap-2 pt-2 border-t border-gray-100">
-            <input type="text" id="subtype-name-zh" placeholder="中文，如 耳环" required class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
-            <input type="text" id="subtype-name-en" placeholder="英文，如 Earrings" required class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
-            <button type="submit" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shrink-0">添加</button>
+            <input type="text" id="subtype-name-zh" placeholder="中文，如 耳环" data-i18n-placeholder="subtypeNameZhPlaceholder" required class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+            <input type="text" id="subtype-name-en" placeholder="英文，如 Earrings" data-i18n-placeholder="subtypeNameEnPlaceholder" required class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+            <button type="submit" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shrink-0" data-i18n="subtypeAddBtn">添加</button>
           </form>
         </div>
       </div>

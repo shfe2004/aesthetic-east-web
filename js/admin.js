@@ -221,7 +221,64 @@ const ADMIN_I18N = {
     loadFailedPrefix: "Failed to load: ",
     heroUploadFailed: "Hero background upload failed: ",
     siteConfigSaveSuccess: "✨ Site content & background saved to the cloud — refresh the storefront and it's live for every visitor!",
-    saveFailed: "Save failed: "
+    saveFailed: "Save failed: ",
+    tryonCalibratorTitle: "🖐️ Virtual Try-On · Hand Model Nail Position Calibration",
+    tryonCalibratorDesc: "If the try-on overlay doesn't line up with the nail length/width/angle on the hand photo, drag to adjust it here — this one shared position applies to every product site-wide, so changing it once updates everywhere.",
+    openCalibratorBtn: "Open Calibration Tool",
+    categoryMgmtTitle: "🗂️ Category Management",
+    addCategoryBtn: "+ Add Category",
+    categoryMgmtDesc: "Each storefront section (Nails / Merch / Furniture...) corresponds to one row here. Use the order arrows to reorder sections; \"Hide\" doesn't delete the data, it just takes it off the storefront for now. Before deleting a category, move or delete its products first.",
+    thCatOrder: "Order",
+    thCatName: "Category Name",
+    thCatPrefix: "ID Prefix",
+    thCatType: "Product Type",
+    thCatAccent: "Color Style",
+    thCatSubtypes: "Subtype Tags",
+    thCatStatus: "Status",
+    thCatAction: "Actions",
+    loadingCategories: "Loading categories...",
+    noCategoriesYet: "No categories yet — click \"+ Add Category\" above to create one",
+    catTypeVariants: "Shape+Size Variants (Nails only)",
+    catTypeFixed: "Fixed-Quantity Stock",
+    accentAmber: "Amber",
+    accentStone: "Stone",
+    manageTagsPrefix: "Manage ({n})",
+    addTagsBtn: "+ Add Tags",
+    catActiveLabel: "Live on Storefront",
+    catHiddenLabel: "Hidden",
+    catEditBtn: "Edit",
+    categoryEditorTitleNew: "Add Category",
+    categoryEditorTitleEditPrefix: "Edit Category — ",
+    catSlugLabel: "Category ID (slug — lowercase letters/numbers/underscore only, can't be changed after creation, e.g. jewelry)",
+    catNameZhLabel: "Chinese Name",
+    catNameEnLabel: "English Name",
+    catSubtitleZhLabel: "Chinese Subtitle",
+    catSubtitleEnLabel: "English Subtitle",
+    catPrefixLabel: "ID Prefix",
+    catAspectLabel: "Card Aspect Ratio",
+    catAspectSquareOpt: "Square (jewelry / acrylic style)",
+    catAspectWideOpt: "Wide 4:3 (large furniture items)",
+    catAccentLabel: "Color Style",
+    catAccentStoneOpt: "Stone (modern)",
+    catAccentAmberOpt: "Amber (vintage)",
+    catSaveBtn: "Save Category",
+    catSlugInvalidError: "Category ID can only use lowercase letters, numbers, and underscores",
+    catDuplicateSlugError: "This category ID is already taken, try another one",
+    catSaveFailedPrefix: "Save failed: ",
+    subtypeEditorTitlePrefix: "Subtype Tags — ",
+    subtypeEditorHint: "These tags become the filter buttons on this category's storefront section (e.g. \"All/Headwear/Earrings/Necklace...\"). You can optionally pick one subtype when adding a product.",
+    subtypeNoneYet: "No subtype tags yet — add the first one below",
+    subtypeNameZhPlaceholder: "Chinese, e.g. 耳环",
+    subtypeNameEnPlaceholder: "English, e.g. Earrings",
+    subtypeAddBtn: "Add",
+    subtypeNotSetOption: "Not set",
+    subtypeDeleteConfirm: "Delete this subtype tag? Products already using it won't be deleted — they'll just lose the tag, and you'll need to pick a new one manually.",
+    subtypeDuplicateError: "This English name already exists under this category, try another one",
+    subtypeAddFailedPrefix: "Add failed: ",
+    subtypeDeleteFailedPrefix: "Delete failed: ",
+    deleteCategoryConfirmTemplate: 'Delete category "{name}"? If it still has products, the database will reject the deletion — move or delete those products first.',
+    deleteCategoryFkError: 'Can\'t delete: this category still has products. Go to "Live Product List" to move or delete them first, then come back to delete this category.',
+    deleteCategoryFailedPrefix: "Delete failed: "
   },
   zh: {
     adminLockTitle: "管理后台登录",
@@ -437,7 +494,64 @@ const ADMIN_I18N = {
     loadFailedPrefix: "加载失败：",
     heroUploadFailed: "Hero 背景图上传失败: ",
     siteConfigSaveSuccess: "✨ 站点文案与背景配置已保存到云端，刷新前台即可对所有访客生效！",
-    saveFailed: "保存失败: "
+    saveFailed: "保存失败: ",
+    tryonCalibratorTitle: "🖐️ 虚拟试戴 · 手模型指甲位置标定",
+    tryonCalibratorDesc: "如果试戴贴图跟手模型照片里实际的指甲长短/宽窄/方向对不上，在这里直接拖动调整——全站所有商品共用这一份位置，改一次全部生效。",
+    openCalibratorBtn: "打开标定工具",
+    categoryMgmtTitle: "🗂️ 分类管理",
+    addCategoryBtn: "+ 新增分类",
+    categoryMgmtDesc: "前台每个大栏目（穿戴甲/亚克力/家具...）对应这里的一条分类。拖动排序框可以调整栏目先后顺序；\"隐藏\"不会删除数据，只是暂时不在前台显示。删除分类前，需要先把该分类下的商品转移或删除。",
+    thCatOrder: "排序",
+    thCatName: "分类名称",
+    thCatPrefix: "编码前缀",
+    thCatType: "商品类型",
+    thCatAccent: "配色风格",
+    thCatSubtypes: "子类型标签",
+    thCatStatus: "状态",
+    thCatAction: "操作",
+    loadingCategories: "正在加载分类列表...",
+    noCategoriesYet: "还没有任何分类，点右上角\"新增分类\"添加一个",
+    catTypeVariants: "规格变体（穿戴甲专属）",
+    catTypeFixed: "固定数量库存",
+    accentAmber: "琥珀棕",
+    accentStone: "黑白灰",
+    manageTagsPrefix: "管理（{n}个）",
+    addTagsBtn: "+ 添加标签",
+    catActiveLabel: "前台显示中",
+    catHiddenLabel: "已隐藏",
+    catEditBtn: "编辑",
+    categoryEditorTitleNew: "新增分类",
+    categoryEditorTitleEditPrefix: "编辑分类 — ",
+    catSlugLabel: "分类标识（slug，仅英文小写字母/数字/下划线，创建后不可修改，比如 jewelry）",
+    catNameZhLabel: "中文名称",
+    catNameEnLabel: "英文名称",
+    catSubtitleZhLabel: "中文副标题",
+    catSubtitleEnLabel: "英文副标题",
+    catPrefixLabel: "编码前缀",
+    catAspectLabel: "卡片比例",
+    catAspectSquareOpt: "正方形（首饰/亚克力类）",
+    catAspectWideOpt: "横向 4:3（家具类大件）",
+    catAccentLabel: "配色风格",
+    catAccentStoneOpt: "黑白灰（现代感）",
+    catAccentAmberOpt: "琥珀棕（复古感）",
+    catSaveBtn: "保存分类",
+    catSlugInvalidError: "分类标识只能用英文小写字母、数字、下划线",
+    catDuplicateSlugError: "这个分类标识已经被用过了，换一个试试",
+    catSaveFailedPrefix: "保存失败：",
+    subtypeEditorTitlePrefix: "子类型标签 — ",
+    subtypeEditorHint: "这些标签会作为前台该分类栏目里的筛选按钮（比如\"全部/头饰/耳环/项链...\"）。添加商品时可以选一个子类型，不选也可以。",
+    subtypeNoneYet: "还没有子类型标签，在下面添加第一个",
+    subtypeNameZhPlaceholder: "中文，如 耳环",
+    subtypeNameEnPlaceholder: "英文，如 Earrings",
+    subtypeAddBtn: "添加",
+    subtypeNotSetOption: "不设置",
+    subtypeDeleteConfirm: "确定删除这个子类型标签吗？用过这个标签的商品不会被删除，只是会失去这个标签，需要手动重新选一个。",
+    subtypeDuplicateError: "这个英文名称在当前分类下已经存在了，换一个试试",
+    subtypeAddFailedPrefix: "添加失败：",
+    subtypeDeleteFailedPrefix: "删除失败：",
+    deleteCategoryConfirmTemplate: '确定要删除分类"{name}"吗？如果这个分类下还有商品，删除会被数据库拒绝（需要先把商品转移到别的分类或删除）。',
+    deleteCategoryFkError: '无法删除：这个分类下还有商品。请先到"在线商品管理列表"把相关商品转移到其它分类或删除，再来删除这个分类。',
+    deleteCategoryFailedPrefix: "删除失败："
   }
 };
 
@@ -475,6 +589,15 @@ function toggleAdminLanguage() {
     loadAdminOrders();
     loadAdminActivityLog();
     loadSiteVisitStats(currentVisitRange);
+    renderCategoryList(); // 分类管理表格是用 t() 现场拼的字符串，不是靠 data-i18n，要手动重渲染一次
+    populateCategoryDropdown();
+    if (currentSubtypeEditingCategory) {
+      document.getElementById("subtype-editor-category-name").innerText = (() => {
+        const cat = adminCategories.find(c => c.id === currentSubtypeEditingCategory);
+        return cat ? (currentAdminLang === 'zh' ? cat.name_zh : cat.name_en) : '';
+      })();
+      renderSubtypeList();
+    }
   }
   // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
   // 下次点开时会用当前语言重新生成，不会停留在切换前的语言上。
@@ -1021,38 +1144,39 @@ function renderCategoryList() {
   const tbody = document.getElementById("admin-category-list");
   if (!tbody) return;
   if (adminCategories.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">还没有任何分类，点右上角"新增分类"添加一个</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">${t('noCategoriesYet')}</td></tr>`;
     return;
   }
   tbody.innerHTML = adminCategories.map((cat, idx) => {
     const subtypeCount = (adminSubtypesByCategory[cat.id] || []).length;
+    const catName = currentAdminLang === 'zh' ? cat.name_zh : cat.name_en;
     return `
       <tr class="border-b">
-        <td class="p-3" data-label="排序">
+        <td class="p-3" data-label="${t('thCatOrder')}">
           <div class="flex items-center gap-1">
             <button onclick="moveCategoryOrder('${cat.id}', -1)" ${idx === 0 ? 'disabled' : ''} class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed text-xs">▲</button>
             <button onclick="moveCategoryOrder('${cat.id}', 1)" ${idx === adminCategories.length - 1 ? 'disabled' : ''} class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed text-xs">▼</button>
           </div>
         </td>
-        <td class="p-3" data-label="分类名称">
+        <td class="p-3" data-label="${t('thCatName')}">
           <div class="font-medium text-gray-800">${cat.name_zh}</div>
           <div class="text-xs text-gray-400">${cat.name_en} · ${cat.id}</div>
         </td>
-        <td class="p-3" data-label="编码前缀"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${cat.code_prefix}</code></td>
-        <td class="p-3" data-label="商品类型">${cat.has_variants ? '<span class="text-xs px-2 py-0.5 rounded bg-pink-100 text-pink-800">规格变体（穿戴甲专属）</span>' : '<span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">固定数量库存</span>'}</td>
-        <td class="p-3" data-label="配色风格">${cat.accent === 'amber' ? '<span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800">琥珀棕</span>' : '<span class="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">黑白灰</span>'}</td>
-        <td class="p-3" data-label="子类型标签">
-          <button onclick="openSubtypeEditor('${cat.id}')" class="text-xs text-amber-800 hover:text-amber-900 underline">${subtypeCount > 0 ? `管理（${subtypeCount}个）` : '+ 添加标签'}</button>
+        <td class="p-3" data-label="${t('thCatPrefix')}"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${cat.code_prefix}</code></td>
+        <td class="p-3" data-label="${t('thCatType')}">${cat.has_variants ? `<span class="text-xs px-2 py-0.5 rounded bg-pink-100 text-pink-800">${t('catTypeVariants')}</span>` : `<span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">${t('catTypeFixed')}</span>`}</td>
+        <td class="p-3" data-label="${t('thCatAccent')}">${cat.accent === 'amber' ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800">${t('accentAmber')}</span>` : `<span class="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">${t('accentStone')}</span>`}</td>
+        <td class="p-3" data-label="${t('thCatSubtypes')}">
+          <button onclick="openSubtypeEditor('${cat.id}')" class="text-xs text-amber-800 hover:text-amber-900 underline">${subtypeCount > 0 ? t('manageTagsPrefix').replace('{n}', subtypeCount) : t('addTagsBtn')}</button>
         </td>
-        <td class="p-3" data-label="状态">
+        <td class="p-3" data-label="${t('thCatStatus')}">
           <button onclick="toggleCategoryActive('${cat.id}', ${!cat.is_active})" class="text-xs px-2 py-0.5 rounded-full font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}">
-            ${cat.is_active ? '前台显示中' : '已隐藏'}
+            ${cat.is_active ? t('catActiveLabel') : t('catHiddenLabel')}
           </button>
         </td>
-        <td class="p-3" data-label="操作">
+        <td class="p-3" data-label="${t('thCatAction')}">
           <div class="flex gap-2">
-            <button onclick="openCategoryEditor('${cat.id}')" class="text-xs text-blue-700 hover:text-blue-900 font-medium">编辑</button>
-            <button onclick="deleteCategory('${cat.id}')" class="text-xs text-red-600 hover:text-red-800 font-medium">删除</button>
+            <button onclick="openCategoryEditor('${cat.id}')" class="text-xs text-blue-700 hover:text-blue-900 font-medium">${t('catEditBtn')}</button>
+            <button onclick="deleteCategory('${cat.id}')" class="text-xs text-red-600 hover:text-red-800 font-medium">${t('deleteBtn')}</button>
           </div>
         </td>
       </tr>
@@ -1096,11 +1220,11 @@ async function loadSubtypesForCategory(categoryId) {
   }
   if (subtypes.length === 0) {
     if (wrap) wrap.classList.add("hidden");
-    select.innerHTML = '<option value="">不设置</option>';
+    select.innerHTML = `<option value="">${t('subtypeNotSetOption')}</option>`;
     return;
   }
   if (wrap) wrap.classList.remove("hidden");
-  select.innerHTML = '<option value="">不设置</option>' + subtypes.map(s => `<option value="${s.id}">${s.name_zh} (${s.name_en})</option>`).join('');
+  select.innerHTML = `<option value="">${t('subtypeNotSetOption')}</option>` + subtypes.map(s => `<option value="${s.id}">${s.name_zh} (${s.name_en})</option>`).join('');
 }
 
 function openCategoryEditor(categoryId) {
@@ -1115,7 +1239,7 @@ function openCategoryEditor(categoryId) {
   if (categoryId) {
     const cat = adminCategories.find(c => c.id === categoryId);
     if (!cat) return;
-    title.innerText = `编辑分类 — ${cat.name_zh}`;
+    title.innerText = t('categoryEditorTitleEditPrefix') + (currentAdminLang === 'zh' ? cat.name_zh : cat.name_en);
     document.getElementById("cat-edit-id").value = cat.id;
     slugInput.value = cat.id;
     slugInput.disabled = true; // 分类标识创建后不允许再改，避免已有商品的 category_id 跟分类对不上
@@ -1127,7 +1251,7 @@ function openCategoryEditor(categoryId) {
     document.getElementById("cat-aspect").value = cat.card_aspect_ratio;
     document.getElementById("cat-accent").value = cat.accent;
   } else {
-    title.innerText = "新增分类";
+    title.innerText = t('categoryEditorTitleNew');
     document.getElementById("cat-edit-id").value = "";
     slugInput.disabled = false;
   }
@@ -1157,7 +1281,7 @@ async function handleCategoryEditorSubmit(e) {
   };
 
   if (!/^[a-z0-9_]+$/.test(slug)) {
-    errorEl.innerText = "分类标识只能用英文小写字母、数字、下划线";
+    errorEl.innerText = t('catSlugInvalidError');
     errorEl.classList.remove("hidden");
     return;
   }
@@ -1184,8 +1308,8 @@ async function handleCategoryEditorSubmit(e) {
     console.error("保存分类失败:", err);
     // 最常见的失败原因是 slug 已经被用过（主键冲突）
     const msg = (err.message && err.message.indexOf('duplicate key') !== -1)
-      ? '这个分类标识已经被用过了，换一个试试'
-      : ('保存失败：' + (err.message || '未知错误'));
+      ? t('catDuplicateSlugError')
+      : (t('catSaveFailedPrefix') + (err.message || 'Unknown error'));
     errorEl.innerText = msg;
     errorEl.classList.remove("hidden");
   }
@@ -1194,7 +1318,7 @@ async function handleCategoryEditorSubmit(e) {
 async function toggleCategoryActive(categoryId, nextActive) {
   const { error } = await supabaseClient.from("categories").update({ is_active: nextActive }).eq("id", categoryId);
   if (error) {
-    alert("操作失败：" + error.message);
+    alert(t('operationFailed') + error.message);
     return;
   }
   logAdminActivity('category_toggle_active', `id: ${categoryId}, active: ${nextActive}`);
@@ -1218,13 +1342,14 @@ async function moveCategoryOrder(categoryId, direction) {
 async function deleteCategory(categoryId) {
   const cat = adminCategories.find(c => c.id === categoryId);
   if (!cat) return;
-  if (!confirm(`确定要删除分类"${cat.name_zh}"吗？如果这个分类下还有商品，删除会被数据库拒绝（需要先把商品转移到别的分类或删除）。`)) return;
+  const catName = currentAdminLang === 'zh' ? cat.name_zh : cat.name_en;
+  if (!confirm(t('deleteCategoryConfirmTemplate').replace('{name}', catName))) return;
   const { error } = await supabaseClient.from("categories").delete().eq("id", categoryId);
   if (error) {
     // 外键约束冲突（这个分类底下还有商品）会报这个错，给一个人话版本的提示
     const msg = (error.message && (error.message.indexOf('foreign key') !== -1 || error.message.indexOf('violates') !== -1))
-      ? `无法删除：这个分类下还有商品。请先到"在线商品管理列表"把相关商品转移到其它分类或删除，再来删除这个分类。`
-      : ('删除失败：' + error.message);
+      ? t('deleteCategoryFkError')
+      : (t('deleteCategoryFailedPrefix') + error.message);
     alert(msg);
     return;
   }
@@ -1240,7 +1365,7 @@ async function openSubtypeEditor(categoryId) {
   const cat = adminCategories.find(c => c.id === categoryId);
   if (!cat) return;
   currentSubtypeEditingCategory = categoryId;
-  document.getElementById("subtype-editor-category-name").innerText = cat.name_zh;
+  document.getElementById("subtype-editor-category-name").innerText = currentAdminLang === 'zh' ? cat.name_zh : cat.name_en;
   document.getElementById("subtype-add-form").reset();
   await loadSubtypesForCategory(categoryId); // 确保缓存是最新的
   renderSubtypeList();
@@ -1257,13 +1382,13 @@ function renderSubtypeList() {
   if (!container || !currentSubtypeEditingCategory) return;
   const subtypes = adminSubtypesByCategory[currentSubtypeEditingCategory] || [];
   if (subtypes.length === 0) {
-    container.innerHTML = `<p class="text-xs text-gray-400 py-2">还没有子类型标签，在下面添加第一个</p>`;
+    container.innerHTML = `<p class="text-xs text-gray-400 py-2">${t('subtypeNoneYet')}</p>`;
     return;
   }
   container.innerHTML = subtypes.map(s => `
     <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
       <span class="text-sm text-gray-700">${s.name_zh} <span class="text-xs text-gray-400">(${s.name_en})</span></span>
-      <button onclick="deleteSubtype(${s.id})" class="text-xs text-red-600 hover:text-red-800">删除</button>
+      <button onclick="deleteSubtype(${s.id})" class="text-xs text-red-600 hover:text-red-800">${t('deleteBtn')}</button>
     </div>
   `).join('');
 }
@@ -1286,8 +1411,8 @@ async function handleAddSubtype(e) {
   }]);
   if (error) {
     alert(error.message && error.message.indexOf('duplicate key') !== -1
-      ? '这个英文名称在当前分类下已经存在了，换一个试试'
-      : ('添加失败：' + error.message));
+      ? t('subtypeDuplicateError')
+      : (t('subtypeAddFailedPrefix') + error.message));
     return;
   }
   logAdminActivity('subtype_create', `category: ${currentSubtypeEditingCategory}, name: ${nameEn}`);
@@ -1299,10 +1424,10 @@ async function handleAddSubtype(e) {
 }
 
 async function deleteSubtype(subtypeId) {
-  if (!confirm('确定删除这个子类型标签吗？用过这个标签的商品不会被删除，只是会失去这个标签，需要手动重新选一个。')) return;
+  if (!confirm(t('subtypeDeleteConfirm'))) return;
   const { error } = await supabaseClient.from("product_subtypes").delete().eq("id", subtypeId);
   if (error) {
-    alert("删除失败：" + error.message);
+    alert(t('subtypeDeleteFailedPrefix') + error.message);
     return;
   }
   logAdminActivity('subtype_delete', `id: ${subtypeId}`);
