@@ -10,6 +10,54 @@
   <!-- 补充：后台弹窗里一直在用 fa-solid 图标（关闭按钮、修改按钮等），但之前没引入 Font Awesome，
        图标其实一直没显示出来，顺手在这里补上。 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- 手机端表格 → 卡片布局：商品/订单/日志这几个表格列数多，手机屏幕放不下，横向滚动体验很差。
+       下面这段自定义 CSS（不是 Tailwind 编译出来的，所以不受 Tailwind 内容扫描限制，可以用
+       attr() 动态取每个单元格的列名）在屏幕宽度小于 768px（跟站内其它 md: 断点保持一致）时，
+       把 <table class="admin-responsive-table"> 里的每一行变成一张卡片，每个单元格前面
+       自动带上它的列名（来自 JS 渲染时加上的 data-label 属性），不用再横向滚动表格。
+       桌面端（≥768px）完全不受影响，还是正常的表格样式。 -->
+  <style>
+    @media (max-width: 767px) {
+      .admin-responsive-table thead { display: none; }
+      .admin-responsive-table, .admin-responsive-table tbody, .admin-responsive-table tr, .admin-responsive-table td {
+        display: block;
+        width: 100%;
+      }
+      .admin-responsive-table tr {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        margin-bottom: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        background: #fff;
+      }
+      .admin-responsive-table tr:last-child { margin-bottom: 0; }
+      .admin-responsive-table td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+        border-top: 1px solid #f3f4f6;
+        text-align: right;
+      }
+      .admin-responsive-table td:first-child { border-top: none; }
+      .admin-responsive-table td[data-label]::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6b7280;
+        text-align: left;
+        flex-shrink: 0;
+        padding-top: 0.1rem;
+      }
+      /* 主图这一列不需要文字列名，图片居中显示即可 */
+      .admin-responsive-table td.cell-image {
+        justify-content: center;
+        border-top: none;
+        padding-bottom: 0.25rem;
+      }
+      .admin-responsive-table td.cell-image::before { content: none; }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen p-4 md:p-8">
 
@@ -31,20 +79,20 @@
 
   <div class="max-w-5xl mx-auto space-y-8">
 
-    <!-- 顶部导航 -->
-    <div class="bg-white rounded-xl shadow-md p-6 flex justify-between items-center flex-wrap gap-3">
+    <!-- 顶部导航：手机端改成上下堆叠，按钮占满整行方便手指点击；桌面端（sm 以上）还是原来横排布局 -->
+    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900" data-i18n="adminPanelTitle">Aesthetic East 管理后台</h1>
+        <h1 class="text-xl sm:text-2xl font-bold text-gray-900" data-i18n="adminPanelTitle">Aesthetic East 管理后台</h1>
         <p class="text-xs text-gray-500 mt-1" data-i18n="adminPanelSubtitle">自动生成编码 · 站点文案动态配置 · 云端同步</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
         <!-- 语言切换按钮，与前台共用同一个 localStorage 键，切换一次两边同步 -->
-        <button onclick="toggleAdminLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
+        <button onclick="toggleAdminLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-2 sm:py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
           <i class="fa-solid fa-globe"></i>
           <span id="admin-lang-btn-text">EN</span>
         </button>
-        <a href="index.html" target="_blank" class="text-amber-800 hover:text-amber-900 text-sm font-medium" data-i18n="previewFrontendLink">预览前台 ↗</a>
-        <button id="admin-signout-btn" class="text-xs font-bold text-red-600 hover:text-red-800 border border-red-200 rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
+        <a href="index.html" target="_blank" class="text-amber-800 hover:text-amber-900 text-sm font-medium px-1 py-2 sm:py-0" data-i18n="previewFrontendLink">预览前台 ↗</a>
+        <button id="admin-signout-btn" class="text-xs font-bold text-red-600 hover:text-red-800 border border-red-200 rounded-full px-3 py-2 sm:py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
           <i class="fa-solid fa-right-from-bracket"></i>
           <span data-i18n="signOutBtn">退出登录</span>
         </button>
@@ -108,6 +156,25 @@
           保存站点配置
         </button>
       </form>
+    </div>
+
+    <!-- 1.2 网站访问统计：访问量 + 来源渠道（IG/FB/TikTok/搜索/直接访问/其它网站引荐）+ 访客大致地理位置。
+         数据来自 site_visits 表（建表见 sql/create_site_visits_table.sql），前台每次打开首页会自动上报一条，
+         不需要手动操作；地理位置由 Vercel 自动附带的请求头提供，部署在 Vercel 以外的环境可能拿不到。 -->
+    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h2 class="text-lg font-bold text-gray-800" data-i18n="visitStatsSectionTitle">📊 网站访问统计</h2>
+        <div id="visit-range-btn-group" class="flex items-center gap-2 flex-wrap">
+          <button onclick="loadSiteVisitStats('today')" data-range="today" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeToday">今日</button>
+          <button onclick="loadSiteVisitStats('week')" data-range="week" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeWeek">本周</button>
+          <button onclick="loadSiteVisitStats('month')" data-range="month" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeMonth">本月</button>
+          <button onclick="loadSiteVisitStats('year')" data-range="year" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeYear">本年</button>
+          <button onclick="loadSiteVisitStats('all')" data-range="all" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeAll">全部</button>
+        </div>
+      </div>
+      <div id="visit-stats-body">
+        <p class="text-xs text-gray-400" data-i18n="loadingVisitStats">正在加载访问统计...</p>
+      </div>
     </div>
 
     <!-- 1.5 虚拟试戴 · 手模型指甲位置标定（全站共用的一份坐标，不是针对单个商品） -->
@@ -279,15 +346,15 @@
     <!-- 3. 在线商品管理列表：商品一多列表会变得很长，这里改成固定高度 + 内部滚动，
          表头吸顶方便对照列名；另外加了一个按 ID/名称筛选的搜索框，商品多的时候能更快定位到要改的那一件。 -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-3">
         <h2 class="text-lg font-semibold text-gray-800" data-i18n="productListTitle">在线商品管理列表</h2>
         <div class="flex items-center gap-3">
-          <span id="admin-product-count" class="text-xs text-gray-400"></span>
-          <input type="text" id="admin-product-search" data-i18n-placeholder="productSearchPlaceholder" placeholder="按 ID 或名称搜索..." class="border rounded-lg px-3 py-1.5 text-xs w-48 focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          <span id="admin-product-count" class="text-xs text-gray-400 shrink-0"></span>
+          <input type="text" id="admin-product-search" data-i18n-placeholder="productSearchPlaceholder" placeholder="按 ID 或名称搜索..." class="border rounded-lg px-3 py-2 sm:py-1.5 text-xs w-full sm:w-48 focus:ring-2 focus:ring-amber-800 focus:outline-none">
         </div>
       </div>
       <div class="overflow-auto border rounded-lg max-h-[480px]">
-        <table class="w-full text-left border-collapse text-sm">
+        <table class="w-full text-left border-collapse text-sm admin-responsive-table">
           <thead class="sticky top-0 z-10">
             <tr class="bg-gray-100 border-b text-gray-600">
               <th class="p-3" data-i18n="thImage">主图</th>
@@ -311,12 +378,12 @@
 
     <!-- 4. 订单管理（当前为模拟结算，尚未接入真实支付） -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-lg font-semibold text-gray-800"><span data-i18n="orderMgmtTitle">📋 订单管理</span> <span class="text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 ml-1" data-i18n="simulatedBadge">模拟结算，非真实收款</span></h2>
         <button onclick="loadAdminOrders()" class="text-xs text-amber-800 hover:text-amber-900 font-medium" data-i18n="refreshBtn">刷新</button>
       </div>
       <div class="overflow-x-auto border rounded-lg">
-        <table class="w-full text-left border-collapse text-sm">
+        <table class="w-full text-left border-collapse text-sm admin-responsive-table">
           <thead>
             <tr class="bg-gray-100 border-b text-gray-600">
               <th class="p-3" data-i18n="thOrderId">订单号</th>
@@ -343,7 +410,7 @@
          默认只显示最新一条摘要，避免日志越积越多把整个页面撑得很长；点"展开完整日志"
          才会打开下面固定高度、可滚动的完整列表。 -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-lg font-semibold text-gray-800" data-i18n="activityLogTitle">📝 操作日志</h2>
         <div class="flex items-center gap-3">
           <button onclick="exportActivityLogCSV()" class="text-xs text-blue-700 hover:text-blue-900 font-medium" data-i18n="exportCsvBtn">导出为 CSV</button>
@@ -364,7 +431,7 @@
           <button onclick="toggleActivityLogView()" class="text-xs text-amber-800 hover:text-amber-900 font-medium" data-i18n="collapseLogBtn">收起 ▴</button>
         </div>
         <div class="overflow-auto border rounded-lg max-h-80">
-          <table class="w-full text-left border-collapse text-sm">
+          <table class="w-full text-left border-collapse text-sm admin-responsive-table">
             <thead class="sticky top-0 z-10">
               <tr class="bg-gray-100 border-b text-gray-600">
                 <th class="p-3" data-i18n="thLogTime">时间</th>

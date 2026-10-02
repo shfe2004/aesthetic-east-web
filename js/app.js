@@ -83,13 +83,14 @@ const i18n = {
     continueShoppingBtn: "Continue Shopping",
     footerSub: "Mobile-First Dynamic E-Commerce Storefront",
     sizeGuide: "Size Guide",
-    calcShippingBtn: "Calculate Shipping",
+    calcShippingBtn: "Recalculate Shipping",
     calculatingShippingBtn: "Calculating...",
     shippingLabel: "Shipping:",
     chooseShippingPrompt: "Select a shipping option:",
+    shippingAutoHint: "Shipping cost will appear automatically once your address is complete.",
     manualShippingNote: "This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.",
     shippingCalcError: "Could not get shipping rates. Please check your address and try again.",
-    shippingNotCalculatedYet: "Please calculate shipping before completing payment.",
+    shippingNotCalculatedYet: "Please finish entering your address so we can calculate shipping before completing payment.",
     fillAddressFirst: "Please fill in your address, city, state and zip first.",
     soldOutBtn: "Sold Out",
     variantSoldOutAlert: "Sorry, this option is currently sold out or you have reached the available stock.",
@@ -139,13 +140,14 @@ const i18n = {
     continueShoppingBtn: "继续购物",
     footerSub: "移动优先的高性能动态电商前台",
     sizeGuide: "尺寸指南",
-    calcShippingBtn: "计算运费",
+    calcShippingBtn: "重新计算运费",
     calculatingShippingBtn: "计算中...",
     shippingLabel: "运费：",
     chooseShippingPrompt: "请选择一种快递方式：",
+    shippingAutoHint: "地址填写完整后将自动显示运费。",
     manualShippingNote: "此订单包含古董家具，运费将在下单后由客服人工核算并与您确认。",
     shippingCalcError: "获取运费失败，请检查地址信息后重试。",
-    shippingNotCalculatedYet: "请先点击「计算运费」再完成支付。",
+    shippingNotCalculatedYet: "请先填写完整地址以便计算运费，再完成支付。",
     fillAddressFirst: "请先填写详细地址、城市、州和邮编。",
     soldOutBtn: "已售罄",
     variantSoldOutAlert: "抱歉，这个选项目前缺货，或者已经达到现有库存上限。",
@@ -159,6 +161,60 @@ const i18n = {
   }
 };
 
+// ===================== 网站访问统计（来源 + 地理位置）=====================
+// 每次打开首页只记一次，交给后端 /api/track-visit 存进 Supabase 的 site_visits 表，
+// 供后台"网站访问统计"板块汇总展示。地理位置在后端通过 Vercel 自带的请求头直接拿到，
+// 这里前台只需要负责判断"这个访客是从哪个渠道点进来的"。
+//
+// 判断逻辑分两层：
+// 1. 先看浏览器 UA 里有没有 Instagram/FBAN/FBAV/TikTok 这些"App 内置浏览器"的特征字符串——
+//    顾客从 IG/FB/TikTok App 里直接点链接打开时，用的是这些 App 自带的内置浏览器，
+//    这种情况下 document.referrer 经常是空的，必须靠 UA 识别，单看 referrer 会漏判。
+// 2. UA 没命中的话，再看 document.referrer 的域名：instagram.com/facebook.com/tiktok.com 归到
+//    对应渠道；google/bing/duckduckgo 等搜索引擎归到"搜索"；referrer 为空归到"直接访问"
+//    （比如直接输入网址、或者从浏览器收藏夹/书签打开）；其余有 referrer 但域名对不上以上几种的，
+//    归到"其它网站引荐"，并记下具体域名，方便以后发现新的重要来源渠道。
+function classifyTrafficSource() {
+  const ua = navigator.userAgent || '';
+  if (/Instagram/i.test(ua)) return { source: 'instagram', referralDomain: null };
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return { source: 'facebook', referralDomain: null };
+  if (/TikTok|musical_ly/i.test(ua)) return { source: 'tiktok', referralDomain: null };
+
+  const referrer = document.referrer || '';
+  if (!referrer) return { source: 'direct', referralDomain: null };
+
+  let host = '';
+  try { host = new URL(referrer).hostname.toLowerCase(); } catch { host = ''; }
+
+  if (!host) return { source: 'direct', referralDomain: null };
+  if (host.includes('instagram.com')) return { source: 'instagram', referralDomain: null };
+  if (host.includes('facebook.com') || host.includes('fb.com')) return { source: 'facebook', referralDomain: null };
+  if (host.includes('tiktok.com')) return { source: 'tiktok', referralDomain: null };
+  if (/google\.|bing\.com|duckduckgo\.com|yahoo\./.test(host)) return { source: 'search', referralDomain: null };
+  // 同站内部跳转（比如从首页跳到自己的另一个页面）不算外部引荐，当作直接访问
+  if (host === location.hostname) return { source: 'direct', referralDomain: null };
+  return { source: 'referral', referralDomain: host };
+}
+
+function trackSiteVisit() {
+  try {
+    const { source, referralDomain } = classifyTrafficSource();
+    fetch('/api/track-visit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true, // 页面可能在请求完成前就被关闭/跳转，keepalive 让请求仍能发出去
+      body: JSON.stringify({
+        path: location.pathname,
+        referrer: document.referrer || '',
+        source,
+        referralDomain
+      })
+    }).catch(() => {}); // 统计功能失败不应该影响正常顾客浏览购物，安静忽略即可
+  } catch (err) {
+    console.error('访问统计上报失败:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSiteDynamicConfig();
   const cloudData = await fetchProductsIndependentJoin();
@@ -170,6 +226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupZoomEvents();
   setupSpin360Events();
   setupNailsVideoLazyPlay();
+  setupShippingAutoCalc();
+  trackSiteVisit();
   scrollToDeepLinkedProduct();
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -1038,6 +1096,12 @@ function openCheckoutModal() {
   document.getElementById('checkout-success').classList.add('hidden');
   closeCartDrawer();
   document.getElementById('modal-checkout').classList.remove('hidden');
+
+  // 购物车变了（运费被清空了），但地址栏如果还留着上次填的内容（没清空过表单），
+  // 不会有任何 input/change 事件触发自动询价——所以这里重置一下"上次算过的地址"记录，
+  // 并主动排一次自动计算，地址如果已经填好会立刻重新报价，没填好就什么都不做。
+  lastAutoShippingKey = '';
+  scheduleAutoCalculateShipping();
 }
 
 // 统一刷新结算弹窗里的小计/税费/运费/总计，运费没算出来之前显示 "--"
@@ -1063,9 +1127,14 @@ function updateCheckoutTotalsUI() {
   return { subtotal, tax, shippingCost, total };
 }
 
-// 点击"计算运费"：把当前地址 + 购物车换算出的包裹信息发给后端 /api/shipping-rates，
-// 由后端拿着 Shippo 密钥去实时询价，前台只拿回一份可选的快递方式列表。
-async function calculateShipping() {
+// 把当前地址 + 购物车换算出的包裹信息发给后端 /api/shipping-rates，由后端拿着 Shippo 密钥去
+// 实时询价，前台只拿回一份可选的快递方式列表。现在地址四项填完整后会自动触发（见下面
+// scheduleAutoCalculateShipping），这个函数本身不区分是自动触发的还是点按钮手动触发的；
+// isManualClick 只用于：手动点按钮时，就算地址跟上次自动算过的一样，也强制重新查一次
+// （比如怀疑运价有变化，想手动刷新一下）。
+let shippingCalcSeq = 0; // 请求序号：地址改得快的时候，只采用"最后一次"发出去的请求结果，
+                          // 避免网络慢的旧请求把新地址刚算出来的新结果覆盖掉
+async function calculateShipping(isManualClick) {
   const address = document.getElementById('cust-address').value.trim();
   const city = document.getElementById('cust-city').value.trim();
   const state = document.getElementById('cust-state').value;
@@ -1074,7 +1143,9 @@ async function calculateShipping() {
   const lastName = document.getElementById('cust-last-name').value.trim();
 
   if (!address || !city || !state || !zip) {
-    alert(i18n[currentLang] ? i18n[currentLang].fillAddressFirst : 'Please fill in your address, city, state and zip first.');
+    if (isManualClick) {
+      alert(i18n[currentLang] ? i18n[currentLang].fillAddressFirst : 'Please fill in your address, city, state and zip first.');
+    }
     return;
   }
 
@@ -1083,6 +1154,8 @@ async function calculateShipping() {
   const manualNoteEl = document.getElementById('shipping-manual-note');
   const ratesListEl = document.getElementById('shipping-rates-list');
   const calcBtn = document.getElementById('calc-shipping-btn');
+
+  const mySeq = ++shippingCalcSeq;
 
   // 购物车里只有古董家具（没有可自动算的穿戴甲/亚克力制品）：不调用询价接口，直接提示人工核算
   if (!parcel) {
@@ -1108,6 +1181,7 @@ async function calculateShipping() {
       })
     });
     const data = await resp.json();
+    if (mySeq !== shippingCalcSeq) return; // 地址在请求过程中又被改了，这次结果已经过时，丢弃
     if (!resp.ok || !data.rates || data.rates.length === 0) {
       throw new Error((data && data.error) || 'no rates');
     }
@@ -1116,10 +1190,55 @@ async function calculateShipping() {
     // 若含古董家具，同时也提示这部分需要人工核算（穿戴甲/亚克力部分已经能自动询价了）
     if (needsManualQuote && manualNoteEl) manualNoteEl.classList.remove('hidden');
   } catch (err) {
+    if (mySeq !== shippingCalcSeq) return;
     console.error('运费询价失败:', err);
-    alert(i18n[currentLang] ? i18n[currentLang].shippingCalcError : 'Could not get shipping rates. Please check your address and try again.');
+    // 自动触发失败时静默一点，不用弹窗打断正在填表的顾客——地址可能只是还没填完/打错了
+    // 还在改，等填对了自动会再触发一次；手动点按钮触发的失败才弹窗提示。
+    if (isManualClick) {
+      alert(i18n[currentLang] ? i18n[currentLang].shippingCalcError : 'Could not get shipping rates. Please check your address and try again.');
+    }
   } finally {
-    if (calcBtn) { calcBtn.disabled = false; calcBtn.innerHTML = originalBtnText; }
+    if (mySeq === shippingCalcSeq && calcBtn) { calcBtn.disabled = false; calcBtn.innerHTML = originalBtnText; }
+  }
+}
+
+// 自动询价：地址四项（街道/城市/州/邮编）都填写完整后，不用再等顾客去点"计算运费"按钮，
+// 自动帮忙查一次运费；输入过程中用防抖（停止输入约0.8秒后才触发）避免打一个字就调一次
+// 询价接口，同一个地址也只会自动触发一次（存一份"上次已经自动算过的地址"做对比）。
+let shippingAutoCalcTimer = null;
+let lastAutoShippingKey = '';
+
+function scheduleAutoCalculateShipping() {
+  if (shippingAutoCalcTimer) clearTimeout(shippingAutoCalcTimer);
+  shippingAutoCalcTimer = setTimeout(() => {
+    const address = document.getElementById('cust-address')?.value.trim();
+    const city = document.getElementById('cust-city')?.value.trim();
+    const state = document.getElementById('cust-state')?.value;
+    const zip = document.getElementById('cust-zip')?.value.trim();
+    if (!address || !city || !state || !/^\d{5}$/.test(zip || '')) return; // 地址还没填完整，先不触发
+
+    const key = `${address}|${city}|${state}|${zip}`;
+    if (key === lastAutoShippingKey) return; // 跟上次自动算过的地址一样，不用重复调用付费接口
+    lastAutoShippingKey = key;
+    calculateShipping(false);
+  }, 800);
+}
+
+// 绑定地址四个输入框的事件：文本框用 input（边打字边触发防抖），州下拉框用 change。
+// 只需要绑定一次，重复调用会被 dataset 标记挡住。
+function setupShippingAutoCalc() {
+  const addressFieldIds = ['cust-address', 'cust-city', 'cust-zip'];
+  addressFieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.autoShippingBound) {
+      el.addEventListener('input', scheduleAutoCalculateShipping);
+      el.dataset.autoShippingBound = '1';
+    }
+  });
+  const stateEl = document.getElementById('cust-state');
+  if (stateEl && !stateEl.dataset.autoShippingBound) {
+    stateEl.addEventListener('change', scheduleAutoCalculateShipping);
+    stateEl.dataset.autoShippingBound = '1';
   }
 }
 

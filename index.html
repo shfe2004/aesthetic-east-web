@@ -349,12 +349,15 @@
         </div>
         <input type="text" value="United States (US)" disabled class="border bg-stone-100 p-2.5 rounded-xl text-sm w-full text-stone-500 font-medium">
 
-        <!-- 运费计算区：地址填好后点击按钮向 Shippo 实时询价，选一个快递方式再继续付款 -->
+        <!-- 运费计算区：地址四项（街道/城市/州/邮编）填完整后自动向 Shippo 实时询价，不用再点按钮；
+             按钮保留做手动重新查询用（比如改地址后想马上刷新，不想等防抖延迟）。
+             报价列表单独限制了一个滚动高度，报价选项多的时候不会把整个结算弹窗撑得很长。 -->
         <div id="shipping-section" class="border rounded-xl p-3 bg-stone-50/50 space-y-2">
-          <button type="button" onclick="calculateShipping()" id="calc-shipping-btn" class="w-full bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold py-2.5 rounded-xl transition" data-i18n="calcShippingBtn">
-            Calculate Shipping
+          <p class="text-[11px] text-stone-400" data-i18n="shippingAutoHint">Shipping cost will appear automatically once your address is complete.</p>
+          <button type="button" onclick="calculateShipping(true)" id="calc-shipping-btn" class="w-full bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold py-2.5 rounded-xl transition" data-i18n="calcShippingBtn">
+            Recalculate Shipping
           </button>
-          <div id="shipping-rates-list" class="space-y-1.5"></div>
+          <div id="shipping-rates-list" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
           <p id="shipping-manual-note" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2" data-i18n="manualShippingNote">
             This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.
           </p>

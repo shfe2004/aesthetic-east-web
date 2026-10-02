@@ -79,6 +79,27 @@ const ADMIN_I18N = {
     thPrice: "Price",
     thAction: "Actions",
     loadingProducts: "Loading products...",
+    visitStatsSectionTitle: "📊 Site Traffic Stats",
+    rangeToday: "Today",
+    rangeWeek: "This Week",
+    rangeMonth: "This Month",
+    rangeYear: "This Year",
+    rangeAll: "All Time",
+    loadingVisitStats: "Loading traffic stats...",
+    loadVisitStatsFailed: "Failed to load traffic stats.",
+    totalVisitsLabel: "Total Page Views",
+    trafficSourceLabel: "Traffic Source",
+    topCountriesLabel: "Top Countries",
+    topCitiesLabel: "Top Cities",
+    noVisitData: "No visit data for this period yet.",
+    unknownLocation: "Unknown",
+    sourceInstagram: "Instagram",
+    sourceFacebook: "Facebook",
+    sourceTikTok: "TikTok",
+    sourceSearch: "Search Engines",
+    sourceDirect: "Direct",
+    sourceReferral: "Other Referral",
+    sourceOther: "Other",
     orderMgmtTitle: "📋 Order Management",
     simulatedBadge: "Test mode — no real payments",
     refreshBtn: "Refresh",
@@ -274,6 +295,27 @@ const ADMIN_I18N = {
     thPrice: "价格",
     thAction: "操作",
     loadingProducts: "正在加载商品列表...",
+    visitStatsSectionTitle: "📊 网站访问统计",
+    rangeToday: "今日",
+    rangeWeek: "本周",
+    rangeMonth: "本月",
+    rangeYear: "本年",
+    rangeAll: "全部",
+    loadingVisitStats: "正在加载访问统计...",
+    loadVisitStatsFailed: "访问统计加载失败。",
+    totalVisitsLabel: "总访问量",
+    trafficSourceLabel: "流量来源",
+    topCountriesLabel: "访客国家排名",
+    topCitiesLabel: "访客城市排名",
+    noVisitData: "这个时间段内还没有访问数据。",
+    unknownLocation: "未知",
+    sourceInstagram: "Instagram",
+    sourceFacebook: "Facebook",
+    sourceTikTok: "TikTok",
+    sourceSearch: "搜索引擎",
+    sourceDirect: "直接访问",
+    sourceReferral: "其它网站引荐",
+    sourceOther: "其它",
     orderMgmtTitle: "📋 订单管理",
     simulatedBadge: "模拟结算，非真实收款",
     refreshBtn: "刷新",
@@ -432,6 +474,7 @@ function toggleAdminLanguage() {
     loadAdminProducts().then(filterAdminProducts); // 重新拉取后按当前搜索框内容重新过滤一次，避免语言切换把筛选结果清空
     loadAdminOrders();
     loadAdminActivityLog();
+    loadSiteVisitStats(currentVisitRange);
   }
   // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
   // 下次点开时会用当前语言重新生成，不会停留在切换前的语言上。
@@ -524,6 +567,7 @@ function onAdminAuthenticated() {
   loadAdminOrders();
   loadSiteSettings();
   loadAdminActivityLog();
+  loadSiteVisitStats(currentVisitRange);
   generateSmartId();
 }
 
@@ -610,10 +654,10 @@ async function loadAdminActivityLog() {
       const eventLabel = labelKey ? t(labelKey) : row.event_type;
       return `
         <tr class="border-b hover:bg-gray-50">
-          <td class="p-3 text-xs text-gray-500">${timeStr}</td>
-          <td class="p-3 text-xs text-gray-700">${row.actor_email || ''}</td>
-          <td class="p-3 text-xs font-semibold text-gray-900">${eventLabel}</td>
-          <td class="p-3 text-xs text-gray-500">${row.detail || ''}</td>
+          <td class="p-3 text-xs text-gray-500" data-label="${t('thLogTime')}">${timeStr}</td>
+          <td class="p-3 text-xs text-gray-700" data-label="${t('thLogActor')}">${row.actor_email || ''}</td>
+          <td class="p-3 text-xs font-semibold text-gray-900" data-label="${t('thLogEvent')}">${eventLabel}</td>
+          <td class="p-3 text-xs text-gray-500" data-label="${t('thLogDetail')}">${row.detail || ''}</td>
         </tr>
       `;
     }).join('');
@@ -666,6 +710,196 @@ async function exportActivityLogCSV() {
     console.error('导出日志失败:', err);
     alert(t('loadLogsFailed'));
   }
+}
+
+// ===================== 网站访问统计（来源渠道 + 地理位置）=====================
+// 数据来自 site_visits 表，每一行是前台一次页面打开（见 js/app.js 的 trackSiteVisit()）。
+// 这里直接在浏览器里把这个时间范围内的原始行拉回来，在前端用 JS 汇总成"总访问量/渠道占比/
+// 地区分布"，不需要额外写数据库函数或者物化视图——对一个中小型独立站的访问量级来说，
+// 哪怕是"本月"这种范围，几千行数据客户端汇总也很快，等以后访问量大到明显变卡顿了，
+// 再考虑把汇总逻辑搬到数据库那边（比如用 Supabase 的 RPC 函数做 group by）也不迟。
+let currentVisitRange = 'week';
+
+const VISIT_SOURCE_LABEL_KEYS = {
+  instagram: 'sourceInstagram',
+  facebook: 'sourceFacebook',
+  tiktok: 'sourceTikTok',
+  search: 'sourceSearch',
+  direct: 'sourceDirect',
+  referral: 'sourceReferral',
+  other: 'sourceOther'
+};
+
+// 按"自然周期"算起始时间（今天凌晨 / 本周一凌晨 / 本月1号凌晨 / 本年1月1号凌晨），
+// 而不是"过去24/7×24/30×24小时"这种滚动窗口——更符合"今日访问量、本周、本月、年访问量"
+// 这种日常统计习惯，方便和每天/每周/每月的运营节奏对上。
+// 一周的起点按周一算（国际通用的 ISO 周习惯），不是周日。
+function rangeStartIso(range) {
+  const now = new Date();
+  if (range === 'today') {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  }
+  if (range === 'week') {
+    const dayOfWeek = now.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    const daysSinceMonday = (dayOfWeek === 0) ? 6 : dayOfWeek - 1;
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday).toISOString();
+  }
+  if (range === 'month') {
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  }
+  if (range === 'year') {
+    return new Date(now.getFullYear(), 0, 1).toISOString();
+  }
+  return null; // 'all'
+}
+
+function updateVisitRangeButtonStyles() {
+  document.querySelectorAll('.visit-range-btn').forEach(btn => {
+    const isActive = btn.dataset.range === currentVisitRange;
+    btn.classList.toggle('bg-stone-900', isActive);
+    btn.classList.toggle('text-white', isActive);
+    btn.classList.toggle('border-stone-900', isActive);
+    btn.classList.toggle('bg-white', !isActive);
+    btn.classList.toggle('text-stone-600', !isActive);
+    btn.classList.toggle('border-stone-300', !isActive);
+  });
+}
+
+async function loadSiteVisitStats(range) {
+  currentVisitRange = range || currentVisitRange;
+  updateVisitRangeButtonStyles();
+  const bodyEl = document.getElementById('visit-stats-body');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = `<p class="text-xs text-gray-400">${t('loadingVisitStats')}</p>`;
+
+  try {
+    let query = supabaseClient
+      .from('site_visits')
+      .select('created_at, source, referral_domain, country, region, city')
+      .order('created_at', { ascending: false })
+      .limit(5000); // 安全上限，避免访问量极大的时候一次拉太多行拖慢后台
+
+    const startIso = rangeStartIso(currentVisitRange);
+    if (startIso) query = query.gte('created_at', startIso);
+
+    const { data: rows, error } = await query;
+    if (error) throw error;
+
+    renderVisitStatsBody(rows || []);
+  } catch (err) {
+    console.error('加载访问统计失败:', err);
+    bodyEl.innerHTML = `<p class="text-xs text-red-500">${t('loadVisitStatsFailed')}</p>`;
+  }
+}
+
+function renderVisitStatsBody(rows) {
+  const bodyEl = document.getElementById('visit-stats-body');
+  if (!bodyEl) return;
+
+  const total = rows.length;
+  if (total === 0) {
+    bodyEl.innerHTML = `
+      <div class="bg-stone-50 rounded-xl p-4 text-center mb-4">
+        <div class="text-2xl font-bold text-gray-900">0</div>
+        <div class="text-xs text-gray-500 mt-1">${t('totalVisitsLabel')}</div>
+      </div>
+      <p class="text-xs text-gray-400 text-center">${t('noVisitData')}</p>
+    `;
+    return;
+  }
+
+  // --- 按渠道分组：instagram/facebook/tiktok/search/direct/other 直接用 source 作为分组键，
+  //     referral（其它网站引荐）则按具体域名再细分一次，方便发现除了社交媒体以外的重要引荐来源。
+  const sourceCounts = {};
+  rows.forEach(r => {
+    const key = (r.source === 'referral' && r.referral_domain) ? `referral:${r.referral_domain}` : (r.source || 'other');
+    sourceCounts[key] = (sourceCounts[key] || 0) + 1;
+  });
+  const sourceEntries = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
+
+  function sourceLabel(key) {
+    if (key.startsWith('referral:')) {
+      return `${t('sourceReferral')} (${key.slice('referral:'.length)})`;
+    }
+    const labelKey = VISIT_SOURCE_LABEL_KEYS[key];
+    return labelKey ? t(labelKey) : key;
+  }
+
+  const sourceBarsHtml = sourceEntries.slice(0, 8).map(([key, count]) => {
+    const pct = ((count / total) * 100).toFixed(1);
+    return `
+      <div class="space-y-1">
+        <div class="flex justify-between text-xs text-gray-600">
+          <span class="font-medium">${sourceLabel(key)}</span>
+          <span>${count} · ${pct}%</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-2">
+          <div class="bg-amber-700 h-2 rounded-full" style="width: ${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // --- 按国家分组 ---
+  const countryCounts = {};
+  rows.forEach(r => {
+    const key = r.country || t('unknownLocation');
+    countryCounts[key] = (countryCounts[key] || 0) + 1;
+  });
+  const countryEntries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  // --- 按城市分组（城市+州/省一起显示，避免重名城市混在一起，比如 Springfield 好几个州都有）---
+  const cityCounts = {};
+  rows.forEach(r => {
+    if (!r.city) return;
+    const key = [r.city, r.region].filter(Boolean).join(', ');
+    cityCounts[key] = (cityCounts[key] || 0) + 1;
+  });
+  const cityEntries = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  function geoBarsHtml(entries) {
+    if (entries.length === 0) {
+      return `<p class="text-xs text-gray-400">${t('noVisitData')}</p>`;
+    }
+    const maxCount = entries[0][1];
+    return entries.map(([label, count]) => {
+      const pct = ((count / maxCount) * 100).toFixed(1);
+      return `
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs text-gray-600">
+            <span class="font-medium">${label}</span>
+            <span>${count}</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="bg-blue-600 h-2 rounded-full" style="width: ${pct}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  bodyEl.innerHTML = `
+    <div class="bg-stone-50 rounded-xl p-4 text-center mb-4">
+      <div class="text-2xl font-bold text-gray-900">${total}</div>
+      <div class="text-xs text-gray-500 mt-1">${t('totalVisitsLabel')}</div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">${t('trafficSourceLabel')}</h3>
+        <div class="space-y-3">${sourceBarsHtml}</div>
+      </div>
+      <div class="space-y-5">
+        <div>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">${t('topCountriesLabel')}</h3>
+          <div class="space-y-3">${geoBarsHtml(countryEntries)}</div>
+        </div>
+        <div>
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">${t('topCitiesLabel')}</h3>
+          <div class="space-y-3">${geoBarsHtml(cityEntries)}</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -918,27 +1152,29 @@ function renderProductRows(products) {
 
       return `
         <tr class="border-b hover:bg-gray-50">
-          <td class="p-3">
+          <td class="p-3 cell-image">
             <img src="${item.spin_image || 'https://via.placeholder.com/60'}" class="w-12 h-12 object-cover rounded-lg border" alt="">
           </td>
-          <td class="p-3 font-mono text-xs text-amber-900 font-bold">${item.id}</td>
-          <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">${item.category_id}</span></td>
-          <td class="p-3 font-medium text-gray-900">
+          <td class="p-3 font-mono text-xs text-amber-900 font-bold" data-label="ID">${item.id}</td>
+          <td class="p-3" data-label="${t('thCategory')}"><span class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">${item.category_id}</span></td>
+          <td class="p-3 font-medium text-gray-900" data-label="${t('thName')}">
             <div>${item.title_en || ''}</div>
             ${item.subtitle_en ? `<div class="text-[11px] text-gray-400 font-normal">${item.subtitle_en}</div>` : ''}
             <div class="mt-1 text-[11px]"><span class="px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">${item.tag_key || 'New'}</span></div>
           </td>
-          <td class="p-3 text-xs text-gray-600">${specContent}</td>
-          <td class="p-3 text-xs text-gray-600">${stockCell}</td>
-          <td class="p-3 text-amber-800 font-bold">$${parseFloat(item.price).toFixed(2)}</td>
-          <td class="p-3 space-y-1">
-            <button onclick="openEditProductModal('${item.id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(item.subtitle_en || '')}', ${parseFloat(item.price) || 0}, '${encodeURIComponent(item.tag_key || '')}', '${encodeURIComponent(item.spin_image || '')}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
-              <i class="fa-solid fa-pen-to-square"></i> ${t('editInfoBtn')}
-            </button>
-            ${isNails ? `<button onclick="openTryonEditorModal('${item.id}')" class="block px-2.5 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 rounded text-xs font-bold border border-pink-300 shadow-sm">
-              <i class="fa-solid fa-hand-sparkles"></i> 试戴框图
-            </button>` : ''}
-            <button onclick="deleteProduct('${item.id}')" class="block text-red-600 hover:text-red-800 text-xs font-semibold">${t('deleteBtn')}</button>
+          <td class="p-3 text-xs text-gray-600" data-label="${t('thSpec')}">${specContent}</td>
+          <td class="p-3 text-xs text-gray-600" data-label="${t('stockColLabel')}">${stockCell}</td>
+          <td class="p-3 text-amber-800 font-bold" data-label="${t('thPrice')}">$${parseFloat(item.price).toFixed(2)}</td>
+          <td class="p-3" data-label="${t('thAction')}">
+            <div class="flex flex-col items-end sm:items-stretch gap-1">
+              <button onclick="openEditProductModal('${item.id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(item.subtitle_en || '')}', ${parseFloat(item.price) || 0}, '${encodeURIComponent(item.tag_key || '')}', '${encodeURIComponent(item.spin_image || '')}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
+                <i class="fa-solid fa-pen-to-square"></i> ${t('editInfoBtn')}
+              </button>
+              ${isNails ? `<button onclick="openTryonEditorModal('${item.id}')" class="block px-2.5 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 rounded text-xs font-bold border border-pink-300 shadow-sm">
+                <i class="fa-solid fa-hand-sparkles"></i> 试戴框图
+              </button>` : ''}
+              <button onclick="deleteProduct('${item.id}')" class="block text-red-600 hover:text-red-800 text-xs font-semibold">${t('deleteBtn')}</button>
+            </div>
           </td>
         </tr>
       `;
@@ -2123,14 +2359,14 @@ async function loadAdminOrders() {
       const addr = [o.address, o.city, o.state, o.zip].filter(Boolean).join(', ');
       return `
         <tr class="border-b hover:bg-gray-50">
-          <td class="p-3 font-mono text-xs text-amber-900 font-bold">${o.id}</td>
-          <td class="p-3 text-gray-900">${o.first_name || ''} ${o.last_name || ''}</td>
-          <td class="p-3 text-xs text-gray-600">${o.email || ''}<br>${o.phone || ''}</td>
-          <td class="p-3 text-xs text-gray-600">${addr}</td>
-          <td class="p-3 text-amber-800 font-bold">$${parseFloat(o.total || 0).toFixed(2)}</td>
-          <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">${o.status || 'pending_test_payment'}</span></td>
-          <td class="p-3 text-xs text-gray-500">${created}</td>
-          <td class="p-3">
+          <td class="p-3 font-mono text-xs text-amber-900 font-bold" data-label="${t('thOrderId')}">${o.id}</td>
+          <td class="p-3 text-gray-900" data-label="${t('thCustomer')}">${o.first_name || ''} ${o.last_name || ''}</td>
+          <td class="p-3 text-xs text-gray-600" data-label="${t('thContact')}">${o.email || ''}<br>${o.phone || ''}</td>
+          <td class="p-3 text-xs text-gray-600" data-label="${t('thAddress')}">${addr}</td>
+          <td class="p-3 text-amber-800 font-bold" data-label="${t('thAmount')}">$${parseFloat(o.total || 0).toFixed(2)}</td>
+          <td class="p-3" data-label="${t('thStatus')}"><span class="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">${o.status || 'pending_test_payment'}</span></td>
+          <td class="p-3 text-xs text-gray-500" data-label="${t('thOrderTime')}">${created}</td>
+          <td class="p-3" data-label="${t('thAction')}">
             <button onclick="openOrderItemsModal('${o.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-semibold">${t('viewDetailsBtn')}</button>
           </td>
         </tr>
