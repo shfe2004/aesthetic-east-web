@@ -100,7 +100,7 @@
     </div>
 
     <!-- 1. 站点文案与品牌配置 (Logo/促销横幅/Hero) -->
-    <div class="bg-white rounded-xl shadow-md p-6 border border-amber-200">
+    <div id="admin-section-manage_site_config" class="bg-white rounded-xl shadow-md p-6 border border-amber-200">
       <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="siteConfigSectionTitle">🌐 网站全局信息配置</h2>
       <form id="site-settings-form" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -161,7 +161,7 @@
     <!-- 1.2 网站访问统计：访问量 + 来源渠道（IG/FB/TikTok/搜索/直接访问/其它网站引荐）+ 访客大致地理位置。
          数据来自 site_visits 表（建表见 sql/create_site_visits_table.sql），前台每次打开首页会自动上报一条，
          不需要手动操作；地理位置由 Vercel 自动附带的请求头提供，部署在 Vercel 以外的环境可能拿不到。 -->
-    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6">
+    <div id="admin-section-view_stats" class="bg-white rounded-xl shadow-md p-4 sm:p-6">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-lg font-bold text-gray-800" data-i18n="visitStatsSectionTitle">📊 网站访问统计</h2>
         <div id="visit-range-btn-group" class="flex items-center gap-2 flex-wrap">
@@ -178,7 +178,7 @@
     </div>
 
     <!-- 1.5 虚拟试戴 · 手模型指甲位置标定（全站共用的一份坐标，不是针对单个商品） -->
-    <div class="bg-white rounded-xl shadow-md p-6 border border-amber-200 flex items-center justify-between flex-wrap gap-3">
+    <div id="admin-section-manage_tryon_calib" class="bg-white rounded-xl shadow-md p-6 border border-amber-200 flex items-center justify-between flex-wrap gap-3">
       <div>
         <h2 class="text-lg font-bold text-gray-800" data-i18n="tryonCalibratorTitle">🖐️ 虚拟试戴 · 手模型指甲位置标定</h2>
         <p class="text-xs text-gray-500 mt-1" data-i18n="tryonCalibratorDesc">如果试戴贴图跟手模型照片里实际的指甲长短/宽窄/方向对不上，在这里直接拖动调整——全站所有商品共用这一份位置，改一次全部生效。</p>
@@ -190,7 +190,7 @@
 
     <!-- 1.8 分类管理：穿戴甲/亚克力/家具这几个前台栏目，以及以后想加的新品类（比如首饰），
          都在这里自己增删改，不用再找人改代码；前台页面会按这里维护的分类列表自动生成栏目。 -->
-    <div class="bg-white rounded-xl shadow-md p-6">
+    <div id="admin-section-manage_categories" class="bg-white rounded-xl shadow-md p-6">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
         <h2 class="text-lg font-bold text-gray-800" data-i18n="categoryMgmtTitle">🗂️ 分类管理</h2>
         <button onclick="openCategoryEditor(null)" class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white shadow-sm" data-i18n="addCategoryBtn">
@@ -309,7 +309,7 @@
     </div>
 
     <!-- 2. 上架新商品表单 (自动编码 ID) -->
-    <div class="bg-white rounded-xl shadow-md p-6">
+    <div id="admin-section-manage_products" class="bg-white rounded-xl shadow-md p-6">
       <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="addProductSectionTitle">📦 添加新商品</h2>
 
       <form id="add-product-form" class="space-y-4">
@@ -474,7 +474,7 @@
 
     <!-- 3. 在线商品管理列表：商品一多列表会变得很长，这里改成固定高度 + 内部滚动，
          表头吸顶方便对照列名；另外加了一个按 ID/名称筛选的搜索框，商品多的时候能更快定位到要改的那一件。 -->
-    <div class="bg-white rounded-xl shadow-md p-6">
+    <div id="admin-section-manage_products_list" class="bg-white rounded-xl shadow-md p-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-3">
         <h2 class="text-lg font-semibold text-gray-800" data-i18n="productListTitle">在线商品管理列表</h2>
         <div class="flex items-center gap-3">
@@ -506,7 +506,7 @@
     </div>
 
     <!-- 4. 订单管理（当前为模拟结算，尚未接入真实支付） -->
-    <div class="bg-white rounded-xl shadow-md p-6">
+    <div id="admin-section-manage_orders" class="bg-white rounded-xl shadow-md p-6">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-lg font-semibold text-gray-800"><span data-i18n="orderMgmtTitle">📋 订单管理</span> <span class="text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 ml-1" data-i18n="simulatedBadge">模拟结算，非真实收款</span></h2>
         <button onclick="loadAdminOrders()" class="text-xs text-amber-800 hover:text-amber-900 font-medium" data-i18n="refreshBtn">刷新</button>
@@ -538,7 +538,7 @@
          不受 Supabase 自带 Auth Logs 保留期限制；支持导出成 CSV 存到本地备份查看。
          默认只显示最新一条摘要，避免日志越积越多把整个页面撑得很长；点"展开完整日志"
          才会打开下面固定高度、可滚动的完整列表。 -->
-    <div class="bg-white rounded-xl shadow-md p-6">
+    <div id="admin-section-view_activity_log" class="bg-white rounded-xl shadow-md p-6">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-lg font-semibold text-gray-800" data-i18n="activityLogTitle">📝 操作日志</h2>
         <div class="flex items-center gap-3">
@@ -579,6 +579,80 @@
       </div>
     </div>
 
+    <!-- 8. 管理员账号管理：只有超级管理员才能看到这张卡片。
+         新增管理员走"预登记邮箱 + 勾选权限"两步：这里先登记邮箱和权限，对方还需要
+         Tommy 在 Supabase Dashboard 里手动建好登录账号（跟 Tommy 自己当初的账号一样），
+         两步谁先谁后都可以；对方第一次用自己邮箱密码登录后台时，系统会自动把这条
+         预登记记录认领到他的账号上，权限立刻生效。 -->
+    <div id="admin-section-manage_admins" class="bg-white rounded-xl shadow-md p-6 border border-amber-200 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+        <h2 class="text-lg font-bold text-gray-800" data-i18n="adminMgmtTitle">👤 管理员账号管理</h2>
+        <button onclick="openAdminProfileEditor()" class="text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white rounded-full px-4 py-2 transition" data-i18n="adminMgmtAddBtn">+ 新增管理员</button>
+      </div>
+      <p class="text-xs text-gray-400 mb-3" data-i18n="adminMgmtHint">在这里登记邮箱并勾选权限后，还需要去 Supabase Dashboard 的 Authentication → Users 里手动给这个邮箱建一个登录账号（先后顺序不影响）；对方第一次登录后台成功后，这里的"等待首次登录"会自动变成"已激活"。</p>
+      <div class="overflow-auto border rounded-lg">
+        <table class="w-full text-left border-collapse text-sm admin-responsive-table">
+          <thead>
+            <tr class="bg-gray-100 border-b text-gray-600">
+              <th class="p-3" data-i18n="thAdminEmail">邮箱</th>
+              <th class="p-3" data-i18n="thAdminRole">身份</th>
+              <th class="p-3" data-i18n="thAdminStatus">登录状态</th>
+              <th class="p-3" data-i18n="thAdminPerms">权限</th>
+              <th class="p-3" data-i18n="thAdminActions">操作</th>
+            </tr>
+          </thead>
+          <tbody id="admin-profiles-list">
+            <tr>
+              <td colspan="5" class="p-4 text-center text-gray-500" data-i18n="adminMgmtLoading">正在加载管理员列表...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 新增/编辑管理员 弹窗 -->
+  <div id="modal-admin-editor" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+        <h3 id="admin-editor-title" class="font-bold text-gray-800" data-i18n="adminEditorTitleNew">新增管理员</h3>
+        <button onclick="closeAdminProfileEditor()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="admin-editor-form" class="p-5 space-y-3 max-h-[75vh] overflow-y-auto">
+        <input type="hidden" id="admin-edit-profile-id">
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="adminEmailLabel">登录邮箱（必须跟 Supabase 里给他建账号时用的邮箱完全一致）</label>
+          <input type="email" id="admin-edit-email" required placeholder="someone@example.com" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="admin-edit-is-super" class="w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800">
+          <label for="admin-edit-is-super" class="text-sm font-medium text-gray-700" data-i18n="adminIsSuperLabel">超级管理员（自动拥有下面全部权限，且只有超级管理员能管理其他管理员账号）</label>
+        </div>
+        <div id="admin-edit-perms-wrap" class="pt-2 border-t border-gray-100 space-y-2">
+          <p class="text-xs font-medium text-gray-700" data-i18n="adminPermsLabel">普通管理员权限勾选：</p>
+          <div class="grid grid-cols-1 gap-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="manage_site_config"><span data-i18n="permSiteConfig">网站全局信息配置</span></label>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="view_stats"><span data-i18n="permViewStats">网站访问统计</span></label>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="manage_tryon_calib"><span data-i18n="permTryonCalib">虚拟试戴 · 手模型标定</span></label>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="manage_categories"><span data-i18n="permCategories">分类管理</span></label>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="manage_products"><span data-i18n="permProducts">商品管理（添加/编辑/上下架）</span></label>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="manage_orders"><span data-i18n="permOrders">订单管理</span></label>
+            <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="admin-perm-checkbox w-4 h-4 rounded border-gray-300 text-amber-800 focus:ring-amber-800" value="view_activity_log"><span data-i18n="permActivityLog">操作日志</span></label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="adminNoteLabel">备注（可选，自己看，比如这个账号是给谁用的）</label>
+          <input type="text" id="admin-edit-note" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+        </div>
+        <p id="admin-editor-error" class="text-xs text-red-600 hidden"></p>
+        <button type="submit" class="w-full bg-amber-800 text-white py-2.5 rounded-lg hover:bg-amber-900 font-medium transition text-sm" data-i18n="adminSaveBtn">
+          保存
+        </button>
+      </form>
+    </div>
   </div>
 
   <script src="js/supabase-client.js"></script>

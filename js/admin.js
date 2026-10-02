@@ -278,7 +278,45 @@ const ADMIN_I18N = {
     subtypeDeleteFailedPrefix: "Delete failed: ",
     deleteCategoryConfirmTemplate: 'Delete category "{name}"? If it still has products, the database will reject the deletion — move or delete those products first.',
     deleteCategoryFkError: 'Can\'t delete: this category still has products. Go to "Live Product List" to move or delete them first, then come back to delete this category.',
-    deleteCategoryFailedPrefix: "Delete failed: "
+    deleteCategoryFailedPrefix: "Delete failed: ",
+    adminMgmtTitle: "👤 Admin Account Management",
+    adminMgmtAddBtn: "+ Add Admin",
+    adminMgmtHint: "After registering an email and permissions here, you still need to manually create a login for that email in the Supabase Dashboard under Authentication → Users (either order works). Once they successfully log in for the first time, \"Pending first login\" below will automatically switch to \"Active\".",
+    thAdminEmail: "Email",
+    thAdminRole: "Role",
+    thAdminStatus: "Login Status",
+    thAdminPerms: "Permissions",
+    thAdminActions: "Actions",
+    adminMgmtLoading: "Loading admin list...",
+    adminStatusActive: "Active",
+    adminStatusPending: "Pending first login",
+    adminRoleSuper: "Super Admin",
+    adminRoleRegular: "Regular Admin",
+    adminPermsAll: "All (super admin)",
+    adminPermsNone: "None selected",
+    adminEditBtn: "Edit",
+    adminRevokeBtn: "Revoke",
+    adminRevokeConfirmTemplate: 'Revoke admin access for "{email}"? This removes their permission record — if they still have a Supabase login, you should also delete it in the Supabase Dashboard, otherwise they could log in again with zero permissions.',
+    adminRevokeFailedPrefix: "Revoke failed: ",
+    adminEditorTitleNew: "Add Admin",
+    adminEditorTitleEdit: "Edit Admin",
+    adminEmailLabel: "Login email (must exactly match the email used to create their Supabase account)",
+    adminIsSuperLabel: "Super Admin (automatically gets all permissions below, and only super admins can manage other admin accounts)",
+    adminPermsLabel: "Regular admin permission checkboxes:",
+    permSiteConfig: "Site-wide configuration",
+    permViewStats: "Site visit stats",
+    permTryonCalib: "Virtual try-on · hand model calibration",
+    permCategories: "Category management",
+    permProducts: "Product management (add/edit/list/unlist)",
+    permOrders: "Order management",
+    permActivityLog: "Activity log",
+    adminNoteLabel: "Note (optional, visible only to you — e.g. who this account is for)",
+    adminSaveBtn: "Save",
+    adminEmailDuplicateError: "This email is already registered as an admin",
+    adminSaveFailedPrefix: "Save failed: ",
+    adminSelfDemoteError: "You can't remove your own super admin status or revoke your own access here.",
+    adminNoProfileTitle: "No admin permissions yet",
+    adminNoProfileDesc: "Your login succeeded, but there's no admin profile set up for this email yet. Please contact the super admin to grant you access."
   },
   zh: {
     adminLockTitle: "管理后台登录",
@@ -551,7 +589,45 @@ const ADMIN_I18N = {
     subtypeDeleteFailedPrefix: "删除失败：",
     deleteCategoryConfirmTemplate: '确定要删除分类"{name}"吗？如果这个分类下还有商品，删除会被数据库拒绝（需要先把商品转移到别的分类或删除）。',
     deleteCategoryFkError: '无法删除：这个分类下还有商品。请先到"在线商品管理列表"把相关商品转移到其它分类或删除，再来删除这个分类。',
-    deleteCategoryFailedPrefix: "删除失败："
+    deleteCategoryFailedPrefix: "删除失败：",
+    adminMgmtTitle: "👤 管理员账号管理",
+    adminMgmtAddBtn: "+ 新增管理员",
+    adminMgmtHint: "在这里登记邮箱并勾选权限后，还需要去 Supabase Dashboard 的 Authentication → Users 里手动给这个邮箱建一个登录账号（先后顺序不影响）；对方第一次登录后台成功后，这里的\"等待首次登录\"会自动变成\"已激活\"。",
+    thAdminEmail: "邮箱",
+    thAdminRole: "身份",
+    thAdminStatus: "登录状态",
+    thAdminPerms: "权限",
+    thAdminActions: "操作",
+    adminMgmtLoading: "正在加载管理员列表...",
+    adminStatusActive: "已激活",
+    adminStatusPending: "等待首次登录",
+    adminRoleSuper: "超级管理员",
+    adminRoleRegular: "普通管理员",
+    adminPermsAll: "全部（超级管理员）",
+    adminPermsNone: "未勾选任何权限",
+    adminEditBtn: "编辑",
+    adminRevokeBtn: "撤销",
+    adminRevokeConfirmTemplate: '确定撤销 "{email}" 的管理员权限吗？这会删除这条权限记录——如果这个人在 Supabase 里还有登录账号，建议同时去 Supabase Dashboard 把那个登录账号也删掉，否则他还是能登录，只是进来后什么都看不到。',
+    adminRevokeFailedPrefix: "撤销失败：",
+    adminEditorTitleNew: "新增管理员",
+    adminEditorTitleEdit: "编辑管理员",
+    adminEmailLabel: "登录邮箱（必须跟 Supabase 里给他建账号时用的邮箱完全一致）",
+    adminIsSuperLabel: "超级管理员（自动拥有下面全部权限，且只有超级管理员能管理其他管理员账号）",
+    adminPermsLabel: "普通管理员权限勾选：",
+    permSiteConfig: "网站全局信息配置",
+    permViewStats: "网站访问统计",
+    permTryonCalib: "虚拟试戴 · 手模型标定",
+    permCategories: "分类管理",
+    permProducts: "商品管理（添加/编辑/上下架）",
+    permOrders: "订单管理",
+    permActivityLog: "操作日志",
+    adminNoteLabel: "备注（可选，自己看，比如这个账号是给谁用的）",
+    adminSaveBtn: "保存",
+    adminEmailDuplicateError: "这个邮箱已经被登记为管理员了",
+    adminSaveFailedPrefix: "保存失败：",
+    adminSelfDemoteError: "不能在这里取消自己的超级管理员身份或撤销自己的权限。",
+    adminNoProfileTitle: "暂无管理权限",
+    adminNoProfileDesc: "登录成功，但这个邮箱还没有被设置管理员权限。请联系超级管理员为你开通权限。"
   }
 };
 
@@ -597,6 +673,12 @@ function toggleAdminLanguage() {
         return cat ? (currentAdminLang === 'zh' ? cat.name_zh : cat.name_en) : '';
       })();
       renderSubtypeList();
+    }
+    if (currentAdminIsSuper) {
+      renderAdminProfilesList(); // 管理员列表的权限摘要也是用 t() 现场拼的，要手动重渲染
+    }
+    if (!currentAdminProfileRow) {
+      applyAdminPermissionGating(); // 重新生成"暂无权限"提示条，换成新语言的文案
     }
   }
   // 弹窗只会在第一次打开时创建一次 DOM，语言切换后把已缓存的弹窗删掉，
@@ -689,12 +771,271 @@ async function onAdminAuthenticated() {
   // 分类列表要先加载完，"添加商品"表单的分类下拉框、自动编码前缀才有数据可用，
   // 所以这里 await 一下，不跟其它互不相关的加载一起并发触发
   await loadCategories();
+  // 权限要先拉到，才知道下面这些区块该显示哪些——所以也 await 一下，
+  // 不跟其它互不相关的加载并发触发，避免有权限的区块先闪一下再被隐藏。
+  await loadMyAdminProfile();
   loadAdminProducts();
   loadAdminOrders();
   loadSiteSettings();
   loadAdminActivityLog();
   loadSiteVisitStats(currentVisitRange);
   generateSmartId();
+}
+
+// ===================== 管理员权限：当前登录者自己的权限 + 显示/隐藏控制 =====================
+// 7 个功能区块的 id 规则是 admin-section-<权限键名>；manage_products 这一个权限键名
+// 同时控制"添加新商品"和"在线商品管理列表"两个区块（这两块功能上分不开，给了其中一个
+// 权限就该能看到另一个），所以用 selector 数组而不是单个 id 的一一对应关系。
+const ADMIN_PERMISSION_SECTION_SELECTORS = {
+  manage_site_config: ["#admin-section-manage_site_config"],
+  view_stats: ["#admin-section-view_stats"],
+  manage_tryon_calib: ["#admin-section-manage_tryon_calib"],
+  manage_categories: ["#admin-section-manage_categories"],
+  manage_products: ["#admin-section-manage_products", "#admin-section-manage_products_list"],
+  manage_orders: ["#admin-section-manage_orders"],
+  view_activity_log: ["#admin-section-view_activity_log"]
+};
+
+// 当前登录者自己的权限状态，初始为"什么都没有"——在 loadMyAdminProfile() 成功拉到数据
+// 之前，所有区块保持隐藏，这是故意的"默认拒绝"，不是等同于"全部放开"。
+let currentAdminIsSuper = false;
+let currentAdminOwnPermissions = {};
+let currentAdminProfileRow = null; // null 表示这个登录邮箱完全没有 admin_profiles 记录
+
+async function loadMyAdminProfile() {
+  // 如果这是这个邮箱第一次登录后台，先把预登记的那条记录"认领"到这个账号上
+  // （把 user_id 填上）；如果早就认领过了，这个调用什么都不会改，安全可以每次都调。
+  try {
+    await supabaseClient.rpc('claim_admin_profile');
+  } catch (err) {
+    console.error("认领管理员身份失败（可能是函数还没部署，先忽略继续）:", err);
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { data, error } = await supabaseClient
+    .from("admin_profiles")
+    .select("*")
+    .eq("user_id", user ? user.id : null)
+    .maybeSingle();
+
+  if (error) {
+    console.error("加载自己的管理员权限失败:", error);
+    currentAdminProfileRow = null;
+    currentAdminIsSuper = false;
+    currentAdminOwnPermissions = {};
+  } else {
+    currentAdminProfileRow = data || null;
+    currentAdminIsSuper = !!(data && data.is_super_admin);
+    currentAdminOwnPermissions = (data && data.permissions) || {};
+  }
+
+  applyAdminPermissionGating();
+
+  if (currentAdminIsSuper) {
+    loadAdminProfilesList();
+  }
+}
+
+function applyAdminPermissionGating() {
+  const noPermBanner = document.getElementById("admin-no-permission-banner");
+  if (noPermBanner) noPermBanner.remove();
+
+  // 完全没有权限记录（既不是超级管理员也没被预登记任何权限）：7 个功能区块 + 管理员管理
+  // 区块全部隐藏，顶部插一条友好提示，而不是什么都不显示让人以为页面坏了。
+  if (!currentAdminProfileRow) {
+    Object.values(ADMIN_PERMISSION_SECTION_SELECTORS).flat().forEach(sel => {
+      document.querySelector(sel)?.classList.add("hidden");
+    });
+    document.getElementById("admin-section-manage_admins")?.classList.add("hidden");
+    const banner = document.createElement("div");
+    banner.id = "admin-no-permission-banner";
+    banner.className = "bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm mb-4";
+    banner.innerHTML = `<p class="font-bold mb-1">${t('adminNoProfileTitle')}</p><p>${t('adminNoProfileDesc')}</p>`;
+    const firstSection = document.getElementById("admin-section-manage_site_config");
+    if (firstSection && firstSection.parentNode) {
+      firstSection.parentNode.insertBefore(banner, firstSection);
+    }
+    return;
+  }
+
+  Object.entries(ADMIN_PERMISSION_SECTION_SELECTORS).forEach(([permKey, selectors]) => {
+    const allowed = currentAdminIsSuper || !!currentAdminOwnPermissions[permKey];
+    selectors.forEach(sel => {
+      document.querySelector(sel)?.classList.toggle("hidden", !allowed);
+    });
+  });
+
+  // "管理员账号管理"这张卡片只有超级管理员才能看到——这不是 7 个勾选权限里的一个，
+  // 普通管理员即使理论上被勾了全部 7 项，也不能管理其他管理员账号（只有超级管理员能）。
+  document.getElementById("admin-section-manage_admins")?.classList.toggle("hidden", !currentAdminIsSuper);
+}
+
+// ===================== 管理员账号管理（仅超级管理员可见）=====================
+let adminProfilesListCache = [];
+
+async function loadAdminProfilesList() {
+  const { data, error } = await supabaseClient
+    .from("admin_profiles")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("加载管理员列表失败:", error);
+    adminProfilesListCache = [];
+  } else {
+    adminProfilesListCache = data || [];
+  }
+  renderAdminProfilesList();
+}
+
+const ADMIN_PERMISSION_KEYS = ["manage_site_config", "view_stats", "manage_tryon_calib", "manage_categories", "manage_products", "manage_orders", "view_activity_log"];
+const ADMIN_PERMISSION_LABEL_I18N_KEY = {
+  manage_site_config: "permSiteConfig",
+  view_stats: "permViewStats",
+  manage_tryon_calib: "permTryonCalib",
+  manage_categories: "permCategories",
+  manage_products: "permProducts",
+  manage_orders: "permOrders",
+  view_activity_log: "permActivityLog"
+};
+
+function renderAdminProfilesList() {
+  const tbody = document.getElementById("admin-profiles-list");
+  if (!tbody) return;
+  if (adminProfilesListCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">${t('adminMgmtLoading')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = adminProfilesListCache.map(row => {
+    const isSelf = currentAdminProfileRow && row.profile_id === currentAdminProfileRow.profile_id;
+    const statusHtml = row.user_id
+      ? `<span class="text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 text-xs">${t('adminStatusActive')}</span>`
+      : `<span class="text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-xs">${t('adminStatusPending')}</span>`;
+    const roleHtml = row.is_super_admin
+      ? `<span class="text-amber-900 bg-amber-100 border border-amber-300 rounded-full px-2 py-0.5 text-xs font-bold">${t('adminRoleSuper')}</span>`
+      : `<span class="text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5 text-xs">${t('adminRoleRegular')}</span>`;
+    const grantedKeys = ADMIN_PERMISSION_KEYS.filter(k => row.permissions && row.permissions[k]);
+    const permsSummary = row.is_super_admin
+      ? t('adminPermsAll')
+      : (grantedKeys.length > 0 ? grantedKeys.map(k => t(ADMIN_PERMISSION_LABEL_I18N_KEY[k])).join('、') : t('adminPermsNone'));
+    // 自己这一行不显示"撤销"按钮，避免超级管理员误操作把自己锁在外面
+    const actionsHtml = isSelf
+      ? `<button onclick="openAdminProfileEditor(${row.profile_id})" class="text-blue-700 hover:text-blue-900 font-medium text-xs">${t('adminEditBtn')}</button>`
+      : `<button onclick="openAdminProfileEditor(${row.profile_id})" class="text-blue-700 hover:text-blue-900 font-medium text-xs mr-3">${t('adminEditBtn')}</button>
+         <button onclick="revokeAdminProfile(${row.profile_id})" class="text-red-600 hover:text-red-800 font-medium text-xs">${t('adminRevokeBtn')}</button>`;
+    return `<tr class="border-b">
+      <td class="p-3">${row.email}${row.note ? `<div class="text-[11px] text-gray-400">${row.note}</div>` : ''}</td>
+      <td class="p-3">${roleHtml}</td>
+      <td class="p-3">${statusHtml}</td>
+      <td class="p-3 text-xs text-gray-600">${permsSummary}</td>
+      <td class="p-3">${actionsHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openAdminProfileEditor(profileId) {
+  const modal = document.getElementById("modal-admin-editor");
+  const title = document.getElementById("admin-editor-title");
+  document.getElementById("admin-editor-form").reset();
+  document.getElementById("admin-editor-error").classList.add("hidden");
+  document.querySelectorAll(".admin-perm-checkbox").forEach(cb => { cb.checked = false; cb.disabled = false; });
+  document.getElementById("admin-edit-perms-wrap").style.opacity = "1";
+
+  if (profileId) {
+    const row = adminProfilesListCache.find(r => r.profile_id === profileId);
+    if (!row) return;
+    title.innerText = t('adminEditorTitleEdit');
+    document.getElementById("admin-edit-profile-id").value = row.profile_id;
+    document.getElementById("admin-edit-email").value = row.email;
+    document.getElementById("admin-edit-email").disabled = true; // 邮箱是认领时匹配用的键，创建后不允许改
+    document.getElementById("admin-edit-is-super").checked = !!row.is_super_admin;
+    document.getElementById("admin-edit-note").value = row.note || "";
+    ADMIN_PERMISSION_KEYS.forEach(k => {
+      const cb = document.querySelector(`.admin-perm-checkbox[value="${k}"]`);
+      if (cb) {
+        cb.checked = !!(row.permissions && row.permissions[k]);
+        cb.disabled = !!row.is_super_admin;
+      }
+    });
+    document.getElementById("admin-edit-perms-wrap").style.opacity = row.is_super_admin ? "0.4" : "1";
+  } else {
+    title.innerText = t('adminEditorTitleNew');
+    document.getElementById("admin-edit-profile-id").value = "";
+    document.getElementById("admin-edit-email").disabled = false;
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function closeAdminProfileEditor() {
+  document.getElementById("modal-admin-editor").classList.add("hidden");
+}
+
+async function handleAdminEditorSubmit(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById("admin-editor-error");
+  errorEl.classList.add("hidden");
+
+  const profileId = document.getElementById("admin-edit-profile-id").value;
+  const email = document.getElementById("admin-edit-email").value.trim();
+  const isSuper = document.getElementById("admin-edit-is-super").checked;
+  const note = document.getElementById("admin-edit-note").value.trim();
+  const permissions = {};
+  ADMIN_PERMISSION_KEYS.forEach(k => {
+    const cb = document.querySelector(`.admin-perm-checkbox[value="${k}"]`);
+    permissions[k] = !!(cb && cb.checked);
+  });
+
+  // 超级管理员不能在这个表单里把自己降级成普通管理员或改掉自己的权限勾选——
+  // 防止手滑把自己锁在外面；要降级/撤销自己，必须先用另一个超级管理员账号登录来操作。
+  if (profileId && currentAdminProfileRow && Number(profileId) === currentAdminProfileRow.profile_id && currentAdminIsSuper && !isSuper) {
+    errorEl.innerText = t('adminSelfDemoteError');
+    errorEl.classList.remove("hidden");
+    return;
+  }
+
+  const payload = { email, is_super_admin: isSuper, permissions, note };
+
+  let error;
+  if (profileId) {
+    ({ error } = await supabaseClient.from("admin_profiles").update(payload).eq("profile_id", profileId));
+  } else {
+    ({ error } = await supabaseClient.from("admin_profiles").insert([payload]));
+  }
+
+  if (error) {
+    const msg = (error.message && error.message.indexOf('duplicate') !== -1)
+      ? t('adminEmailDuplicateError')
+      : (t('adminSaveFailedPrefix') + error.message);
+    errorEl.innerText = msg;
+    errorEl.classList.remove("hidden");
+    return;
+  }
+
+  logAdminActivity(profileId ? 'admin_profile_update' : 'admin_profile_create', `email: ${email}`);
+  closeAdminProfileEditor();
+  await loadAdminProfilesList();
+  // 如果编辑的是自己这一行（比如超级管理员给自己加了新权限勾选），重新拉一下自己的权限
+  // 并刷新区块显示，不用重新登录就能立刻看到效果。
+  if (profileId && currentAdminProfileRow && Number(profileId) === currentAdminProfileRow.profile_id) {
+    await loadMyAdminProfile();
+  }
+}
+
+async function revokeAdminProfile(profileId) {
+  const row = adminProfilesListCache.find(r => r.profile_id === profileId);
+  if (!row) return;
+  if (currentAdminProfileRow && row.profile_id === currentAdminProfileRow.profile_id) {
+    alert(t('adminSelfDemoteError'));
+    return;
+  }
+  if (!confirm(t('adminRevokeConfirmTemplate').replace('{email}', row.email))) return;
+  const { error } = await supabaseClient.from("admin_profiles").delete().eq("profile_id", profileId);
+  if (error) {
+    alert(t('adminRevokeFailedPrefix') + error.message);
+    return;
+  }
+  logAdminActivity('admin_profile_revoke', `email: ${row.email}`);
+  await loadAdminProfilesList();
 }
 
 // ===================== 操作日志：登录/关键操作记录 =====================
@@ -1061,6 +1402,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const subtypeAddForm = document.getElementById("subtype-add-form");
   if (subtypeAddForm) {
     subtypeAddForm.addEventListener("submit", handleAddSubtype);
+  }
+
+  const adminEditorForm = document.getElementById("admin-editor-form");
+  if (adminEditorForm) {
+    adminEditorForm.addEventListener("submit", handleAdminEditorSubmit);
+  }
+  const adminIsSuperCheckbox = document.getElementById("admin-edit-is-super");
+  if (adminIsSuperCheckbox) {
+    adminIsSuperCheckbox.addEventListener("change", (e) => {
+      // 勾了"超级管理员"之后，下面单独的权限勾选框就没意义了（超级管理员本来就是全部权限），
+      // 灰掉它们避免 Tommy 误以为需要再逐个勾一遍。
+      const permsWrap = document.getElementById("admin-edit-perms-wrap");
+      if (permsWrap) permsWrap.style.opacity = e.target.checked ? "0.4" : "1";
+      document.querySelectorAll(".admin-perm-checkbox").forEach(cb => { cb.disabled = e.target.checked; });
+    });
   }
 
   if (imageInput) {
