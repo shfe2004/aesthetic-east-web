@@ -316,7 +316,14 @@ const ADMIN_I18N = {
     adminSaveFailedPrefix: "Save failed: ",
     adminSelfDemoteError: "You can't remove your own super admin status or revoke your own access here.",
     adminNoProfileTitle: "No admin permissions yet",
-    adminNoProfileDesc: "Your login succeeded, but there's no admin profile set up for this email yet. Please contact the super admin to grant you access."
+    adminNoProfileDesc: "Your login succeeded, but there's no admin profile set up for this email yet. Please contact the super admin to grant you access.",
+    locationSectionTitle: "Storage Location (optional — makes finding stock easier)",
+    locationSectionHint: "Fill in all three or leave all three blank — this gets appended to the auto-generated ID above (e.g. Cabinet A, Row 2, Column 5 → the ID gets AR2C5 added to the end). Leave blank if not applicable.",
+    locationCabinetLabel: "Cabinet",
+    locationRowLabel: "Row",
+    locationColumnLabel: "Column",
+    locationPartialError: "Cabinet / Row / Column must be either all filled in or all left blank.",
+    locationEditHint: "You can update this anytime — doing so won't change the product's ID (IDs are fixed once created, since other tables reference it). If this differs from the location code baked into the ID, it just means the item has been moved since it was first added."
   },
   zh: {
     adminLockTitle: "管理后台登录",
@@ -627,7 +634,14 @@ const ADMIN_I18N = {
     adminSaveFailedPrefix: "保存失败：",
     adminSelfDemoteError: "不能在这里取消自己的超级管理员身份或撤销自己的权限。",
     adminNoProfileTitle: "暂无管理权限",
-    adminNoProfileDesc: "登录成功，但这个邮箱还没有被设置管理员权限。请联系超级管理员为你开通权限。"
+    adminNoProfileDesc: "登录成功，但这个邮箱还没有被设置管理员权限。请联系超级管理员为你开通权限。",
+    locationSectionTitle: "存放位置（选填 · 方便发货时找货）",
+    locationSectionHint: "三个格子要填就一起填，用来拼进上面的编码末尾（比如 A 柜第 2 行第 5 列 → 编码后面会自动加上 AR2C5）；用不到就都留空。",
+    locationCabinetLabel: "柜号",
+    locationRowLabel: "行号",
+    locationColumnLabel: "列号",
+    locationPartialError: "柜号/行号/列号要么都填，要么都留空。",
+    locationEditHint: "随时可以改，改了不会影响商品的编码（ID）——编码创建后就固定不变了（其它表都靠它关联数据）。如果这里跟编码里带的位置码不一样，说明货品后来被挪动过。"
   }
 };
 
@@ -1395,6 +1409,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 柜号/行号/列号随便改一个，自动编码(ID)预览就跟着实时刷新一遍，这样 Tommy 填的时候
+  // 能立刻看到位置码有没有正确拼进去，不用等提交才发现填错了。
+  ["prod-location-cabinet", "prod-location-row", "prod-location-column"].forEach(id => {
+    document.getElementById(id)?.addEventListener("input", () => generateSmartId());
+  });
+
   const categoryEditorForm = document.getElementById("category-editor-form");
   if (categoryEditorForm) {
     categoryEditorForm.addEventListener("submit", handleCategoryEditorSubmit);
@@ -1795,6 +1815,40 @@ async function deleteSubtype(subtypeId) {
   }
 }
 
+// ===================== 商品存放位置（柜号/行号/列号）=====================
+// 三个格子要么都填、要么都留空——只填一部分定位不到具体位置，没意义，直接在这里拦住。
+// idPrefix 对应一组 <idPrefix>-cabinet / -row / -column / -error 这几个输入框 id，
+// 新增商品表单和"编辑信息"弹窗各有自己的一套，靠这个前缀区分。
+function readAndValidateLocationFields(idPrefix) {
+  const cabinetInput = document.getElementById(`${idPrefix}-cabinet`);
+  const rowInput = document.getElementById(`${idPrefix}-row`);
+  const colInput = document.getElementById(`${idPrefix}-column`);
+  const errorEl = document.getElementById(`${idPrefix}-error`);
+  if (!cabinetInput || !rowInput || !colInput) return { ok: true, cabinet: null, row: null, col: null };
+
+  const cabinet = cabinetInput.value.trim().toUpperCase();
+  const rowStr = rowInput.value.trim();
+  const colStr = colInput.value.trim();
+  const filledCount = [cabinet, rowStr, colStr].filter(v => v !== '').length;
+
+  if (filledCount === 0) {
+    if (errorEl) errorEl.classList.add("hidden");
+    return { ok: true, cabinet: null, row: null, col: null };
+  }
+  if (filledCount < 3) {
+    if (errorEl) errorEl.classList.remove("hidden");
+    return { ok: false, cabinet: null, row: null, col: null };
+  }
+  if (errorEl) errorEl.classList.add("hidden");
+  return { ok: true, cabinet, row: parseInt(rowStr, 10), col: parseInt(colStr, 10) };
+}
+
+// 拼成人话版的位置码，比如柜号A、第2行、第5列 -> "AR2C5"，直接接在自动编码(ID)后面。
+function buildLocationSuffix(cabinet, row, col) {
+  if (!cabinet || !row || !col) return '';
+  return `${cabinet}R${row}C${col}`;
+}
+
 async function generateSmartId() {
   const categorySelect = document.getElementById("prod-category");
   const category = categorySelect ? categorySelect.value : "nails";
@@ -1818,7 +1872,13 @@ async function generateSmartId() {
     const catSeq = String(categoryCount).padStart(2, '0');
     const totalSeq = String(totalCount).padStart(2, '0');
 
-    idInput.value = `${prefix}-${catSeq}-${totalSeq}`;
+    // 位置码只在三个格子都填了才拼进去；填了一部分（不算 0 个也不算 3 个）不拼，
+    // 对应的错误提示由 readAndValidateLocationFields 自己管，这里不重复弹提示，
+    // 只是不把半截的位置信息拼进 ID 预览里。
+    const loc = readAndValidateLocationFields('prod-location');
+    const locSuffix = loc.ok ? buildLocationSuffix(loc.cabinet, loc.row, loc.col) : '';
+
+    idInput.value = `${prefix}-${catSeq}-${totalSeq}` + (locSuffix ? `-${locSuffix}` : '');
 
   } catch (err) {
     idInput.value = `${category}-01-01`;
@@ -1979,7 +2039,7 @@ function renderProductRows(products) {
           <td class="p-3 text-amber-800 font-bold" data-label="${t('thPrice')}">$${parseFloat(item.price).toFixed(2)}</td>
           <td class="p-3" data-label="${t('thAction')}">
             <div class="flex flex-col items-end sm:items-stretch gap-1">
-              <button onclick="openEditProductModal('${item.id}', '${encodeURIComponent(item.title_en || '')}', '${encodeURIComponent(item.subtitle_en || '')}', ${parseFloat(item.price) || 0}, '${encodeURIComponent(item.tag_key || '')}', '${encodeURIComponent(item.spin_image || '')}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
+              <button onclick="openEditProductModal('${item.id}')" class="block px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-xs font-bold border border-stone-300 shadow-sm">
                 <i class="fa-solid fa-pen-to-square"></i> ${t('editInfoBtn')}
               </button>
               ${isNails ? `<button onclick="openTryonEditorModal('${item.id}')" class="block px-2.5 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 rounded text-xs font-bold border border-pink-300 shadow-sm">
@@ -2041,6 +2101,11 @@ async function handleAddProduct(e) {
     const length = parseFloat(document.getElementById("prod-length")?.value) || 0;
     const width = parseFloat(document.getElementById("prod-width")?.value) || 0;
     const height = parseFloat(document.getElementById("prod-height")?.value) || 0;
+
+    const loc = readAndValidateLocationFields('prod-location');
+    if (!loc.ok) {
+      return; // 三个格子填了一部分，错误提示已经在输入框下面显示出来了，这里直接不提交
+    }
 
     let selectedShapes = [];
     let selectedSizes = [];
@@ -2104,7 +2169,10 @@ async function handleAddProduct(e) {
       spin_image: imageUrl,
       length: length,
       width: width,
-      height: height
+      height: height,
+      location_cabinet: loc.cabinet,
+      location_row: loc.row,
+      location_column: loc.col
     }]);
 
     if (prodError) throw prodError;
@@ -2138,6 +2206,7 @@ async function handleAddProduct(e) {
 
     alert(t('productPublishSuccess') + id);
     document.getElementById("add-product-form").reset();
+    document.getElementById("prod-location-error")?.classList.add("hidden");
     syncInches();
     const previewContainer = document.getElementById("image-preview-container");
     if (previewContainer) {
@@ -2276,14 +2345,23 @@ let currentEditingInfoId = null;
 let currentEditingInfoImage = "";
 let editInfoNewImageFile = null;
 
-function openEditProductModal(prodId, titleEncoded, subtitleEncoded, price, tagKeyEncoded, imageEncoded) {
+function openEditProductModal(prodId) {
+  // 跟库存管理弹窗一样，只传 ID 再从已加载的商品列表里查完整数据，不把标题/副标题这些
+  // 可能含单引号的文本整段塞进 onclick 属性字符串，避免引号把参数列表拆断。
+  const item = lastLoadedProducts.find(p => p.id === prodId);
+  if (!item) {
+    alert(t('operationFailed') + 'product not found in current list, please refresh and try again.');
+    return;
+  }
+
   currentEditingInfoId = prodId;
-  currentEditingInfoImage = imageEncoded ? decodeURIComponent(imageEncoded) : "";
+  currentEditingInfoImage = item.spin_image || "";
   editInfoNewImageFile = null;
 
-  const titleEn = titleEncoded ? decodeURIComponent(titleEncoded) : "";
-  const subtitleEn = subtitleEncoded ? decodeURIComponent(subtitleEncoded) : "";
-  const tagKey = tagKeyEncoded ? decodeURIComponent(tagKeyEncoded) : "";
+  const titleEn = item.title_en || "";
+  const subtitleEn = item.subtitle_en || "";
+  const price = parseFloat(item.price) || 0;
+  const tagKey = item.tag_key || "";
 
   let modal = document.getElementById("modal-edit-info");
   if (!modal) {
@@ -2321,6 +2399,25 @@ function openEditProductModal(prodId, titleEncoded, subtitleEncoded, price, tagK
             <label class="block text-xs font-medium text-gray-700 mb-1">${t('replaceImageLabel')}</label>
             <input type="file" id="edit-info-image-file" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer">
           </div>
+          <div class="pt-2 border-t border-gray-100 space-y-2">
+            <label class="block text-xs font-medium text-gray-700" data-i18n="locationSectionTitle">${t('locationSectionTitle')}</label>
+            <p class="text-[11px] text-gray-400" data-i18n="locationEditHint">${t('locationEditHint')}</p>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">${t('locationCabinetLabel')}</label>
+                <input type="text" id="edit-info-location-cabinet" maxlength="4" class="w-full border rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">${t('locationRowLabel')}</label>
+                <input type="number" min="1" step="1" id="edit-info-location-row" class="w-full border rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">${t('locationColumnLabel')}</label>
+                <input type="number" min="1" step="1" id="edit-info-location-column" class="w-full border rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+            <p id="edit-info-location-error" class="text-xs text-red-600 hidden">${t('locationPartialError')}</p>
+          </div>
         </div>
         <div class="flex justify-end gap-3 pt-3 border-t">
           <button onclick="closeEditProductModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">${t('cancelBtn')}</button>
@@ -2343,6 +2440,10 @@ function openEditProductModal(prodId, titleEncoded, subtitleEncoded, price, tagK
   document.getElementById("edit-info-price").value = price || 0;
   document.getElementById("edit-info-tag").value = tagKey;
   document.getElementById("edit-info-current-image").src = currentEditingInfoImage || "https://via.placeholder.com/80";
+  document.getElementById("edit-info-location-cabinet").value = item.location_cabinet || "";
+  document.getElementById("edit-info-location-row").value = item.location_row || "";
+  document.getElementById("edit-info-location-column").value = item.location_column || "";
+  document.getElementById("edit-info-location-error")?.classList.add("hidden");
   const fileInput = document.getElementById("edit-info-image-file");
   if (fileInput) fileInput.value = "";
 
@@ -2365,6 +2466,11 @@ async function saveProductInfo() {
   if (!titleEn) {
     alert(t('alertNeedTitle'));
     return;
+  }
+
+  const loc = readAndValidateLocationFields('edit-info-location');
+  if (!loc.ok) {
+    return; // 三个格子填了一部分，错误提示已经在输入框下面显示出来了
   }
 
   try {
@@ -2408,7 +2514,13 @@ async function saveProductInfo() {
       title_en: titleEn,
       subtitle_en: subtitleEn,
       price: isNaN(price) ? 0 : price,
-      tag_key: tagKey
+      tag_key: tagKey,
+      // 位置是独立存的，随时能改；改了之后不会反过来改商品的自动编码(ID)——ID 创建后
+      // 就固定不变了（其他表都拿它当外键关联），所以货品挪动位置后，这里显示的才是
+      // 当前真实位置，编码里带的位置码则停留在创建那一刻，两者如果不一样很正常。
+      location_cabinet: loc.cabinet,
+      location_row: loc.row,
+      location_column: loc.col
     };
     // 只有原来就有图或者这次选了新图才更新 spin_image，避免把已有主图误清空成空字符串
     if (imageUrl) updatePayload.spin_image = imageUrl;
