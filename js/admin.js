@@ -323,7 +323,10 @@ const ADMIN_I18N = {
     locationRowLabel: "Row",
     locationColumnLabel: "Column",
     locationPartialError: "Cabinet / Row / Column must be either all filled in or all left blank.",
-    locationEditHint: "You can update this anytime — doing so won't change the product's ID (IDs are fixed once created, since other tables reference it). If this differs from the location code baked into the ID, it just means the item has been moved since it was first added."
+    locationEditHint: "You can update this anytime — doing so won't change the product's ID (IDs are fixed once created, since other tables reference it). If this differs from the location code baked into the ID, it just means the item has been moved since it was first added.",
+    orderItemIdLabel: "Product ID: ",
+    orderItemLocationFormat: "Cabinet {cabinet}, Row {row}, Column {col}",
+    orderItemNoLocation: "No storage location set for this product"
   },
   zh: {
     adminLockTitle: "管理后台登录",
@@ -641,7 +644,10 @@ const ADMIN_I18N = {
     locationRowLabel: "行号",
     locationColumnLabel: "列号",
     locationPartialError: "柜号/行号/列号要么都填，要么都留空。",
-    locationEditHint: "随时可以改，改了不会影响商品的编码（ID）——编码创建后就固定不变了（其它表都靠它关联数据）。如果这里跟编码里带的位置码不一样，说明货品后来被挪动过。"
+    locationEditHint: "随时可以改，改了不会影响商品的编码（ID）——编码创建后就固定不变了（其它表都靠它关联数据）。如果这里跟编码里带的位置码不一样，说明货品后来被挪动过。",
+    orderItemIdLabel: "商品编码：",
+    orderItemLocationFormat: "{cabinet} 柜 · 第 {row} 行 · 第 {col} 列",
+    orderItemNoLocation: "这件商品还没设置存放位置"
   }
 };
 
@@ -2956,7 +2962,13 @@ function openLabelPrintWindow(sku, title, subLabel, copies, startPosition, cfg) 
     <head>
       <meta charset="UTF-8">
       <title>${sku}</title>
-      <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
+      <!-- 二维码库改成从网站自己的域名加载本地文件(js/vendor-qrcode.min.js)，不再依赖 jsdelivr
+           这类外部 CDN——之前用 CDN 版本时，如果打印时网络连不上那个 CDN（比如被防火墙/广告
+           拦截插件挡住），这个库就会整个加载失败，导致下面生成二维码那段代码直接报错中断，
+           整张标签纸的内容都生成不出来，表现就是"打印机动了但什么都没印出来"。换成从自己
+           网站加载之后，只要能打开这个后台页面，这个文件就一定加载得到，不会再受外部网络
+           波动影响。 -->
+      <script src="${window.location.origin}/js/vendor-qrcode.min.js"><\/script>
       <style>
         body { font-family: Arial, sans-serif; margin: 0; }
         .toolbar { padding: 12px 16px; background: #f5f5f5; }
@@ -2980,6 +2992,7 @@ function openLabelPrintWindow(sku, title, subLabel, copies, startPosition, cfg) 
         <span>${sku} · ${cfg.cols}×${cfg.rows} · ${cfg.labelW}×${cfg.labelH}mm</span>
         <button onclick="window.print()">Print</button>
       </div>
+      <div id="load-error" style="display:none; margin:16px; padding:12px; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; font-size:13px; border-radius:8px;"></div>
       <div id="pages"></div>
       <script>
         const sku = ${JSON.stringify(sku)};
@@ -2990,6 +3003,18 @@ function openLabelPrintWindow(sku, title, subLabel, copies, startPosition, cfg) 
         const cfg = ${JSON.stringify(cfg)};
         const marginLeft = ${marginLeft};
         const marginTop = ${marginTop};
+
+        function showLoadError(msg) {
+          // 以前是整个 render() 函数一报错就直接中断、页面留白，连个提示都没有，
+          // 只能看到"打印机动了但没印出东西"这种让人摸不着头脑的现象。现在但凡
+          // 哪里出问题，至少会在页面上显眼地告诉你，不会再是一声不吭的空白页。
+          const el = document.getElementById('load-error');
+          if (el) { el.style.display = 'block'; el.innerText = msg; }
+        }
+
+        if (typeof QRCode === 'undefined') {
+          showLoadError('二维码生成库没有加载成功，标签暂时打印不出来。请确认这个后台页面是从你自己的网站正常打开的（不是离线文件），刷新页面后重试；如果还是不行，把这个提示截图发给我看看。');
+        }
 
         function render() {
           const perPage = cfg.cols * cfg.rows;
@@ -3027,9 +3052,21 @@ function openLabelPrintWindow(sku, title, subLabel, copies, startPosition, cfg) 
                     infoEl.innerText = [title, subLabel].filter(Boolean).join(' \\u00b7 ');
                     cell.appendChild(infoEl);
                   }
-                  QRCode.toDataURL(sku, { margin: 1, width: 200 }, function(err, url) {
-                    if (!err) img.src = url;
-                  });
+                  // 之前这里没有 try/catch——库没加载成功时 QRCode 是 undefined，
+                  // 调用它会直接抛错，而这段代码又是在 for 循环正中间，一抛错就把
+                  // 整个 render() 函数从这里截断，连 pageDiv 都没来得及塞进 #pages，
+                  // 结果打印出来的是完全空白的一页。现在单个格子生成失败只影响这一个
+                  // 格子（留空 + 控制台能看到具体原因），其余格子照常生成、照常打印，
+                  // 不会"一颗老鼠屎坏一锅粥"。
+                  try {
+                    QRCode.toDataURL(sku, { margin: 1, width: 200 }, function(err, url) {
+                      if (!err) img.src = url;
+                      else console.error('二维码生成失败:', err);
+                    });
+                  } catch (qrErr) {
+                    console.error('二维码库调用失败:', qrErr);
+                    showLoadError('二维码生成库没有加载成功，标签暂时打印不出来。请确认这个后台页面是从你自己的网站正常打开的（不是离线文件），刷新页面后重试；如果还是不行，把这个提示截图发给我看看。');
+                  }
                   printedCount++;
                 } else {
                   // 已经用掉的格子（起始位置之前）留空跳过，不印任何内容
@@ -3346,15 +3383,38 @@ async function openOrderItemsModal(orderId) {
       return;
     }
 
-    body.innerHTML = items.map(it => `
+    // 顾客下单后，打包发货前要去柜子里找到这几件货——之前这里只显示商品名和规格，
+    // 找哪个柜子、第几行第几列完全看不出来，还得回"在线商品管理列表"里再搜一遍 ID。
+    // 现在这里直接把商品编码(ID)和"当前位置"（products 表里的实时位置字段，不是编码里
+    // 那段创建时的快照）一起显示出来，打包的时候这一个弹窗就够用，不用来回切页面找。
+    const productIds = [...new Set(items.map(it => it.product_id).filter(Boolean))];
+    let locationByProductId = {};
+    if (productIds.length > 0) {
+      const { data: productRows } = await supabaseClient
+        .from("products")
+        .select("id, location_cabinet, location_row, location_column")
+        .in("id", productIds);
+      (productRows || []).forEach(p => { locationByProductId[p.id] = p; });
+    }
+
+    body.innerHTML = items.map(it => {
+      const prod = locationByProductId[it.product_id];
+      const hasLocation = prod && prod.location_cabinet && prod.location_row && prod.location_column;
+      const locationText = hasLocation
+        ? t('orderItemLocationFormat').replace('{cabinet}', prod.location_cabinet).replace('{row}', prod.location_row).replace('{col}', prod.location_column)
+        : t('orderItemNoLocation');
+      return `
       <div class="flex items-center justify-between border-b pb-2">
         <div>
           <div class="font-medium text-gray-900">${it.title}</div>
           <div class="text-xs text-gray-500">${[it.variant_shape, it.variant_size].filter(Boolean).join(' / ')} × ${it.qty}</div>
+          <div class="text-[11px] text-gray-400 font-mono mt-0.5">${t('orderItemIdLabel')}${it.product_id || '-'}</div>
+          <div class="text-[11px] mt-0.5 font-semibold ${hasLocation ? 'text-blue-700' : 'text-gray-400'}">${hasLocation ? '📍 ' : ''}${locationText}</div>
         </div>
         <div class="font-bold text-amber-800">$${(parseFloat(it.unit_price) * it.qty).toFixed(2)}</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
   } catch (err) {
     console.error("加载订单明细失败:", err);
