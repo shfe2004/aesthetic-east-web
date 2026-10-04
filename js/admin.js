@@ -329,7 +329,7 @@ const ADMIN_I18N = {
     orderItemNoLocation: "No storage location set for this product",
     discountPercentLabel: "Discount for this item (%, optional)",
     discountPercentPlaceholder: "Leave blank to use the category's default discount",
-    discountPercentHint: "Leave blank to follow the category's default discount. Enter 0 to explicitly mean this item is never discounted (overrides the category default even if one is set). If this item has tiered pricing configured below, this discount is ignored.",
+    discountPercentHint: "Leave blank to follow the category's default discount. Enter 0 to explicitly mean this item is never discounted (overrides the category default even if one is set). If this item belongs to a tiered pricing group below, this discount is ignored.",
     catDefaultDiscountLabel: "Category Default Discount (%, optional)",
     catDefaultDiscountHint: "Products in this category that have no discount of their own use this percentage automatically. A product with its own discount set (even 0) always takes priority over this. Leave blank for no default discount.",
     catCountsFreeShippingLabel: "Counts toward free-shipping threshold (checked by default for small items; usually unchecked for furniture/large items)",
@@ -338,13 +338,37 @@ const ADMIN_I18N = {
     tieredPricingTitle: "Tiered Pricing (optional)",
     tieredPricingAddRowBtn: "+ Add Tier",
     tieredPricingHint: "E.g. buy 1 for $20, buy 2 for $17.50 each, buy 3+ for $15 each. If this product has any tiers configured, its discount above (and the category's default discount) is completely ignored — tiered pricing always wins.",
-    tieredPricingNoneYet: "No tiers configured yet — this product uses its regular price (or discount) instead.",
+    tieredPricingNoneYet: "No tiers configured yet.",
     tieredPricingMinQtyPlaceholder: "Qty ≥",
     tieredPricingUnitPriceLabel: "→ unit price $",
     tieredPricingUnitPricePlaceholder: "Unit price",
     tieredPricingIncompleteRowError: "Please fill in both the quantity and unit price for every tier row (or remove the incomplete row).",
     tieredPricingDuplicateMinQtyError: "Two tier rows have the same quantity threshold — each threshold can only be used once.",
-    tieredPricingSaveFailedPrefix: "Failed to save tiered pricing: "
+    tieredPricingSaveFailedPrefix: "Failed to save tiered pricing: ",
+    tierGroupSelectLabel: "Tiered Pricing Group (optional)",
+    tierGroupSelectNone: "Not in any group (use regular discount)",
+    tierGroupSelectHint: "Products in the same group have their cart quantities combined to determine the price tier — e.g. buying 2 of this and 2 of another product in the same group together counts as 4. Manage groups and their price tables in \"Tiered Pricing Group Management\" below the product list. Joining a group makes this product ignore its own discount and the category's default discount completely.",
+    tierGroupMgmtTitle: "📊 Tiered Pricing Group Management",
+    addTierGroupBtn: "+ New Group",
+    tierGroupMgmtDesc: "Each group is bound to one category — only products in that category can join it. When a customer buys any combination of products in the same group, their quantities are combined to determine which price tier applies. A product's own discount is completely ignored once it joins a tiered pricing group.",
+    thTierGroupCategory: "Category",
+    thTierGroupName: "Group Name",
+    thTierGroupTiers: "Price Tiers",
+    thTierGroupMembers: "Member Products",
+    loadingTierGroups: "Loading tiered pricing groups...",
+    noTierGroupsYet: "No tiered pricing groups yet.",
+    manageMembersPrefix: "{n} products — Manage",
+    tierGroupEditorTitleNew: "New Tiered Pricing Group",
+    tierGroupEditorTitleEditPrefix: "Edit Group: ",
+    tierGroupCategoryLabel: "Category (cannot be changed after creation)",
+    tierGroupNameLabel: "Group Name (for your own reference only — customers won't see it)",
+    tierGroupTiersLabel: "Price Tiers (buy this many or more → unit price)",
+    tierGroupNeedCategoryError: "Please choose a category for this group.",
+    deleteTierGroupConfirmTemplate: "Delete the group \"{name}\"? Products in it will keep their regular price/discount afterward.",
+    tierGroupMembersModalTitlePrefix: "Manage Members: ",
+    tierGroupMembersModalDesc: "Only products in this group's category are listed. Checking a product adds it to this group (moving it out of any other group it was in); unchecking removes it, reverting it to regular discount pricing.",
+    tierGroupMembersNoProductsInCategory: "No products in this category yet.",
+    tierGroupMemberBelongsElsewhere: "Currently belongs to a different group — checking this will move it here."
   },
   zh: {
     adminLockTitle: "管理后台登录",
@@ -668,7 +692,7 @@ const ADMIN_I18N = {
     orderItemNoLocation: "这件商品还没设置存放位置",
     discountPercentLabel: "这件商品的折扣 (%，选填)",
     discountPercentPlaceholder: "留空则使用所属分类的默认折扣",
-    discountPercentHint: "留空表示跟随分类的默认折扣；填 0 表示这件商品明确不打折（即使分类设了默认折扣也不生效，商品自己的设置永远优先）。如果下面给这件商品配置了阶梯定价，这里的折扣会被完全忽略。",
+    discountPercentHint: "留空表示跟随分类的默认折扣；填 0 表示这件商品明确不打折（即使分类设了默认折扣也不生效，商品自己的设置永远优先）。如果下面把这件商品加入了某个阶梯定价分组，这里的折扣会被完全忽略。",
     catDefaultDiscountLabel: "分类默认折扣 (%，选填)",
     catDefaultDiscountHint: "这个分类下，没有单独设置过折扣的商品统一打几折（填 20 就是打 8 折）。商品自己设置过折扣（哪怕填 0）会优先用商品自己的，不受这里影响。留空表示这个分类没有默认折扣。",
     catCountsFreeShippingLabel: "计入满额包邮门槛（小件商品默认勾选，家具等大件通常不勾）",
@@ -677,13 +701,37 @@ const ADMIN_I18N = {
     tieredPricingTitle: "阶梯定价（选填）",
     tieredPricingAddRowBtn: "+ 添加一档",
     tieredPricingHint: "比如：买1件20元、买2件每件17.5元、买3件以上每件15元。只要这件商品配置了阶梯定价，上面的折扣（以及分类默认折扣）会被完全忽略——阶梯定价优先生效。",
-    tieredPricingNoneYet: "还没有配置阶梯定价——这件商品会按原价（或折扣价）正常计算。",
+    tieredPricingNoneYet: "还没有配置价目表。",
     tieredPricingMinQtyPlaceholder: "买够几件",
     tieredPricingUnitPriceLabel: "→ 单价 $",
     tieredPricingUnitPricePlaceholder: "单价",
     tieredPricingIncompleteRowError: "每一档阶梯定价都要把\"买够几件\"和\"单价\"两格填完整（或者直接删掉这一档）。",
     tieredPricingDuplicateMinQtyError: "有两档阶梯定价设置了相同的\"买够几件\"数量，每个数量档位只能设置一次。",
-    tieredPricingSaveFailedPrefix: "阶梯定价保存失败："
+    tieredPricingSaveFailedPrefix: "阶梯定价保存失败：",
+    tierGroupSelectLabel: "阶梯定价分组（选填）",
+    tierGroupSelectNone: "不加入任何分组（走正常折扣逻辑）",
+    tierGroupSelectHint: "同一个分组里的商品，购物车里的数量会合并计算来决定用哪一档单价——比如这件买2件、同组另一件商品也买2件，合起来算4件。分组和价目表在下方商品列表下面的\"阶梯定价分组管理\"里统一维护。加入分组后，这件商品自己的折扣和分类默认折扣都会被完全忽略。",
+    tierGroupMgmtTitle: "📊 阶梯定价分组管理",
+    addTierGroupBtn: "+ 新建分组",
+    tierGroupMgmtDesc: "分组必须绑定一个分类，只有同一个分类下的商品才能加入同一个分组。顾客买了分组里任意几款商品，件数会合并计算，共同享受价目表里对应的那一档单价。商品自己设置的折扣，一旦加入了阶梯定价分组就会被完全忽略。",
+    thTierGroupCategory: "所属分类",
+    thTierGroupName: "分组名称",
+    thTierGroupTiers: "价目表",
+    thTierGroupMembers: "组内商品数",
+    loadingTierGroups: "正在加载阶梯定价分组...",
+    noTierGroupsYet: "还没有创建任何阶梯定价分组。",
+    manageMembersPrefix: "{n} 件商品 · 管理",
+    tierGroupEditorTitleNew: "新建阶梯定价分组",
+    tierGroupEditorTitleEditPrefix: "编辑分组：",
+    tierGroupCategoryLabel: "所属分类（创建后不可修改）",
+    tierGroupNameLabel: "分组名称（只在后台自己看，方便自己辨认，顾客不会看到）",
+    tierGroupTiersLabel: "价目表（买够几件 → 单价多少）",
+    tierGroupNeedCategoryError: "请给这个分组选一个所属分类。",
+    deleteTierGroupConfirmTemplate: "确定要删除分组\"{name}\"吗？组内商品删除后会恢复成正常折扣逻辑，不会被一起删除。",
+    tierGroupMembersModalTitlePrefix: "管理组内商品：",
+    tierGroupMembersModalDesc: "只列出这个分组所属分类下的商品。勾选的商品会加入这个分组（原来属于其它分组的会被换到这个分组）；取消勾选会把商品移出分组，恢复成正常折扣逻辑。",
+    tierGroupMembersNoProductsInCategory: "这个分类下还没有商品。",
+    tierGroupMemberBelongsElsewhere: "目前属于另一个分组——勾选后会把它换到这个分组。"
   }
 };
 
@@ -827,6 +875,8 @@ async function onAdminAuthenticated() {
   // 分类列表要先加载完，"添加商品"表单的分类下拉框、自动编码前缀才有数据可用，
   // 所以这里 await 一下，不跟其它互不相关的加载一起并发触发
   await loadCategories();
+  // 阶梯定价分组列表要用到 adminCategories 显示分类名称，所以放在 loadCategories() 后面
+  await loadTierGroups();
   // 权限要先拉到，才知道下面这些区块该显示哪些——所以也 await 一下，
   // 不跟其它互不相关的加载并发触发，避免有权限的区块先闪一下再被隐藏。
   await loadMyAdminProfile();
@@ -847,7 +897,7 @@ const ADMIN_PERMISSION_SECTION_SELECTORS = {
   view_stats: ["#admin-section-view_stats"],
   manage_tryon_calib: ["#admin-section-manage_tryon_calib"],
   manage_categories: ["#admin-section-manage_categories"],
-  manage_products: ["#admin-section-manage_products", "#admin-section-manage_products_list"],
+  manage_products: ["#admin-section-manage_products", "#admin-section-manage_products_list", "#admin-section-manage_tiered_pricing_groups"],
   manage_orders: ["#admin-section-manage_orders"],
   view_activity_log: ["#admin-section-view_activity_log"]
 };
@@ -1465,6 +1515,10 @@ document.addEventListener("DOMContentLoaded", () => {
   if (subtypeAddForm) {
     subtypeAddForm.addEventListener("submit", handleAddSubtype);
   }
+  const tierGroupEditorForm = document.getElementById("tier-group-editor-form");
+  if (tierGroupEditorForm) {
+    tierGroupEditorForm.addEventListener("submit", handleTierGroupEditorSubmit);
+  }
 
   const adminEditorForm = document.getElementById("admin-editor-form");
   if (adminEditorForm) {
@@ -1862,6 +1916,247 @@ async function deleteSubtype(subtypeId) {
     await loadSubtypesForCategory(currentSubtypeEditingCategory);
     renderSubtypeList();
     renderCategoryList();
+  }
+}
+
+// ============================================================
+// ---- 阶梯定价分组管理（见 sql/add_tiered_pricing_groups.sql） ----
+//
+// 每个分组绑定一个分类，分组自己有一份价目表(tiers)；商品通过 products.tiered_pricing_group_id
+// 加入某个分组。同一分组下不管买了哪几款商品，件数合并计算，共用一套价目表——用来实现
+// "同分类下不同商品也能合并计件享受阶梯价，但不同分类不会混在一起"这个需求。
+// ============================================================
+let adminTierGroups = []; // 每个元素额外带 tiers（价目表数组）和 memberCount（组内商品数）
+
+async function loadTierGroups() {
+  const [groupsRes, tiersRes, productsRes] = await Promise.all([
+    supabaseClient.from("tiered_pricing_groups").select("*").order("created_at", { ascending: true }),
+    supabaseClient.from("tiered_pricing_tiers").select("*").order("min_qty", { ascending: true }),
+    supabaseClient.from("products").select("id, tiered_pricing_group_id")
+  ]);
+  const groups = (!groupsRes.error && groupsRes.data) ? groupsRes.data : [];
+  const tiers = (!tiersRes.error && tiersRes.data) ? tiersRes.data : [];
+  const products = (!productsRes.error && productsRes.data) ? productsRes.data : [];
+  adminTierGroups = groups.map(g => ({
+    ...g,
+    tiers: tiers.filter(t => t.group_id === g.id),
+    memberCount: products.filter(p => p.tiered_pricing_group_id === g.id).length
+  }));
+  renderTierGroupList();
+}
+
+function renderTierGroupList() {
+  const tbody = document.getElementById("admin-tier-group-list");
+  if (!tbody) return;
+  if (adminTierGroups.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">${t('noTierGroupsYet')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = adminTierGroups.map(g => {
+    const cat = adminCategories.find(c => c.id === g.category_id);
+    const catName = cat ? (currentAdminLang === 'zh' ? cat.name_zh : cat.name_en) : g.category_id;
+    const tiersText = g.tiers.length > 0
+      ? g.tiers.map(t => `${t.min_qty}+: $${parseFloat(t.unit_price).toFixed(2)}`).join(' · ')
+      : `<span class="text-gray-400">${t('tieredPricingNoneYet')}</span>`;
+    return `
+      <tr class="border-b">
+        <td class="p-3" data-label="${t('thTierGroupCategory')}">${catName}</td>
+        <td class="p-3" data-label="${t('thTierGroupName')}">${g.name}</td>
+        <td class="p-3" data-label="${t('thTierGroupTiers')}"><span class="text-xs">${tiersText}</span></td>
+        <td class="p-3" data-label="${t('thTierGroupMembers')}">
+          <button onclick="openTierGroupMembersModal(${g.id})" class="text-xs text-amber-800 hover:text-amber-900 underline">${t('manageMembersPrefix').replace('{n}', g.memberCount)}</button>
+        </td>
+        <td class="p-3" data-label="${t('thCatAction')}">
+          <div class="flex gap-2">
+            <button onclick="openTierGroupEditor(${g.id})" class="text-xs text-blue-700 hover:text-blue-900 font-medium">${t('catEditBtn')}</button>
+            <button onclick="deleteTierGroup(${g.id})" class="text-xs text-red-600 hover:text-red-800 font-medium">${t('deleteBtn')}</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function populateTierGroupCategoryDropdown() {
+  const select = document.getElementById("tier-group-category");
+  if (!select) return;
+  select.innerHTML = adminCategories.map(cat => `<option value="${cat.id}">${cat.name_zh} (${cat.name_en})</option>`).join('');
+}
+
+function openTierGroupEditor(groupId) {
+  const modal = document.getElementById("modal-tier-group-editor");
+  const title = document.getElementById("tier-group-editor-title");
+  const categorySelect = document.getElementById("tier-group-category");
+  const errorEl = document.getElementById("tier-group-editor-error");
+  if (!modal) return;
+  errorEl.classList.add("hidden");
+  document.getElementById("tier-group-editor-form").reset();
+  populateTierGroupCategoryDropdown();
+
+  if (groupId) {
+    const group = adminTierGroups.find(g => g.id === groupId);
+    if (!group) return;
+    title.innerText = t('tierGroupEditorTitleEditPrefix') + group.name;
+    document.getElementById("tier-group-edit-id").value = group.id;
+    categorySelect.value = group.category_id;
+    categorySelect.disabled = true; // 分组绑定的分类创建后不允许再改——改分类等于把组内商品全部挪到另一个价格体系，容易出事故
+    document.getElementById("tier-group-name").value = group.name;
+    initTierRowsState('tier-group-rows', group.tiers.map(t => ({ min_qty: t.min_qty, unit_price: t.unit_price })));
+  } else {
+    title.innerText = t('tierGroupEditorTitleNew');
+    document.getElementById("tier-group-edit-id").value = "";
+    categorySelect.disabled = false;
+    initTierRowsState('tier-group-rows', []);
+  }
+  modal.classList.remove("hidden");
+}
+
+function closeTierGroupEditor() {
+  document.getElementById("modal-tier-group-editor").classList.add("hidden");
+}
+
+async function handleTierGroupEditorSubmit(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById("tier-group-editor-error");
+  errorEl.classList.add("hidden");
+
+  const editingId = document.getElementById("tier-group-edit-id").value;
+  const categoryId = document.getElementById("tier-group-category").value;
+  const name = document.getElementById("tier-group-name").value.trim();
+
+  const { ok, rows } = validateGenericTierRows('tier-group-rows');
+  if (!ok) return;
+
+  try {
+    let groupId;
+    if (editingId) {
+      groupId = parseInt(editingId, 10);
+      const { error } = await supabaseClient.from("tiered_pricing_groups").update({ name }).eq("id", groupId);
+      if (error) throw error;
+      logAdminActivity('tier_group_update', `id: ${groupId}`);
+    } else {
+      if (!categoryId) {
+        errorEl.innerText = t('tierGroupNeedCategoryError');
+        errorEl.classList.remove("hidden");
+        return;
+      }
+      const { data, error } = await supabaseClient.from("tiered_pricing_groups").insert([{ category_id: categoryId, name }]).select();
+      if (error) throw error;
+      groupId = (data && data[0]) ? data[0].id : null;
+      logAdminActivity('tier_group_create', `category: ${categoryId}, name: ${name}`);
+    }
+
+    // 价目表：先把这个分组原来的几档全删掉，再把弹窗里现在这份整体重新插入一遍——
+    // 比逐行对比简单可靠，一个分组的档位通常也就两三行，删完重插没有性能问题。
+    const { error: deleteOldTiersError } = await supabaseClient.from("tiered_pricing_tiers").delete().eq("group_id", groupId);
+    if (deleteOldTiersError) throw new Error(t('tieredPricingSaveFailedPrefix') + deleteOldTiersError.message);
+    if (rows.length > 0) {
+      const tierRows = rows.map(r => ({ group_id: groupId, min_qty: r.min_qty, unit_price: r.unit_price }));
+      const { error: insertTiersError } = await supabaseClient.from("tiered_pricing_tiers").insert(tierRows);
+      if (insertTiersError) throw new Error(t('tieredPricingSaveFailedPrefix') + insertTiersError.message);
+    }
+
+    closeTierGroupEditor();
+    await loadTierGroups();
+  } catch (err) {
+    console.error("保存阶梯定价分组失败:", err);
+    errorEl.innerText = t('catSaveFailedPrefix') + (err.message || 'Unknown error');
+    errorEl.classList.remove("hidden");
+  }
+}
+
+async function deleteTierGroup(groupId) {
+  const group = adminTierGroups.find(g => g.id === groupId);
+  if (!group) return;
+  if (!confirm(t('deleteTierGroupConfirmTemplate').replace('{name}', group.name))) return;
+  // 分组删除时，products.tiered_pricing_group_id 会被数据库自动设成 null（on delete set null），
+  // 组内商品恢复成正常折扣逻辑，不会被连带删除
+  const { error } = await supabaseClient.from("tiered_pricing_groups").delete().eq("id", groupId);
+  if (error) {
+    alert(t('operationFailed') + error.message);
+    return;
+  }
+  logAdminActivity('tier_group_delete', `id: ${groupId}, name: ${group.name}`);
+  await loadTierGroups();
+}
+
+// ---- 管理组内商品：勾选列表，批量把该分类下的商品加入/移出这个分组 ----
+let currentTierGroupMembersEditing = null;
+
+async function openTierGroupMembersModal(groupId) {
+  const group = adminTierGroups.find(g => g.id === groupId);
+  if (!group) return;
+  currentTierGroupMembersEditing = groupId;
+  document.getElementById("tier-group-members-name").innerText = group.name;
+
+  const listEl = document.getElementById("tier-group-members-list");
+  listEl.innerHTML = `<p class="text-xs text-gray-400">${t('loadingText')}</p>`;
+  document.getElementById("modal-tier-group-members").classList.remove("hidden");
+
+  // 只列出同一个分类下的商品——不同分类的商品本来就不该共用一个分组
+  const { data: products, error } = await supabaseClient
+    .from("products")
+    .select("id, title_en, tiered_pricing_group_id")
+    .eq("category_id", group.category_id);
+
+  if (error) {
+    listEl.innerHTML = `<p class="text-xs text-red-600">${t('operationFailed')}${error.message}</p>`;
+    return;
+  }
+  if (!products || products.length === 0) {
+    listEl.innerHTML = `<p class="text-xs text-gray-400">${t('tierGroupMembersNoProductsInCategory')}</p>`;
+    return;
+  }
+  listEl.innerHTML = products.map(p => `
+    <label class="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-100">
+      <span class="text-sm text-gray-700 truncate">${p.title_en || p.id} <span class="text-xs text-gray-400 font-mono">(${p.id})</span></span>
+      <input type="checkbox" class="tier-group-member-cb rounded text-amber-800 focus:ring-amber-800" data-product-id="${p.id}"
+        ${p.tiered_pricing_group_id === groupId ? 'checked' : ''}
+        ${(p.tiered_pricing_group_id && p.tiered_pricing_group_id !== groupId) ? `title="${t('tierGroupMemberBelongsElsewhere')}"` : ''}>
+    </label>
+  `).join('');
+}
+
+function closeTierGroupMembersModal() {
+  document.getElementById("modal-tier-group-members").classList.add("hidden");
+  currentTierGroupMembersEditing = null;
+}
+
+async function saveTierGroupMembers() {
+  if (!currentTierGroupMembersEditing) return;
+  const groupId = currentTierGroupMembersEditing;
+  const saveBtn = document.getElementById("tier-group-members-save-btn");
+  const checkboxes = Array.from(document.querySelectorAll(".tier-group-member-cb"));
+  const checkedIds = checkboxes.filter(cb => cb.checked).map(cb => cb.dataset.productId);
+  const uncheckedIds = checkboxes.filter(cb => !cb.checked).map(cb => cb.dataset.productId);
+
+  try {
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = t('savingConfigBtn'); }
+
+    if (checkedIds.length > 0) {
+      const { error } = await supabaseClient.from("products").update({ tiered_pricing_group_id: groupId }).in("id", checkedIds);
+      if (error) throw error;
+    }
+    // 取消勾选的商品：只有"原来就属于这个分组"的才需要清空，不动属于别的分组的商品
+    // （这批 uncheckedIds 本来就是"这个分类下除了刚才勾选的，剩下的全部"，包含了那些
+    // 本来就不属于任何分组、或者属于别的分组的商品——这里只清空"现在确实是这个分组"的那些）
+    if (uncheckedIds.length > 0) {
+      const { error } = await supabaseClient.from("products")
+        .update({ tiered_pricing_group_id: null })
+        .eq("tiered_pricing_group_id", groupId)
+        .in("id", uncheckedIds);
+      if (error) throw error;
+    }
+
+    logAdminActivity('tier_group_members_update', `group: ${groupId}, members: ${checkedIds.length}`);
+    closeTierGroupMembersModal();
+    await loadTierGroups();
+    await loadAdminProducts();
+  } catch (err) {
+    console.error("保存分组成员失败:", err);
+    alert(t('operationFailed') + err.message);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = t('saveChangesBtn'); }
   }
 }
 
@@ -2393,58 +2688,89 @@ function closeEditSpecModal() {
   document.getElementById("modal-edit-spec")?.classList.add("hidden");
 }
 
-// --- 修改商品基础信息弹窗（标题/副标题/价格/标签/主图/折扣/阶梯定价）：商品发布后唯一能改这几项的地方 ---
+// --- 修改商品基础信息弹窗（标题/副标题/价格/标签/主图/折扣/所属阶梯定价分组）：
+// 商品发布后唯一能改这几项的地方 ---
 let currentEditingInfoId = null;
 let currentEditingInfoImage = "";
 let editInfoNewImageFile = null;
-// 阶梯定价行：在弹窗里临时维护的一份内存数组，保存时才整体同步到 tiered_pricing 表
-// （先全部删掉这个商品原来的行，再把当前这份整体插入——比逐行 diff 简单可靠得多，
-// 反正一个商品的阶梯档位通常也就两三行，不存在性能问题）。
-let editInfoTieredRows = [];
-let tieredRowIdCounter = 0;
 
-function renderTieredPricingRows() {
-  const container = document.getElementById("tiered-pricing-rows");
+// ============================================================
+// 通用的"价目表行编辑器"（买够几件 → 单价多少），阶梯定价分组的新建/编辑弹窗用这个。
+// 用 containerId 区分是哪个编辑器的行（目前只有分组编辑器 #tier-group-rows 在用），
+// 状态存在 tierRowsState[containerId] 里，保存时整体读出来，不逐行跟数据库 diff。
+// ============================================================
+let tierRowsState = {};
+let tierRowIdCounter = 0;
+
+function initTierRowsState(containerId, initialRows) {
+  tierRowsState[containerId] = (initialRows || []).map(r => ({ rowId: ++tierRowIdCounter, min_qty: r.min_qty, unit_price: r.unit_price }));
+  renderGenericTierRows(containerId);
+}
+
+function renderGenericTierRows(containerId) {
+  const container = document.getElementById(containerId);
+  const rows = tierRowsState[containerId] || [];
   if (!container) return;
-  if (editInfoTieredRows.length === 0) {
+  if (rows.length === 0) {
     container.innerHTML = `<p class="text-[11px] text-gray-400">${t('tieredPricingNoneYet')}</p>`;
     return;
   }
-  container.innerHTML = editInfoTieredRows.map(row => `
+  container.innerHTML = rows.map(row => `
     <div class="flex items-center gap-2" data-row-id="${row.rowId}">
       <div class="flex-1">
         <input type="number" min="1" step="1" placeholder="${t('tieredPricingMinQtyPlaceholder')}" value="${row.min_qty ?? ''}"
-          onchange="updateTieredPricingRow(${row.rowId}, 'min_qty', this.value)"
+          onchange="updateGenericTierRow('${containerId}', ${row.rowId}, 'min_qty', this.value)"
           class="w-full border rounded-lg px-2 py-1.5 text-xs">
       </div>
       <span class="text-[11px] text-gray-400 shrink-0">${t('tieredPricingUnitPriceLabel')}</span>
       <div class="flex-1">
         <input type="number" min="0" step="0.01" placeholder="${t('tieredPricingUnitPricePlaceholder')}" value="${row.unit_price ?? ''}"
-          onchange="updateTieredPricingRow(${row.rowId}, 'unit_price', this.value)"
+          onchange="updateGenericTierRow('${containerId}', ${row.rowId}, 'unit_price', this.value)"
           class="w-full border rounded-lg px-2 py-1.5 text-xs">
       </div>
-      <button type="button" onclick="removeTieredPricingRow(${row.rowId})" class="text-red-600 hover:text-red-800 shrink-0 px-1" title="${t('deleteBtn')}">
+      <button type="button" onclick="removeGenericTierRow('${containerId}', ${row.rowId})" class="text-red-600 hover:text-red-800 shrink-0 px-1" title="${t('deleteBtn')}">
         <i class="fa-solid fa-trash text-xs"></i>
       </button>
     </div>
   `).join('');
 }
 
-function addTieredPricingRow() {
-  editInfoTieredRows.push({ rowId: ++tieredRowIdCounter, min_qty: null, unit_price: null });
-  renderTieredPricingRows();
+function addGenericTierRow(containerId) {
+  if (!tierRowsState[containerId]) tierRowsState[containerId] = [];
+  tierRowsState[containerId].push({ rowId: ++tierRowIdCounter, min_qty: null, unit_price: null });
+  renderGenericTierRows(containerId);
 }
 
-function removeTieredPricingRow(rowId) {
-  editInfoTieredRows = editInfoTieredRows.filter(r => r.rowId !== rowId);
-  renderTieredPricingRows();
+function removeGenericTierRow(containerId, rowId) {
+  tierRowsState[containerId] = (tierRowsState[containerId] || []).filter(r => r.rowId !== rowId);
+  renderGenericTierRows(containerId);
 }
 
-function updateTieredPricingRow(rowId, field, value) {
-  const row = editInfoTieredRows.find(r => r.rowId === rowId);
+function updateGenericTierRow(containerId, rowId, field, value) {
+  const row = (tierRowsState[containerId] || []).find(r => r.rowId === rowId);
   if (!row) return;
   row[field] = value === '' ? null : (field === 'min_qty' ? parseInt(value, 10) : parseFloat(value));
 }
+
+// 校验一个价目表容器里的行：每一档都要填完整（买够几件 + 单价），且"买够几件"不能重复。
+// 返回 { ok, rows }；ok=false 时已经弹出对应的中文提示，调用方直接 return 即可。
+function validateGenericTierRows(containerId) {
+  const rows = tierRowsState[containerId] || [];
+  for (const row of rows) {
+    if (row.min_qty === null || row.min_qty === undefined || row.unit_price === null || row.unit_price === undefined || isNaN(row.min_qty) || isNaN(row.unit_price)) {
+      alert(t('tieredPricingIncompleteRowError'));
+      return { ok: false, rows: [] };
+    }
+  }
+  const minQtySet = new Set(rows.map(r => r.min_qty));
+  if (minQtySet.size !== rows.length) {
+    alert(t('tieredPricingDuplicateMinQtyError'));
+    return { ok: false, rows: [] };
+  }
+  return { ok: true, rows };
+}
+
+function addTierGroupRow() { addGenericTierRow('tier-group-rows'); }
 
 function openEditProductModal(prodId) {
   // 跟库存管理弹窗一样，只传 ID 再从已加载的商品列表里查完整数据，不把标题/副标题这些
@@ -2499,13 +2825,12 @@ function openEditProductModal(prodId) {
             <input type="number" min="0" max="100" step="0.01" id="edit-info-discount-percent" placeholder="${t('discountPercentPlaceholder')}" class="w-full border rounded-lg px-3 py-2 text-sm">
             <p class="text-[11px] text-gray-400 mt-1" data-i18n="discountPercentHint">${t('discountPercentHint')}</p>
           </div>
-          <div class="pt-2 border-t border-gray-100 space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="block text-xs font-medium text-gray-700" data-i18n="tieredPricingTitle">${t('tieredPricingTitle')}</label>
-              <button type="button" onclick="addTieredPricingRow()" class="text-xs text-blue-700 hover:text-blue-900 font-medium">${t('tieredPricingAddRowBtn')}</button>
-            </div>
-            <p class="text-[11px] text-gray-400" data-i18n="tieredPricingHint">${t('tieredPricingHint')}</p>
-            <div id="tiered-pricing-rows" class="space-y-2"></div>
+          <div class="pt-2 border-t border-gray-100">
+            <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="tierGroupSelectLabel">${t('tierGroupSelectLabel')}</label>
+            <select id="edit-info-tier-group" class="w-full border rounded-lg px-3 py-2 text-sm">
+              <option value="">${t('tierGroupSelectNone')}</option>
+            </select>
+            <p class="text-[11px] text-gray-400 mt-1" data-i18n="tierGroupSelectHint">${t('tierGroupSelectHint')}</p>
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">${t('currentImageLabel')}</label>
@@ -2562,15 +2887,13 @@ function openEditProductModal(prodId) {
   const fileInput = document.getElementById("edit-info-image-file");
   if (fileInput) fileInput.value = "";
 
-  // 阶梯定价是单独一张表，不在 lastLoadedProducts 缓存的商品数据里，每次打开弹窗时单独拉一次
-  editInfoTieredRows = [];
-  renderTieredPricingRows();
-  supabaseClient.from("tiered_pricing").select("*").eq("product_id", prodId).order("min_qty", { ascending: true }).then(({ data, error }) => {
-    if (!error && data) {
-      editInfoTieredRows = data.map(r => ({ rowId: ++tieredRowIdCounter, min_qty: r.min_qty, unit_price: r.unit_price }));
-      renderTieredPricingRows();
-    }
-  });
+  // 阶梯定价分组下拉框：只列出跟这件商品同一个分类的分组（分组本来就是绑定分类的，
+  // 不同分类的商品不可能共用同一个分组），当前所属的分组（如果有）预选上。
+  const groupSelect = document.getElementById("edit-info-tier-group");
+  const groupsForCategory = adminTierGroups.filter(g => g.category_id === item.category_id);
+  groupSelect.innerHTML = `<option value="">${t('tierGroupSelectNone')}</option>` +
+    groupsForCategory.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  groupSelect.value = item.tiered_pricing_group_id || "";
 
   modal.classList.remove("hidden");
 }
@@ -2600,22 +2923,8 @@ async function saveProductInfo() {
 
   const discountStr = document.getElementById("edit-info-discount-percent").value.trim();
   const discountPercent = discountStr === "" ? null : parseFloat(discountStr);
-
-  // 阶梯定价每一行都要求"买几件"和"单价"两格都填好，不允许存一半（跟位置字段的
-  // 校验是同一个思路：填不完整没法用，不如直接拦住，总比存进去一个没法用的脏数据好）。
-  for (const row of editInfoTieredRows) {
-    if (row.min_qty === null || row.min_qty === undefined || row.unit_price === null || row.unit_price === undefined || isNaN(row.min_qty) || isNaN(row.unit_price)) {
-      alert(t('tieredPricingIncompleteRowError'));
-      return;
-    }
-  }
-  // 同一个商品不能有两行"买几件"档位重复（数据库那边 unique(product_id, min_qty) 也会拦，
-  // 这里提前拦一次能给出更清楚的中文提示，而不是让用户看到一串数据库报错）。
-  const minQtySet = new Set(editInfoTieredRows.map(r => r.min_qty));
-  if (minQtySet.size !== editInfoTieredRows.length) {
-    alert(t('tieredPricingDuplicateMinQtyError'));
-    return;
-  }
+  const tierGroupSelect = document.getElementById("edit-info-tier-group");
+  const tierGroupId = (tierGroupSelect && tierGroupSelect.value) ? parseInt(tierGroupSelect.value, 10) : null;
 
   try {
     if (saveBtn) {
@@ -2665,7 +2974,8 @@ async function saveProductInfo() {
       location_cabinet: loc.cabinet,
       location_row: loc.row,
       location_column: loc.col,
-      discount_percent: discountPercent
+      discount_percent: discountPercent,
+      tiered_pricing_group_id: tierGroupId
     };
     // 只有原来就有图或者这次选了新图才更新 spin_image，避免把已有主图误清空成空字符串
     if (imageUrl) updatePayload.spin_image = imageUrl;
@@ -2676,21 +2986,6 @@ async function saveProductInfo() {
       .eq("id", currentEditingInfoId);
 
     if (error) throw error;
-
-    // 阶梯定价：先把这个商品原来的几行全删掉，再把弹窗里现在这份整体重新插入一遍——
-    // 比逐行对比"哪行改了/哪行删了/哪行是新加的"简单可靠，一个商品的阶梯档位通常
-    // 也就两三行，删完重插的开销完全可以忽略。
-    const { error: deleteOldTiersError } = await supabaseClient.from("tiered_pricing").delete().eq("product_id", currentEditingInfoId);
-    if (deleteOldTiersError) throw new Error(t('tieredPricingSaveFailedPrefix') + deleteOldTiersError.message);
-    if (editInfoTieredRows.length > 0) {
-      const tierRows = editInfoTieredRows.map(r => ({
-        product_id: currentEditingInfoId,
-        min_qty: r.min_qty,
-        unit_price: r.unit_price
-      }));
-      const { error: insertTiersError } = await supabaseClient.from("tiered_pricing").insert(tierRows);
-      if (insertTiersError) throw new Error(t('tieredPricingSaveFailedPrefix') + insertTiersError.message);
-    }
 
     logAdminActivity('product_update_info', `id: ${currentEditingInfoId}, title: ${titleEn}`);
     loadAdminActivityLog();

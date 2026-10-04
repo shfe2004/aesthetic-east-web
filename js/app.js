@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 独立并发查询 products、nail_options、product_images，全面组装尺寸与属性
 async function fetchProductsIndependentJoin() {
   try {
-    const [prodRes, optRes, imgRes, stockAvailRes, categoriesRes, subtypesRes, tieredRes] = await Promise.all([
+    const [prodRes, optRes, imgRes, stockAvailRes, categoriesRes, subtypesRes, tierGroupsRes, tierTiersRes] = await Promise.all([
       supabaseClient.from("products").select("*").order("created_at", { ascending: false }),
       supabaseClient.from("nail_options").select("*"),
       supabaseClient.from("product_images").select("*"),
@@ -277,9 +277,10 @@ async function fetchProductsIndependentJoin() {
       // 会什么都不画，只是亚克力/家具/以后新增的分类栏目不显示，穿戴甲那个写死的栏目不受影响。
       supabaseClient.from("categories").select("*").eq("is_active", true).order("display_order", { ascending: true }),
       supabaseClient.from("product_subtypes").select("*").order("display_order", { ascending: true }),
-      // 阶梯定价：见 sql/add_discount_tiered_pricing_shipping.sql，旧数据库没跑过这份 SQL 时
-      // 查询会失败，这里同样不阻断整个页面——没有阶梯定价数据，所有商品就都按原价/折扣价算
-      supabaseClient.from("tiered_pricing").select("*").order("min_qty", { ascending: true })
+      // 阶梯定价分组：见 sql/add_tiered_pricing_groups.sql，旧数据库没跑过这份 SQL 时查询会失败，
+      // 这里同样不阻断整个页面——没有分组数据，所有商品就都按原价/折扣价算
+      supabaseClient.from("tiered_pricing_groups").select("*"),
+      supabaseClient.from("tiered_pricing_tiers").select("*").order("min_qty", { ascending: true })
     ]);
     if (prodRes.error) throw prodRes.error;
     const products = prodRes.data || [];
@@ -289,7 +290,17 @@ async function fetchProductsIndependentJoin() {
     const stockAvailRows = (!stockAvailRes.error && stockAvailRes.data) ? stockAvailRes.data : [];
     window.categoriesData = (!categoriesRes.error && categoriesRes.data) ? categoriesRes.data : [];
     window.subtypesData = (!subtypesRes.error && subtypesRes.data) ? subtypesRes.data : [];
-    const tieredRows = (!tieredRes.error && tieredRes.data) ? tieredRes.data : [];
+    const tierGroupRows = (!tierGroupsRes.error && tierGroupsRes.data) ? tierGroupsRes.data : [];
+    const tierTierRows = (!tierTiersRes.error && tierTiersRes.data) ? tierTiersRes.data : [];
+    // 阶梯定价分组速查表：groupId -> 排好序的价目表（见 sql/add_tiered_pricing_groups.sql）。
+    // 购物车计算时按"商品所属的分组"查这里的价目表，不再是商品自己带一份价目表。
+    window.tieredPricingGroups = {};
+    tierGroupRows.forEach(g => {
+      window.tieredPricingGroups[g.id] = {
+        categoryId: g.category_id,
+        tiers: tierTierRows.filter(t => t.group_id === g.id).map(t => ({ minQty: parseInt(t.min_qty, 10), unitPrice: parseFloat(t.unit_price) }))
+      };
+    });
     // 分类默认折扣：商品自己没设置折扣时的兜底值，按分类 id 建个速查表
     const categoryDefaultDiscount = {};
     window.categoriesData.forEach(c => { categoryDefaultDiscount[c.id] = c.default_discount_percent; });
@@ -353,9 +364,9 @@ async function fetchProductsIndependentJoin() {
         // 子类型（分类内部的筛选标签，比如"首饰"分类下的耳环/项链），见 sql/add_categories_system.sql；
         // 穿戴甲/亚克力/家具这三个现有分类目前都不用这个字段，值会是 null
         subtypeId: item.subtype_id || null,
-        // 折扣/阶梯定价：见 sql/add_discount_tiered_pricing_shipping.sql
+        // 折扣/阶梯定价：见 sql/add_discount_tiered_pricing_shipping.sql 和 sql/add_tiered_pricing_groups.sql
         // discountPercent：商品自己设置过折扣（哪怕是 0）就用商品自己的，否则用所属分类的默认折扣，
-        // 两者都没设置就是 null（不打折）。如果这件商品配置了阶梯定价，折扣会被完全忽略——
+        // 两者都没设置就是 null（不打折）。如果这件商品加入了阶梯定价分组，折扣会被完全忽略——
         // 这里不提前清空 discountPercent，交给下面统一计价的 computeUnitPriceForQty() 处理，
         // 这样其它只是想单纯显示"折扣信息"的地方也能查到商品本来配置的折扣是多少。
         discountPercent: (item.discount_percent !== null && item.discount_percent !== undefined)
@@ -363,11 +374,9 @@ async function fetchProductsIndependentJoin() {
           : (categoryDefaultDiscount[item.category_id] !== null && categoryDefaultDiscount[item.category_id] !== undefined)
             ? parseFloat(categoryDefaultDiscount[item.category_id])
             : null,
-        // 阶梯定价各档位，按 minQty 从小到大排好（上面查询时已经 order 过了）
-        tieredPricing: tieredRows.filter(r => r.product_id === item.id).map(r => ({
-          minQty: parseInt(r.min_qty, 10),
-          unitPrice: parseFloat(r.unit_price)
-        }))
+        // 这件商品所属的阶梯定价分组（没有就是 null）。同一个分组里的商品，购物车里的数量
+        // 会合并计算来决定用哪一档单价——不再是只看这一件商品自己买了几件。
+        tieredPricingGroupId: item.tiered_pricing_group_id || null
       };
 
       if (item.category_id === 'nails') nails.push(formattedItem);
@@ -396,12 +405,16 @@ async function fetchProductsIndependentJoin() {
 // ============================================================
 
 // productItem：window.productsById[productId] 查出来的完整商品数据；
-// qty：这款商品（同一个 productId）在购物车里所有变体行加起来的总件数——
-// 阶梯定价是按"这款设计总共买了几件"算档位的，不是只看某一行（甲型/尺寸）自己的数量。
+// qty：这个商品用来匹配阶梯定价档位的数量——如果这款商品属于某个"阶梯定价分组"
+// (tieredPricingGroupId)，这个数量应该是"同一个分组里所有商品在购物车里加起来的总件数"
+// （由 buildQtyByGroupMap 算出来），不再只是这一款商品自己买了几件；
+// 如果商品不属于任何分组，这个数量就是这款商品自己的总件数，走的是普通折扣逻辑。
 function computeUnitPriceForQty(productItem, qty) {
   if (!productItem) return 0;
   const basePrice = parseFloat(productItem.price) || 0;
-  const tiers = productItem.tieredPricing || [];
+  const groupId = productItem.tieredPricingGroupId;
+  const group = groupId && window.tieredPricingGroups ? window.tieredPricingGroups[groupId] : null;
+  const tiers = group ? group.tiers : [];
   if (tiers.length > 0) {
     // 阶梯定价优先于折扣、完全忽略折扣：找到"门槛数量 <= qty"里门槛最高的那一档
     let applicable = null;
@@ -419,26 +432,51 @@ function computeUnitPriceForQty(productItem, qty) {
   return basePrice;
 }
 
-// 按 productId 把购物车里所有行的数量加总，阶梯定价按这个总数决定档位
+// 按 productId 把购物车里所有行的数量加总——商品没有加入阶梯定价分组时，
+// 折扣逻辑仍然是"看这款商品自己买了几件"（目前折扣本身不分档，这个总数暂时没用在计价上，
+// 只是保留给 getCartItemUnitPrice 在找不到分组时做兜底）。
 function buildQtyByProductMap(cartItems) {
   const map = {};
   cartItems.forEach(item => { map[item.productId] = (map[item.productId] || 0) + item.qty; });
   return map;
 }
 
-// 某一行购物车现在的实际单价（用于购物车抽屉/结算页逐行显示）
-function getCartItemUnitPrice(item, qtyByProduct) {
+// 按"阶梯定价分组"把购物车里所有商品的数量加总——同一个分组里不管是哪几款商品、
+// 各买了几件，统统加在一起去匹配这个分组的价目表。不属于任何分组的商品不会出现在这个表里。
+function buildQtyByGroupMap(cartItems) {
+  const map = {};
+  cartItems.forEach(item => {
+    const productItem = window.productsById ? window.productsById[item.productId] : null;
+    const groupId = productItem ? productItem.tieredPricingGroupId : null;
+    if (!groupId) return;
+    map[groupId] = (map[groupId] || 0) + item.qty;
+  });
+  return map;
+}
+
+// 某一行购物车现在的实际单价（用于购物车抽屉/结算页逐行显示）。
+// qtyByGroup/qtyByProduct 都是可选的预先算好的数量表，批量计算小计时传进来避免重复遍历购物车；
+// 单独算一行时不传也可以，函数自己会按当前这一份购物车（cart）现算。
+function getCartItemUnitPrice(item, qtyByGroup, qtyByProduct) {
   const productItem = window.productsById ? window.productsById[item.productId] : null;
   if (!productItem) return item.price; // 查不到商品数据（比如商品已被下架删除），退回购物车里存的原价
-  const map = qtyByProduct || buildQtyByProductMap(cart);
-  const totalQtyForProduct = map[item.productId] || item.qty;
+  const groupId = productItem.tieredPricingGroupId;
+  if (groupId) {
+    const groupMap = qtyByGroup || buildQtyByGroupMap(cart);
+    const totalQtyForGroup = groupMap[groupId] || item.qty;
+    return computeUnitPriceForQty(productItem, totalQtyForGroup);
+  }
+  const productMap = qtyByProduct || buildQtyByProductMap(cart);
+  const totalQtyForProduct = productMap[item.productId] || item.qty;
   return computeUnitPriceForQty(productItem, totalQtyForProduct);
 }
 
-// 购物车/结算页小计：每一行按"这一行的实际单价 × 这一行自己的数量"累加
+// 购物车/结算页小计：每一行按"这一行的实际单价 × 这一行自己的数量"累加。
+// 分组数量和商品数量分别算一次、传给每一行用，避免每行都重新遍历一次购物车。
 function computeCartSubtotal(cartItems) {
+  const qtyByGroup = buildQtyByGroupMap(cartItems);
   const qtyByProduct = buildQtyByProductMap(cartItems);
-  return cartItems.reduce((sum, item) => sum + getCartItemUnitPrice(item, qtyByProduct) * item.qty, 0);
+  return cartItems.reduce((sum, item) => sum + getCartItemUnitPrice(item, qtyByGroup, qtyByProduct) * item.qty, 0);
 }
 
 // 满额包邮用的"小件商品小计"：只把所属分类 counts_toward_free_shipping !== false 的
@@ -648,7 +686,9 @@ function setSubtypeFilter(categoryId, subtypeIdOrAll) {
 // 的价目表，不能像购物车那样按"已经买了几件"精确算出当前单价）。
 function buildPriceDisplayHtml(item) {
   const basePrice = parseFloat(item.price) || 0;
-  const tiers = item.tieredPricing || [];
+  const groupId = item.tieredPricingGroupId;
+  const group = groupId && window.tieredPricingGroups ? window.tieredPricingGroups[groupId] : null;
+  const tiers = group ? group.tiers : [];
   if (tiers.length > 0) {
     const fromLabel = (i18n[currentLang] && i18n[currentLang].tieredPricingFromLabel) ? i18n[currentLang].tieredPricingFromLabel : 'from';
     const lowestUnitPrice = Math.min(...tiers.map(t => t.unitPrice));
@@ -1085,6 +1125,7 @@ function updateCartUI() {
     `;
     return;
   }
+  const qtyByGroup = buildQtyByGroupMap(cart);
   const qtyByProduct = buildQtyByProductMap(cart);
   container.innerHTML = cart.map(item => {
     const status = cartStockStatus[item.cartItemId];
@@ -1104,7 +1145,7 @@ function updateCartUI() {
     }
     // 这一行现在的实际单价（已经套用折扣/阶梯定价）。跟购物车里存的原价不一样时，
     // 原价划线显示，实际单价用深色加粗突出，方便顾客看出"为什么比标价便宜"。
-    const unitPrice = getCartItemUnitPrice(item, qtyByProduct);
+    const unitPrice = getCartItemUnitPrice(item, qtyByGroup, qtyByProduct);
     const hasPriceAdjustment = Math.abs(unitPrice - item.price) > 0.004;
     const priceHtml = hasPriceAdjustment
       ? `<p class="text-xs mt-1"><span class="line-through text-stone-400 mr-1.5">$${item.price.toFixed(2)}</span><span class="font-extrabold text-amber-700">$${unitPrice.toFixed(2)}</span></p>`
@@ -1731,11 +1772,12 @@ async function processPayment(e) {
     };
     // unit_price 要记"顾客这一行实际成交的单价"（已经套用折扣/阶梯定价），不是购物车里存的
     // 原价——不然订单记录会跟顾客实际付的钱不一致，对账会对不上。
+    const qtyByGroupForOrder = buildQtyByGroupMap(cart);
     const qtyByProductForOrder = buildQtyByProductMap(cart);
     const itemsPayload = cart.map(item => ({
       product_id: item.productId || item.cartItemId,
       title: item.title,
-      unit_price: getCartItemUnitPrice(item, qtyByProductForOrder),
+      unit_price: getCartItemUnitPrice(item, qtyByGroupForOrder, qtyByProductForOrder),
       qty: item.qty,
       variant_shape: item.shape || null,
       variant_size: item.size || null
