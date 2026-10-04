@@ -130,6 +130,11 @@
             <input type="number" id="cfg-tax-rate" min="0" max="100" step="0.01" placeholder="8" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
             <p class="text-xs text-gray-400 mt-1" data-i18n="taxRateHint">顾客结算页会按这个百分比算税费，比如填 8 就是 8%。改完保存后前台立刻生效。</p>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="freeShippingThresholdLabel">满额包邮门槛 ($ USD，选填)</label>
+            <input type="number" id="cfg-free-shipping-threshold" min="0" step="0.01" placeholder="50" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+            <p class="text-xs text-gray-400 mt-1" data-i18n="freeShippingThresholdHint">购物车里"算小件"的商品小计（分类管理里可以设置哪些分类算小件）达到这个金额，结算时自动包邮。留空表示不开启满额包邮。</p>
+          </div>
         </div>
 
         <!-- 新增：Hero 背景图上传与预览 -->
@@ -274,6 +279,21 @@
               </select>
             </div>
           </div>
+          <!-- 分类默认折扣 + 是否计入满额包邮门槛：这两项跟这个分类下每一件没有单独设置过
+               折扣的商品的价格显示、以及结算页的包邮判断直接相关。 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="catDefaultDiscountLabel">分类默认折扣 (%，选填)</label>
+              <input type="number" id="cat-default-discount" min="0" max="100" step="0.01" placeholder="20" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+              <p class="text-[11px] text-gray-400 mt-1" data-i18n="catDefaultDiscountHint">这个分类下，没有单独设置过折扣的商品统一打几折（填 20 就是打 8 折）。商品自己设置过折扣（哪怕填 0）会优先用商品自己的，不受这里影响。留空表示这个分类没有默认折扣。</p>
+            </div>
+            <div class="flex items-start pt-6">
+              <label class="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                <input type="checkbox" id="cat-counts-free-shipping" class="rounded text-amber-800 focus:ring-amber-800" checked>
+                <span data-i18n="catCountsFreeShippingLabel">计入满额包邮门槛（小件商品默认勾选，家具等大件通常不勾）</span>
+              </label>
+            </div>
+          </div>
           <!-- 注：穿戴甲的"甲型+尺寸"选择、专属库存管理界面和虚拟试戴功能是只针对 nails
                这个分类写的专属逻辑，这次的分类管理还没有把这套机制做成可以给任意新分类
                自由勾选启用——新建的分类（比如首饰）都会走"固定数量库存"的普通商品模式，
@@ -382,6 +402,12 @@
             <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="tagLabel">标签 (Tag)</label>
             <input type="text" id="prod-tag-key" placeholder="如 Sweet, Y2K, Handcrafted" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
           </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="discountPercentLabel">这件商品的折扣 (%，选填)</label>
+          <input type="number" id="prod-discount-percent" min="0" max="100" step="0.01" placeholder="留空则使用所属分类的默认折扣" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          <p class="text-xs text-gray-400 mt-1" data-i18n="discountPercentHint">留空表示跟随分类的默认折扣；填 0 表示这件商品明确不打折（即使分类有默认折扣也不生效）。阶梯定价后面可以上架后再去"编辑信息"里配置，一旦配置了阶梯定价，这里的折扣会被忽略。</p>
         </div>
 
         <!-- 穿戴甲专属配置 -->

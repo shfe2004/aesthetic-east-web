@@ -16,6 +16,8 @@ let selectedShippingRate = null;
 let currentShippoShipmentId = null;
 // 结算税率，从后台 site_settings 里读，读不到时兜底用 8%（跟原来硬编码的值保持一致）
 let siteTaxRate = 0.08;
+// 满额包邮门槛（$），从后台 site_settings.free_shipping_threshold 里读；null 表示没开启这个功能
+let siteFreeShippingThreshold = null;
 // 穿戴甲手工制作视频的地址，读到了才显示这个模块；真正开始加载视频文件延迟到它滚动进可视区域时
 let nailsVideoUrl = null;
 let activeSelections = {};
@@ -112,7 +114,9 @@ const i18n = {
     tryonModalTitle: "Virtual Try-On",
     tryonDisclaimer: "Simulated preview on a standard hand model — actual color, shine and fit may vary from real nails.",
     tryonSwitchLabel: "Try another design:",
-    tryonLoadError: "Could not load this design's preview image."
+    tryonLoadError: "Could not load this design's preview image.",
+    freeShippingAppliedMsg: "🎉 Your order qualifies for free US shipping!",
+    tieredPricingFromLabel: "from"
   },
   zh: {
     topBanner: "✨ 穿戴甲与周边满$50免美国境内运费 | 古董家具专享专业白手套物流配送",
@@ -175,7 +179,9 @@ const i18n = {
     tryonModalTitle: "虚拟试戴",
     tryonDisclaimer: "此效果为在标准手模上的模拟贴图预览，实际颜色、光泽与佩戴效果可能与真实产品略有差异。",
     tryonSwitchLabel: "试试其他款式：",
-    tryonLoadError: "该款式的预览图片加载失败。"
+    tryonLoadError: "该款式的预览图片加载失败。",
+    freeShippingAppliedMsg: "🎉 您的订单已达到包邮门槛，本单免美国境内运费！",
+    tieredPricingFromLabel: "起"
   }
 };
 
@@ -260,7 +266,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 独立并发查询 products、nail_options、product_images，全面组装尺寸与属性
 async function fetchProductsIndependentJoin() {
   try {
-    const [prodRes, optRes, imgRes, stockAvailRes, categoriesRes, subtypesRes] = await Promise.all([
+    const [prodRes, optRes, imgRes, stockAvailRes, categoriesRes, subtypesRes, tieredRes] = await Promise.all([
       supabaseClient.from("products").select("*").order("created_at", { ascending: false }),
       supabaseClient.from("nail_options").select("*"),
       supabaseClient.from("product_images").select("*"),
@@ -270,7 +276,10 @@ async function fetchProductsIndependentJoin() {
       // 查询会失败，这里不阻断整个页面——categoriesData 为空数组时，下面 renderCategorySections()
       // 会什么都不画，只是亚克力/家具/以后新增的分类栏目不显示，穿戴甲那个写死的栏目不受影响。
       supabaseClient.from("categories").select("*").eq("is_active", true).order("display_order", { ascending: true }),
-      supabaseClient.from("product_subtypes").select("*").order("display_order", { ascending: true })
+      supabaseClient.from("product_subtypes").select("*").order("display_order", { ascending: true }),
+      // 阶梯定价：见 sql/add_discount_tiered_pricing_shipping.sql，旧数据库没跑过这份 SQL 时
+      // 查询会失败，这里同样不阻断整个页面——没有阶梯定价数据，所有商品就都按原价/折扣价算
+      supabaseClient.from("tiered_pricing").select("*").order("min_qty", { ascending: true })
     ]);
     if (prodRes.error) throw prodRes.error;
     const products = prodRes.data || [];
@@ -280,12 +289,19 @@ async function fetchProductsIndependentJoin() {
     const stockAvailRows = (!stockAvailRes.error && stockAvailRes.data) ? stockAvailRes.data : [];
     window.categoriesData = (!categoriesRes.error && categoriesRes.data) ? categoriesRes.data : [];
     window.subtypesData = (!subtypesRes.error && subtypesRes.data) ? subtypesRes.data : [];
+    const tieredRows = (!tieredRes.error && tieredRes.data) ? tieredRes.data : [];
+    // 分类默认折扣：商品自己没设置折扣时的兜底值，按分类 id 建个速查表
+    const categoryDefaultDiscount = {};
+    window.categoriesData.forEach(c => { categoryDefaultDiscount[c.id] = c.default_discount_percent; });
     const nails = [];
     const merch = [];
     const furniture = [];
     // 通用的"按分类归好类的商品"——包含上面三个分类，也包含后台"分类管理"里新建的
     // 任何其它分类（比如首饰），renderCategorySections() 就是靠这个画出对应栏目的
     const byCategory = {};
+    // 按商品 ID 能直接查到完整数据的速查表，购物车小计/阶梯定价计算用这个，
+    // 不用每次都去 productsData[category] 里遍历数组查找
+    window.productsById = {};
 
     products.forEach(item => {
       const nailOpt = nailOptions.find(o => o.product_id === item.id) || {};
@@ -336,7 +352,22 @@ async function fetchProductsIndependentJoin() {
         tryonNailShapeFlip: !!item.tryon_nail_shape_flip,
         // 子类型（分类内部的筛选标签，比如"首饰"分类下的耳环/项链），见 sql/add_categories_system.sql；
         // 穿戴甲/亚克力/家具这三个现有分类目前都不用这个字段，值会是 null
-        subtypeId: item.subtype_id || null
+        subtypeId: item.subtype_id || null,
+        // 折扣/阶梯定价：见 sql/add_discount_tiered_pricing_shipping.sql
+        // discountPercent：商品自己设置过折扣（哪怕是 0）就用商品自己的，否则用所属分类的默认折扣，
+        // 两者都没设置就是 null（不打折）。如果这件商品配置了阶梯定价，折扣会被完全忽略——
+        // 这里不提前清空 discountPercent，交给下面统一计价的 computeUnitPriceForQty() 处理，
+        // 这样其它只是想单纯显示"折扣信息"的地方也能查到商品本来配置的折扣是多少。
+        discountPercent: (item.discount_percent !== null && item.discount_percent !== undefined)
+          ? parseFloat(item.discount_percent)
+          : (categoryDefaultDiscount[item.category_id] !== null && categoryDefaultDiscount[item.category_id] !== undefined)
+            ? parseFloat(categoryDefaultDiscount[item.category_id])
+            : null,
+        // 阶梯定价各档位，按 minQty 从小到大排好（上面查询时已经 order 过了）
+        tieredPricing: tieredRows.filter(r => r.product_id === item.id).map(r => ({
+          minQty: parseInt(r.min_qty, 10),
+          unitPrice: parseFloat(r.unit_price)
+        }))
       };
 
       if (item.category_id === 'nails') nails.push(formattedItem);
@@ -344,6 +375,7 @@ async function fetchProductsIndependentJoin() {
       if (item.category_id === 'furniture') furniture.push(formattedItem);
       if (!byCategory[item.category_id]) byCategory[item.category_id] = [];
       byCategory[item.category_id].push(formattedItem);
+      window.productsById[item.id] = formattedItem;
     });
 
     console.log("【组装成功】全品类商品及尺寸加载完毕:", { nails, merch, furniture, byCategory });
@@ -355,6 +387,67 @@ async function fetchProductsIndependentJoin() {
     console.error("加载数据库商品出错:", err);
     return null;
   }
+}
+
+// ============================================================
+// 折扣 / 阶梯定价 的统一计价逻辑（见 sql/add_discount_tiered_pricing_shipping.sql）
+// 全站只有这一处算"这件商品该卖多少钱"，购物车小计、购物车抽屉里每一行的显示、
+// 结算页小计都调这几个函数，避免到处各写一套算法算出不一样的结果。
+// ============================================================
+
+// productItem：window.productsById[productId] 查出来的完整商品数据；
+// qty：这款商品（同一个 productId）在购物车里所有变体行加起来的总件数——
+// 阶梯定价是按"这款设计总共买了几件"算档位的，不是只看某一行（甲型/尺寸）自己的数量。
+function computeUnitPriceForQty(productItem, qty) {
+  if (!productItem) return 0;
+  const basePrice = parseFloat(productItem.price) || 0;
+  const tiers = productItem.tieredPricing || [];
+  if (tiers.length > 0) {
+    // 阶梯定价优先于折扣、完全忽略折扣：找到"门槛数量 <= qty"里门槛最高的那一档
+    let applicable = null;
+    tiers.forEach(tier => {
+      if (qty >= tier.minQty) applicable = tier;
+    });
+    // 买的数量还没达到最低那一档的门槛（比如最低档是买2件，但购物车里只有1件），
+    // 这种情况按原价算，不套用任何一档
+    return applicable ? applicable.unitPrice : basePrice;
+  }
+  const discountPercent = productItem.discountPercent;
+  if (discountPercent !== null && discountPercent !== undefined && !isNaN(discountPercent)) {
+    return basePrice * (1 - discountPercent / 100);
+  }
+  return basePrice;
+}
+
+// 按 productId 把购物车里所有行的数量加总，阶梯定价按这个总数决定档位
+function buildQtyByProductMap(cartItems) {
+  const map = {};
+  cartItems.forEach(item => { map[item.productId] = (map[item.productId] || 0) + item.qty; });
+  return map;
+}
+
+// 某一行购物车现在的实际单价（用于购物车抽屉/结算页逐行显示）
+function getCartItemUnitPrice(item, qtyByProduct) {
+  const productItem = window.productsById ? window.productsById[item.productId] : null;
+  if (!productItem) return item.price; // 查不到商品数据（比如商品已被下架删除），退回购物车里存的原价
+  const map = qtyByProduct || buildQtyByProductMap(cart);
+  const totalQtyForProduct = map[item.productId] || item.qty;
+  return computeUnitPriceForQty(productItem, totalQtyForProduct);
+}
+
+// 购物车/结算页小计：每一行按"这一行的实际单价 × 这一行自己的数量"累加
+function computeCartSubtotal(cartItems) {
+  const qtyByProduct = buildQtyByProductMap(cartItems);
+  return cartItems.reduce((sum, item) => sum + getCartItemUnitPrice(item, qtyByProduct) * item.qty, 0);
+}
+
+// 满额包邮用的"小件商品小计"：只把所属分类 counts_toward_free_shipping !== false 的
+// 购物车行计入，家具这类大件默认不计入（见 sql 迁移里的 update ... where id = 'furniture'）
+function computeFreeShippingEligibleSubtotal(cartItems) {
+  const categoryEligible = {};
+  (window.categoriesData || []).forEach(c => { categoryEligible[c.id] = c.counts_toward_free_shipping !== false; });
+  const eligibleItems = cartItems.filter(item => categoryEligible[item.category] !== false);
+  return computeCartSubtotal(eligibleItems);
 }
 
 // nail_options.size_chart 是 jsonb 列，supabase-js 通常直接返回解析好的对象；
@@ -421,6 +514,9 @@ async function loadSiteDynamicConfig() {
     if (cfg.tax_rate !== null && cfg.tax_rate !== undefined) {
       siteTaxRate = parseFloat(cfg.tax_rate);
     }
+    siteFreeShippingThreshold = (cfg.free_shipping_threshold !== null && cfg.free_shipping_threshold !== undefined)
+      ? parseFloat(cfg.free_shipping_threshold)
+      : null;
     // 虚拟试戴·手模型标定结果（见 sql/add_tryon_hand_zones_column.sql）：后台标定过就用
     // 标定过的精确坐标，没标定过就保持 js/tryon.js 里的默认兜底坐标，不影响正常使用。
     if (cfg.tryon_hand_zones && typeof tryonApplyHandZonesOverride === 'function') {
@@ -546,6 +642,37 @@ function setSubtypeFilter(categoryId, subtypeIdOrAll) {
   renderCategorySections();
 }
 
+// 商品卡片上的价格展示：根据折扣/阶梯定价配置，决定显示原价、折扣价(划线+折扣价)，
+// 还是阶梯定价的"起价 + 价目表"。跟购物车/结算页用的是同一份折扣/阶梯定价数据，
+// 只是展示形式不同（卡片上还没确定购买数量，阶梯定价这里只能展示"买多少、单价多少"
+// 的价目表，不能像购物车那样按"已经买了几件"精确算出当前单价）。
+function buildPriceDisplayHtml(item) {
+  const basePrice = parseFloat(item.price) || 0;
+  const tiers = item.tieredPricing || [];
+  if (tiers.length > 0) {
+    const fromLabel = (i18n[currentLang] && i18n[currentLang].tieredPricingFromLabel) ? i18n[currentLang].tieredPricingFromLabel : 'from';
+    const lowestUnitPrice = Math.min(...tiers.map(t => t.unitPrice));
+    const tierListText = tiers.map(t => `${t.minQty}+: $${t.unitPrice.toFixed(2)}`).join(' · ');
+    return `
+      <div>
+        <div><span class="text-[10px] text-stone-400 uppercase tracking-wide">${fromLabel}</span> <span class="text-xl font-extrabold text-stone-900">$${lowestUnitPrice.toFixed(2)}</span></div>
+        <p class="text-[10px] text-stone-400 mt-0.5">${tierListText}</p>
+      </div>
+    `;
+  }
+  const discountPercent = item.discountPercent;
+  if (discountPercent !== null && discountPercent !== undefined && !isNaN(discountPercent) && discountPercent > 0) {
+    const discountedPrice = basePrice * (1 - discountPercent / 100);
+    return `
+      <div class="flex items-center gap-2">
+        <span class="text-xl font-extrabold text-red-600">$${discountedPrice.toFixed(2)}</span>
+        <span class="text-xs line-through text-stone-400">$${basePrice.toFixed(2)}</span>
+      </div>
+    `;
+  }
+  return `<span class="text-xl font-extrabold text-stone-900">$${basePrice.toFixed(2)}</span>`;
+}
+
 // 通用的"固定数量库存"商品卡片渲染——亚克力/家具现在用这个，以后任何新分类
 // （比如首饰）默认也是这个模式。accent 和 aspect 由分类自己的配置决定视觉风格，
 // 保证不管加多少个新分类，整站看起来还是统一协调的（见 sql/add_categories_system.sql
@@ -596,7 +723,7 @@ function renderSimpleCategory(cat) {
           </div>
         </div>
         <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
-          <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
+          ${buildPriceDisplayHtml(item)}
           ${item.stockQuantity > 0 ? `
           <button onclick="addSimpleToCart('${cat.id}', '${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
             + Add
@@ -689,7 +816,7 @@ function renderNails() {
           </div>
         </div>
         <div class="p-5 pt-0 flex items-center justify-between mt-auto border-t border-stone-50 pt-3">
-          <span class="text-xl font-extrabold text-stone-900">$${parseFloat(item.price).toFixed(2)}</span>
+          ${buildPriceDisplayHtml(item)}
           ${(isShapeInStock(item, currentShape) && isSizeInStock(item, currentShape, currentSize)) ? `
           <button onclick="addNailToCart('${item.id}')" class="bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
             + Add
@@ -924,7 +1051,7 @@ function updateCartUI() {
   const container = document.getElementById('cart-items');
   const totalEl = document.getElementById('cart-total');
   const totalCount = cart.reduce((sum, item) => sum + item.qty, 0);
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const subtotal = computeCartSubtotal(cart);
   if (badge) {
     badge.innerText = totalCount;
     badge.style.display = totalCount > 0 ? 'flex' : 'none';
@@ -958,6 +1085,7 @@ function updateCartUI() {
     `;
     return;
   }
+  const qtyByProduct = buildQtyByProductMap(cart);
   container.innerHTML = cart.map(item => {
     const status = cartStockStatus[item.cartItemId];
     let stockWarningHtml = '';
@@ -974,13 +1102,20 @@ function updateCartUI() {
       }
       stockWarningHtml = `<p class="text-[11px] text-red-600 font-semibold mt-1"><i class="fa-solid fa-triangle-exclamation"></i> ${text}</p>`;
     }
+    // 这一行现在的实际单价（已经套用折扣/阶梯定价）。跟购物车里存的原价不一样时，
+    // 原价划线显示，实际单价用深色加粗突出，方便顾客看出"为什么比标价便宜"。
+    const unitPrice = getCartItemUnitPrice(item, qtyByProduct);
+    const hasPriceAdjustment = Math.abs(unitPrice - item.price) > 0.004;
+    const priceHtml = hasPriceAdjustment
+      ? `<p class="text-xs mt-1"><span class="line-through text-stone-400 mr-1.5">$${item.price.toFixed(2)}</span><span class="font-extrabold text-amber-700">$${unitPrice.toFixed(2)}</span></p>`
+      : `<p class="text-xs font-extrabold text-amber-700 mt-1">$${unitPrice.toFixed(2)}</p>`;
     return `
     <div class="flex items-center gap-4 bg-stone-50 p-3.5 rounded-xl border ${status && status.sufficient === false ? 'border-red-300' : 'border-stone-100'}">
       <img src="${item.image}" class="w-16 h-16 object-cover rounded-lg bg-white shadow-sm">
       <div class="flex-1 min-w-0">
         <h4 class="text-xs font-bold text-stone-900 truncate">${item.title}</h4>
         ${item.shape ? `<p class="text-[11px] text-stone-500 mt-0.5">${item.shape} /${item.size}</p>` : ''}
-        <p class="text-xs font-extrabold text-amber-700 mt-1">$${item.price.toFixed(2)}</p>
+        ${priceHtml}
         ${stockWarningHtml}
       </div>
       <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-stone-200">
@@ -1329,7 +1464,7 @@ async function openCheckoutModal() {
 
 // 统一刷新结算弹窗里的小计/税费/运费/总计，运费没算出来之前显示 "--"
 function updateCheckoutTotalsUI() {
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const subtotal = computeCartSubtotal(cart);
   const tax = subtotal * siteTaxRate;
   const shippingCost = selectedShippingRate ? selectedShippingRate.amount : 0;
   const total = subtotal + tax + shippingCost;
@@ -1465,10 +1600,37 @@ function setupShippingAutoCalc() {
   }
 }
 
-// 把 Shippo 返回的多个快递方式渲染成单选列表，顾客选中一个后重新计算总价
+// 把 Shippo 返回的多个快递方式渲染成单选列表，顾客选中一个后重新计算总价。
+//
+// 满额包邮（见 sql/add_discount_tiered_pricing_shipping.sql 的 free_shipping_threshold）：
+// 达到门槛时，按 Tommy 的要求直接自动选中最便宜的那个方案（后端已经按价格从低到高排好序），
+// 但显示给顾客的运费是 $0，不再展示完整的多方案选择列表——顾客只需要知道"免运费"，
+// 不需要在一堆已经被折成 $0 的选项里纠结选哪个。
+// 保留 realAmount 字段记下 Shippo 真实报价（Tommy 自己实际要付的运费），方便以后做账时
+// 核对"包邮"这笔订单实际的物流成本是多少，不会因为显示成 $0 就把真实成本弄丢了。
 function renderShippingRates(rates) {
   const container = document.getElementById('shipping-rates-list');
   if (!container) return;
+
+  const eligibleSubtotal = computeFreeShippingEligibleSubtotal(cart);
+  const freeShippingQualifies = siteFreeShippingThreshold !== null && siteFreeShippingThreshold !== undefined
+    && eligibleSubtotal >= siteFreeShippingThreshold;
+
+  if (freeShippingQualifies && rates.length > 0) {
+    const cheapest = rates[0];
+    selectedShippingRate = { ...cheapest, amount: 0, realAmount: cheapest.amount, freeShippingApplied: true };
+    const msg = (i18n[currentLang] && i18n[currentLang].freeShippingAppliedMsg) ? i18n[currentLang].freeShippingAppliedMsg : 'Your order qualifies for free US shipping!';
+    container.innerHTML = `
+      <div class="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs">
+        <span class="font-semibold text-green-800">${msg}</span>
+        <span class="font-bold text-green-700">$0.00</span>
+      </div>
+    `;
+    container.dataset.rates = JSON.stringify(rates);
+    updateCheckoutTotalsUI();
+    return;
+  }
+
   const promptText = (i18n[currentLang] && i18n[currentLang].chooseShippingPrompt) ? i18n[currentLang].chooseShippingPrompt : 'Select a shipping option:';
   container.innerHTML = `<p class="text-[11px] text-stone-500 mb-1">${promptText}</p>` + rates.map((rate, idx) => `
     <label class="flex items-center justify-between gap-2 bg-white border rounded-lg px-3 py-2 text-xs cursor-pointer hover:border-amber-700">
@@ -1559,12 +1721,21 @@ async function processPayment(e) {
       shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
       shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
       shippo_shipment_id: currentShippoShipmentId,
-      needs_manual_shipping: !!selectedShippingRate.manual
+      needs_manual_shipping: !!selectedShippingRate.manual,
+      // 包邮订单显示给顾客的运费是 $0，但 Tommy 自己实际还是要付这笔 Shippo 报价的真实运费——
+      // 这里把真实金额单独记一下，方便以后做账核对包邮订单实际花了多少物流成本，
+      // 不会因为订单上显示的是 $0 就把这笔真实支出弄丢。没有包邮时这里跟 shipping_cost 一样。
+      shipping_cost_actual: (selectedShippingRate.realAmount !== undefined && selectedShippingRate.realAmount !== null)
+        ? selectedShippingRate.realAmount
+        : shippingCost
     };
+    // unit_price 要记"顾客这一行实际成交的单价"（已经套用折扣/阶梯定价），不是购物车里存的
+    // 原价——不然订单记录会跟顾客实际付的钱不一致，对账会对不上。
+    const qtyByProductForOrder = buildQtyByProductMap(cart);
     const itemsPayload = cart.map(item => ({
       product_id: item.productId || item.cartItemId,
       title: item.title,
-      unit_price: item.price,
+      unit_price: getCartItemUnitPrice(item, qtyByProductForOrder),
       qty: item.qty,
       variant_shape: item.shape || null,
       variant_size: item.size || null

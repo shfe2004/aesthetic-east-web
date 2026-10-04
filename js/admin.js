@@ -326,7 +326,25 @@ const ADMIN_I18N = {
     locationEditHint: "You can update this anytime — doing so won't change the product's ID (IDs are fixed once created, since other tables reference it). If this differs from the location code baked into the ID, it just means the item has been moved since it was first added.",
     orderItemIdLabel: "Product ID: ",
     orderItemLocationFormat: "Cabinet {cabinet}, Row {row}, Column {col}",
-    orderItemNoLocation: "No storage location set for this product"
+    orderItemNoLocation: "No storage location set for this product",
+    discountPercentLabel: "Discount for this item (%, optional)",
+    discountPercentPlaceholder: "Leave blank to use the category's default discount",
+    discountPercentHint: "Leave blank to follow the category's default discount. Enter 0 to explicitly mean this item is never discounted (overrides the category default even if one is set). If this item has tiered pricing configured below, this discount is ignored.",
+    catDefaultDiscountLabel: "Category Default Discount (%, optional)",
+    catDefaultDiscountHint: "Products in this category that have no discount of their own use this percentage automatically. A product with its own discount set (even 0) always takes priority over this. Leave blank for no default discount.",
+    catCountsFreeShippingLabel: "Counts toward free-shipping threshold (checked by default for small items; usually unchecked for furniture/large items)",
+    freeShippingThresholdLabel: "Free Shipping Threshold ($ USD, optional)",
+    freeShippingThresholdHint: "When the subtotal of items that count toward this threshold (set per-category) reaches this amount, shipping is automatically free at checkout. Leave blank to disable free shipping.",
+    tieredPricingTitle: "Tiered Pricing (optional)",
+    tieredPricingAddRowBtn: "+ Add Tier",
+    tieredPricingHint: "E.g. buy 1 for $20, buy 2 for $17.50 each, buy 3+ for $15 each. If this product has any tiers configured, its discount above (and the category's default discount) is completely ignored — tiered pricing always wins.",
+    tieredPricingNoneYet: "No tiers configured yet — this product uses its regular price (or discount) instead.",
+    tieredPricingMinQtyPlaceholder: "Qty ≥",
+    tieredPricingUnitPriceLabel: "→ unit price $",
+    tieredPricingUnitPricePlaceholder: "Unit price",
+    tieredPricingIncompleteRowError: "Please fill in both the quantity and unit price for every tier row (or remove the incomplete row).",
+    tieredPricingDuplicateMinQtyError: "Two tier rows have the same quantity threshold — each threshold can only be used once.",
+    tieredPricingSaveFailedPrefix: "Failed to save tiered pricing: "
   },
   zh: {
     adminLockTitle: "管理后台登录",
@@ -647,7 +665,25 @@ const ADMIN_I18N = {
     locationEditHint: "随时可以改，改了不会影响商品的编码（ID）——编码创建后就固定不变了（其它表都靠它关联数据）。如果这里跟编码里带的位置码不一样，说明货品后来被挪动过。",
     orderItemIdLabel: "商品编码：",
     orderItemLocationFormat: "{cabinet} 柜 · 第 {row} 行 · 第 {col} 列",
-    orderItemNoLocation: "这件商品还没设置存放位置"
+    orderItemNoLocation: "这件商品还没设置存放位置",
+    discountPercentLabel: "这件商品的折扣 (%，选填)",
+    discountPercentPlaceholder: "留空则使用所属分类的默认折扣",
+    discountPercentHint: "留空表示跟随分类的默认折扣；填 0 表示这件商品明确不打折（即使分类设了默认折扣也不生效，商品自己的设置永远优先）。如果下面给这件商品配置了阶梯定价，这里的折扣会被完全忽略。",
+    catDefaultDiscountLabel: "分类默认折扣 (%，选填)",
+    catDefaultDiscountHint: "这个分类下，没有单独设置过折扣的商品统一打几折（填 20 就是打 8 折）。商品自己设置过折扣（哪怕填 0）会优先用商品自己的，不受这里影响。留空表示这个分类没有默认折扣。",
+    catCountsFreeShippingLabel: "计入满额包邮门槛（小件商品默认勾选，家具等大件通常不勾）",
+    freeShippingThresholdLabel: "满额包邮门槛 ($ USD，选填)",
+    freeShippingThresholdHint: "购物车里\"算小件\"的商品小计（分类管理里可以设置哪些分类算小件）达到这个金额，结算时自动包邮。留空表示不开启满额包邮。",
+    tieredPricingTitle: "阶梯定价（选填）",
+    tieredPricingAddRowBtn: "+ 添加一档",
+    tieredPricingHint: "比如：买1件20元、买2件每件17.5元、买3件以上每件15元。只要这件商品配置了阶梯定价，上面的折扣（以及分类默认折扣）会被完全忽略——阶梯定价优先生效。",
+    tieredPricingNoneYet: "还没有配置阶梯定价——这件商品会按原价（或折扣价）正常计算。",
+    tieredPricingMinQtyPlaceholder: "买够几件",
+    tieredPricingUnitPriceLabel: "→ 单价 $",
+    tieredPricingUnitPricePlaceholder: "单价",
+    tieredPricingIncompleteRowError: "每一档阶梯定价都要把\"买够几件\"和\"单价\"两格填完整（或者直接删掉这一档）。",
+    tieredPricingDuplicateMinQtyError: "有两档阶梯定价设置了相同的\"买够几件\"数量，每个数量档位只能设置一次。",
+    tieredPricingSaveFailedPrefix: "阶梯定价保存失败："
   }
 };
 
@@ -1632,10 +1668,14 @@ function openCategoryEditor(categoryId) {
     document.getElementById("cat-code-prefix").value = cat.code_prefix;
     document.getElementById("cat-aspect").value = cat.card_aspect_ratio;
     document.getElementById("cat-accent").value = cat.accent;
+    document.getElementById("cat-default-discount").value = (cat.default_discount_percent === null || cat.default_discount_percent === undefined) ? "" : cat.default_discount_percent;
+    document.getElementById("cat-counts-free-shipping").checked = cat.counts_toward_free_shipping !== false;
   } else {
     title.innerText = t('categoryEditorTitleNew');
     document.getElementById("cat-edit-id").value = "";
     slugInput.disabled = false;
+    document.getElementById("cat-default-discount").value = "";
+    document.getElementById("cat-counts-free-shipping").checked = true;
   }
   modal.classList.remove("hidden");
 }
@@ -1651,6 +1691,7 @@ async function handleCategoryEditorSubmit(e) {
 
   const editingId = document.getElementById("cat-edit-id").value;
   const slug = document.getElementById("cat-slug").value.trim().toLowerCase();
+  const defaultDiscountStr = document.getElementById("cat-default-discount").value.trim();
   const payload = {
     id: slug,
     name_zh: document.getElementById("cat-name-zh").value.trim(),
@@ -1659,7 +1700,10 @@ async function handleCategoryEditorSubmit(e) {
     subtitle_en: document.getElementById("cat-subtitle-en").value.trim(),
     code_prefix: document.getElementById("cat-code-prefix").value.trim().toLowerCase(),
     card_aspect_ratio: document.getElementById("cat-aspect").value,
-    accent: document.getElementById("cat-accent").value
+    accent: document.getElementById("cat-accent").value,
+    // 留空存 null，表示这个分类没有默认折扣；填了数字（哪怕是 0）就按填的来
+    default_discount_percent: defaultDiscountStr === "" ? null : parseFloat(defaultDiscountStr),
+    counts_toward_free_shipping: document.getElementById("cat-counts-free-shipping").checked
   };
 
   if (!/^[a-z0-9_]+$/.test(slug)) {
@@ -2101,6 +2145,8 @@ async function handleAddProduct(e) {
     const subtitleEn = document.getElementById("prod-subtitle-en").value.trim();
     const price = parseFloat(document.getElementById("prod-price").value);
     const tagKey = document.getElementById("prod-tag-key").value.trim() || "New";
+    const discountStr = document.getElementById("prod-discount-percent").value.trim();
+    const discountPercent = discountStr === "" ? null : parseFloat(discountStr);
     const fileInput = document.getElementById("prod-image-file");
 
     // 立牌 / 古董家具的物理尺寸（穿戴甲不需要，留 0 即可）
@@ -2178,7 +2224,8 @@ async function handleAddProduct(e) {
       height: height,
       location_cabinet: loc.cabinet,
       location_row: loc.row,
-      location_column: loc.col
+      location_column: loc.col,
+      discount_percent: discountPercent
     }]);
 
     if (prodError) throw prodError;
@@ -2346,10 +2393,58 @@ function closeEditSpecModal() {
   document.getElementById("modal-edit-spec")?.classList.add("hidden");
 }
 
-// --- 修改商品基础信息弹窗（标题/副标题/价格/标签/主图）：商品发布后唯一能改这几项的地方 ---
+// --- 修改商品基础信息弹窗（标题/副标题/价格/标签/主图/折扣/阶梯定价）：商品发布后唯一能改这几项的地方 ---
 let currentEditingInfoId = null;
 let currentEditingInfoImage = "";
 let editInfoNewImageFile = null;
+// 阶梯定价行：在弹窗里临时维护的一份内存数组，保存时才整体同步到 tiered_pricing 表
+// （先全部删掉这个商品原来的行，再把当前这份整体插入——比逐行 diff 简单可靠得多，
+// 反正一个商品的阶梯档位通常也就两三行，不存在性能问题）。
+let editInfoTieredRows = [];
+let tieredRowIdCounter = 0;
+
+function renderTieredPricingRows() {
+  const container = document.getElementById("tiered-pricing-rows");
+  if (!container) return;
+  if (editInfoTieredRows.length === 0) {
+    container.innerHTML = `<p class="text-[11px] text-gray-400">${t('tieredPricingNoneYet')}</p>`;
+    return;
+  }
+  container.innerHTML = editInfoTieredRows.map(row => `
+    <div class="flex items-center gap-2" data-row-id="${row.rowId}">
+      <div class="flex-1">
+        <input type="number" min="1" step="1" placeholder="${t('tieredPricingMinQtyPlaceholder')}" value="${row.min_qty ?? ''}"
+          onchange="updateTieredPricingRow(${row.rowId}, 'min_qty', this.value)"
+          class="w-full border rounded-lg px-2 py-1.5 text-xs">
+      </div>
+      <span class="text-[11px] text-gray-400 shrink-0">${t('tieredPricingUnitPriceLabel')}</span>
+      <div class="flex-1">
+        <input type="number" min="0" step="0.01" placeholder="${t('tieredPricingUnitPricePlaceholder')}" value="${row.unit_price ?? ''}"
+          onchange="updateTieredPricingRow(${row.rowId}, 'unit_price', this.value)"
+          class="w-full border rounded-lg px-2 py-1.5 text-xs">
+      </div>
+      <button type="button" onclick="removeTieredPricingRow(${row.rowId})" class="text-red-600 hover:text-red-800 shrink-0 px-1" title="${t('deleteBtn')}">
+        <i class="fa-solid fa-trash text-xs"></i>
+      </button>
+    </div>
+  `).join('');
+}
+
+function addTieredPricingRow() {
+  editInfoTieredRows.push({ rowId: ++tieredRowIdCounter, min_qty: null, unit_price: null });
+  renderTieredPricingRows();
+}
+
+function removeTieredPricingRow(rowId) {
+  editInfoTieredRows = editInfoTieredRows.filter(r => r.rowId !== rowId);
+  renderTieredPricingRows();
+}
+
+function updateTieredPricingRow(rowId, field, value) {
+  const row = editInfoTieredRows.find(r => r.rowId === rowId);
+  if (!row) return;
+  row[field] = value === '' ? null : (field === 'min_qty' ? parseInt(value, 10) : parseFloat(value));
+}
 
 function openEditProductModal(prodId) {
   // 跟库存管理弹窗一样，只传 ID 再从已加载的商品列表里查完整数据，不把标题/副标题这些
@@ -2398,6 +2493,19 @@ function openEditProductModal(prodId) {
               <label class="block text-xs font-medium text-gray-700 mb-1">${t('tagLabel')}</label>
               <input type="text" id="edit-info-tag" class="w-full border rounded-lg px-3 py-2 text-sm">
             </div>
+          </div>
+          <div class="pt-2 border-t border-gray-100">
+            <label class="block text-xs font-medium text-gray-700 mb-1" data-i18n="discountPercentLabel">${t('discountPercentLabel')}</label>
+            <input type="number" min="0" max="100" step="0.01" id="edit-info-discount-percent" placeholder="${t('discountPercentPlaceholder')}" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <p class="text-[11px] text-gray-400 mt-1" data-i18n="discountPercentHint">${t('discountPercentHint')}</p>
+          </div>
+          <div class="pt-2 border-t border-gray-100 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-medium text-gray-700" data-i18n="tieredPricingTitle">${t('tieredPricingTitle')}</label>
+              <button type="button" onclick="addTieredPricingRow()" class="text-xs text-blue-700 hover:text-blue-900 font-medium">${t('tieredPricingAddRowBtn')}</button>
+            </div>
+            <p class="text-[11px] text-gray-400" data-i18n="tieredPricingHint">${t('tieredPricingHint')}</p>
+            <div id="tiered-pricing-rows" class="space-y-2"></div>
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">${t('currentImageLabel')}</label>
@@ -2450,8 +2558,19 @@ function openEditProductModal(prodId) {
   document.getElementById("edit-info-location-row").value = item.location_row || "";
   document.getElementById("edit-info-location-column").value = item.location_column || "";
   document.getElementById("edit-info-location-error")?.classList.add("hidden");
+  document.getElementById("edit-info-discount-percent").value = (item.discount_percent === null || item.discount_percent === undefined) ? "" : item.discount_percent;
   const fileInput = document.getElementById("edit-info-image-file");
   if (fileInput) fileInput.value = "";
+
+  // 阶梯定价是单独一张表，不在 lastLoadedProducts 缓存的商品数据里，每次打开弹窗时单独拉一次
+  editInfoTieredRows = [];
+  renderTieredPricingRows();
+  supabaseClient.from("tiered_pricing").select("*").eq("product_id", prodId).order("min_qty", { ascending: true }).then(({ data, error }) => {
+    if (!error && data) {
+      editInfoTieredRows = data.map(r => ({ rowId: ++tieredRowIdCounter, min_qty: r.min_qty, unit_price: r.unit_price }));
+      renderTieredPricingRows();
+    }
+  });
 
   modal.classList.remove("hidden");
 }
@@ -2477,6 +2596,25 @@ async function saveProductInfo() {
   const loc = readAndValidateLocationFields('edit-info-location');
   if (!loc.ok) {
     return; // 三个格子填了一部分，错误提示已经在输入框下面显示出来了
+  }
+
+  const discountStr = document.getElementById("edit-info-discount-percent").value.trim();
+  const discountPercent = discountStr === "" ? null : parseFloat(discountStr);
+
+  // 阶梯定价每一行都要求"买几件"和"单价"两格都填好，不允许存一半（跟位置字段的
+  // 校验是同一个思路：填不完整没法用，不如直接拦住，总比存进去一个没法用的脏数据好）。
+  for (const row of editInfoTieredRows) {
+    if (row.min_qty === null || row.min_qty === undefined || row.unit_price === null || row.unit_price === undefined || isNaN(row.min_qty) || isNaN(row.unit_price)) {
+      alert(t('tieredPricingIncompleteRowError'));
+      return;
+    }
+  }
+  // 同一个商品不能有两行"买几件"档位重复（数据库那边 unique(product_id, min_qty) 也会拦，
+  // 这里提前拦一次能给出更清楚的中文提示，而不是让用户看到一串数据库报错）。
+  const minQtySet = new Set(editInfoTieredRows.map(r => r.min_qty));
+  if (minQtySet.size !== editInfoTieredRows.length) {
+    alert(t('tieredPricingDuplicateMinQtyError'));
+    return;
   }
 
   try {
@@ -2526,7 +2664,8 @@ async function saveProductInfo() {
       // 当前真实位置，编码里带的位置码则停留在创建那一刻，两者如果不一样很正常。
       location_cabinet: loc.cabinet,
       location_row: loc.row,
-      location_column: loc.col
+      location_column: loc.col,
+      discount_percent: discountPercent
     };
     // 只有原来就有图或者这次选了新图才更新 spin_image，避免把已有主图误清空成空字符串
     if (imageUrl) updatePayload.spin_image = imageUrl;
@@ -2537,6 +2676,21 @@ async function saveProductInfo() {
       .eq("id", currentEditingInfoId);
 
     if (error) throw error;
+
+    // 阶梯定价：先把这个商品原来的几行全删掉，再把弹窗里现在这份整体重新插入一遍——
+    // 比逐行对比"哪行改了/哪行删了/哪行是新加的"简单可靠，一个商品的阶梯档位通常
+    // 也就两三行，删完重插的开销完全可以忽略。
+    const { error: deleteOldTiersError } = await supabaseClient.from("tiered_pricing").delete().eq("product_id", currentEditingInfoId);
+    if (deleteOldTiersError) throw new Error(t('tieredPricingSaveFailedPrefix') + deleteOldTiersError.message);
+    if (editInfoTieredRows.length > 0) {
+      const tierRows = editInfoTieredRows.map(r => ({
+        product_id: currentEditingInfoId,
+        min_qty: r.min_qty,
+        unit_price: r.unit_price
+      }));
+      const { error: insertTiersError } = await supabaseClient.from("tiered_pricing").insert(tierRows);
+      if (insertTiersError) throw new Error(t('tieredPricingSaveFailedPrefix') + insertTiersError.message);
+    }
 
     logAdminActivity('product_update_info', `id: ${currentEditingInfoId}, title: ${titleEn}`);
     loadAdminActivityLog();
@@ -3461,6 +3615,10 @@ async function loadSiteSettings() {
       const rate = (cfg.tax_rate === null || cfg.tax_rate === undefined) ? 0.08 : parseFloat(cfg.tax_rate);
       document.getElementById("cfg-tax-rate").value = (rate * 100).toString();
     }
+    // 满额包邮门槛留空表示没开启这个功能，不像税率那样给个默认值
+    if (document.getElementById("cfg-free-shipping-threshold")) {
+      document.getElementById("cfg-free-shipping-threshold").value = (cfg.free_shipping_threshold === null || cfg.free_shipping_threshold === undefined) ? "" : cfg.free_shipping_threshold;
+    }
     // 重新加载配置时，之前点的"移除视频"标记也要清掉，避免误删
     nailsVideoRemoved = false;
     if (document.getElementById("cfg-nails-video-preview-container")) {
@@ -3557,6 +3715,12 @@ async function handleSaveSettings(e) {
     const taxRateInput = document.getElementById("cfg-tax-rate") ? parseFloat(document.getElementById("cfg-tax-rate").value) : NaN;
     const taxRate = isNaN(taxRateInput) ? 0.08 : (taxRateInput / 100);
 
+    // 满额包邮门槛：跟税率不一样，这个没有默认值——留空就是存 null，表示不开启这个功能，
+    // 不能像税率那样随便兜底成一个数字（兜底成 0 会变成"下单就包邮"，兜底成别的数字
+    // 又不是 Tommy 自己设的，都不对，所以留空就该存 null）。
+    const freeShipInput = document.getElementById("cfg-free-shipping-threshold") ? document.getElementById("cfg-free-shipping-threshold").value.trim() : "";
+    const freeShippingThreshold = freeShipInput === "" ? null : parseFloat(freeShipInput);
+
     const cfg = {
       id: 1,
       logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
@@ -3565,6 +3729,7 @@ async function handleSaveSettings(e) {
       hero_desc: document.getElementById("cfg-hero-desc") ? document.getElementById("cfg-hero-desc").value : "",
       hero_bg: heroBgUrl,
       tax_rate: taxRate,
+      free_shipping_threshold: freeShippingThreshold,
       nails_video_url: nailsVideoUrl
     };
 
