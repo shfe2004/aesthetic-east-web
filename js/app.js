@@ -14,6 +14,9 @@ let cartStockCheckSeq = 0;
 // 当前订单选中的快递方式（点击"计算运费"后由 Shippo 返回，顾客选一个后存在这里）
 let selectedShippingRate = null;
 let currentShippoShipmentId = null;
+// 这次询价用的包裹重量/尺寸（见 js/shipping-config.js 的 computeParcelForCart），跟着订单
+// 一起存下来——后台"生成运单"时如果发现这次报价已经过期，需要拿这份包裹信息重新问一次价。
+let currentShippingParcel = null;
 // 结算税率，从后台 site_settings 里读，读不到时兜底用 8%（跟原来硬编码的值保持一致）
 let siteTaxRate = 0.08;
 // 满额包邮门槛（$），从后台 site_settings.free_shipping_threshold 里读；null 表示没开启这个功能
@@ -1483,6 +1486,7 @@ async function openCheckoutModal() {
   // 每次打开结算弹窗都清空上一次选的运费，避免购物车内容变了运费还是旧的
   selectedShippingRate = null;
   currentShippoShipmentId = null;
+  currentShippingParcel = null;
   const ratesListEl = document.getElementById('shipping-rates-list');
   if (ratesListEl) ratesListEl.innerHTML = '';
   const manualNoteEl = document.getElementById('shipping-manual-note');
@@ -1549,6 +1553,7 @@ async function calculateShipping(isManualClick) {
   }
 
   const { parcel, needsManualQuote } = computeParcelForCart(cart);
+  currentShippingParcel = parcel; // 跟着这次询价一起记下来，下单时随订单存进 orders.shipping_parcel
 
   const manualNoteEl = document.getElementById('shipping-manual-note');
   const ratesListEl = document.getElementById('shipping-rates-list');
@@ -1762,6 +1767,8 @@ async function processPayment(e) {
       shipping_service: selectedShippingRate.manual ? null : selectedShippingRate.service,
       shippo_rate_id: selectedShippingRate.manual ? null : selectedShippingRate.rateId,
       shippo_shipment_id: currentShippoShipmentId,
+      // 存下这次询价用的包裹信息，后台"生成运单"时如果发现报价已过期，要拿这份信息重新询价
+      shipping_parcel: selectedShippingRate.manual ? null : currentShippingParcel,
       needs_manual_shipping: !!selectedShippingRate.manual,
       // 包邮订单显示给顾客的运费是 $0，但 Tommy 自己实际还是要付这笔 Shippo 报价的真实运费——
       // 这里把真实金额单独记一下，方便以后做账核对包邮订单实际花了多少物流成本，
@@ -1824,6 +1831,7 @@ async function processPayment(e) {
       cartStockStatus = {};
       selectedShippingRate = null;
       currentShippoShipmentId = null;
+      currentShippingParcel = null;
       updateCartUI();
       renderPage();
       payBtn.disabled = false;

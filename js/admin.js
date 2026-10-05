@@ -109,8 +109,22 @@ const ADMIN_I18N = {
     thAddress: "Shipping Address",
     thAmount: "Amount",
     thStatus: "Status",
+    thShippingLabel: "Shipping Label",
     thOrderTime: "Order Time",
     loadingOrders: "Loading orders...",
+    manualShippingNote: "Manual quote — label can't be auto-generated",
+    generateLabelBtn: "Generate Label",
+    retryGenerateLabelBtn: "Retry",
+    generatingLabelText: "Generating...",
+    trackingNumberLabel: "Tracking #: ",
+    viewLabelBtn: "View Label",
+    viewTrackingBtn: "Track Package",
+    copyTrackingHint: "Click to copy tracking number",
+    trackingCopiedMsg: "Tracking number copied.",
+    labelGeneratedMsg: "Shipping label generated successfully!",
+    labelGenerateFailedPrefix: "Failed to generate label: ",
+    labelGenerateFailedGeneric: "Failed to generate label.",
+    needLoginForLabel: "Your login session has expired, please log in again.",
     activityLogTitle: "📝 Activity Log",
     exportCsvBtn: "Export as CSV",
     activityLogHint: "This log is stored permanently in the cloud database — unlike Supabase's built-in Auth Logs, it won't auto-clear after a few days. Export it as CSV regularly to keep a local backup.",
@@ -472,8 +486,22 @@ const ADMIN_I18N = {
     thAddress: "收货地址",
     thAmount: "金额",
     thStatus: "状态",
+    thShippingLabel: "运单",
     thOrderTime: "下单时间",
     loadingOrders: "正在加载订单...",
+    manualShippingNote: "人工核算运费，暂不支持自动生成运单",
+    generateLabelBtn: "生成运单",
+    retryGenerateLabelBtn: "重试",
+    generatingLabelText: "生成中...",
+    trackingNumberLabel: "运单号：",
+    viewLabelBtn: "查看标签",
+    viewTrackingBtn: "查看物流",
+    copyTrackingHint: "点击复制运单号",
+    trackingCopiedMsg: "运单号已复制。",
+    labelGeneratedMsg: "运单生成成功！",
+    labelGenerateFailedPrefix: "生成运单失败：",
+    labelGenerateFailedGeneric: "生成运单失败。",
+    needLoginForLabel: "登录状态已失效，请重新登录后再试一次。",
     activityLogTitle: "📝 操作日志",
     exportCsvBtn: "导出为 CSV",
     activityLogHint: "这里的记录永久保存在云端数据库里，不会像 Supabase 自带的登录日志那样几天后自动清空；建议定期点\"导出为 CSV\"下载到本地留一份备份。",
@@ -3751,6 +3779,8 @@ async function deleteProduct(productId) {
 }
 
 // --- 订单管理：读取 orders 表并展示，当前都是模拟结算产生的订单，还没有真实支付 ---
+let lastLoadedOrders = []; // 缓存最近一次加载的订单列表，生成运单按钮靠这个找到完整订单数据
+
 async function loadAdminOrders() {
   const tbody = document.getElementById("admin-order-list");
   if (!tbody) return;
@@ -3763,8 +3793,10 @@ async function loadAdminOrders() {
 
     if (error) throw error;
 
+    lastLoadedOrders = orders || [];
+
     if (!orders || orders.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">${t('noOrders')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">${t('noOrders')}</td></tr>`;
       return;
     }
 
@@ -3779,6 +3811,7 @@ async function loadAdminOrders() {
           <td class="p-3 text-xs text-gray-600" data-label="${t('thAddress')}">${addr}</td>
           <td class="p-3 text-amber-800 font-bold" data-label="${t('thAmount')}">$${parseFloat(o.total || 0).toFixed(2)}</td>
           <td class="p-3" data-label="${t('thStatus')}"><span class="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">${o.status || 'pending_test_payment'}</span></td>
+          <td class="p-3" data-label="${t('thShippingLabel')}">${buildShippingLabelCellHtml(o)}</td>
           <td class="p-3 text-xs text-gray-500" data-label="${t('thOrderTime')}">${created}</td>
           <td class="p-3" data-label="${t('thAction')}">
             <button onclick="openOrderItemsModal('${o.id}')" class="text-amber-800 hover:text-amber-900 text-xs font-semibold">${t('viewDetailsBtn')}</button>
@@ -3789,7 +3822,91 @@ async function loadAdminOrders() {
 
   } catch (err) {
     console.error("加载订单失败:", err);
-    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-red-500">${t('loadOrdersFailed')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-red-500">${t('loadOrdersFailed')}</td></tr>`;
+  }
+}
+
+// 订单列表"运单"这一列：三种状态——
+//   1. 人工核算运费的订单（含古董家具）：不支持自动生成，显示提示文字。
+//   2. 已经成功生成过运单：显示运单号（可以直接复制）+ 查看标签 / 查看物流 两个链接。
+//   3. 还没生成（或者上次生成失败了）：显示"生成运单"按钮，失败过的话按钮下面带上次的失败原因。
+function buildShippingLabelCellHtml(o) {
+  if (o.needs_manual_shipping) {
+    return `<span class="text-[11px] text-gray-400">${t('manualShippingNote')}</span>`;
+  }
+  if (o.tracking_number && o.label_status === 'success') {
+    return `
+      <div class="text-xs space-y-1">
+        <div class="font-mono font-semibold text-gray-800 cursor-pointer hover:text-amber-800" title="${t('copyTrackingHint')}" onclick="copyTrackingNumber('${o.tracking_number}')">${o.tracking_number} <i class="fa-regular fa-copy text-gray-400"></i></div>
+        <div class="flex gap-2">
+          ${o.label_url ? `<a href="${o.label_url}" target="_blank" class="text-blue-700 hover:text-blue-900 underline">${t('viewLabelBtn')}</a>` : ''}
+          ${o.tracking_url ? `<a href="${o.tracking_url}" target="_blank" class="text-blue-700 hover:text-blue-900 underline">${t('viewTrackingBtn')}</a>` : ''}
+        </div>
+      </div>
+    `;
+  }
+  const isRetry = o.label_status === 'error';
+  return `
+    <div class="text-xs space-y-1">
+      <button id="label-gen-btn-${o.id}" onclick="generateShippingLabel('${o.id}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-800 hover:bg-amber-900 text-white">
+        ${isRetry ? t('retryGenerateLabelBtn') : t('generateLabelBtn')}
+      </button>
+      ${isRetry && o.label_error ? `<div class="text-[10px] text-red-500 max-w-[180px]" title="${escapeHtmlAttr(o.label_error)}">${escapeHtmlAttr(o.label_error).slice(0, 40)}${o.label_error.length > 40 ? '…' : ''}</div>` : ''}
+    </div>
+  `;
+}
+
+function escapeHtmlAttr(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function copyTrackingNumber(trackingNumber) {
+  navigator.clipboard?.writeText(trackingNumber).then(() => {
+    alert(t('trackingCopiedMsg'));
+  }).catch(() => {
+    alert(trackingNumber); // 复制失败（比如不支持的浏览器环境），至少把单号弹出来让管理员自己选中复制
+  });
+}
+
+// 点"生成运单"：调用新的 /api/create-shipping-label 这个服务器函数，由它去真正向 Shippo
+// 购买运单（密钥只在服务器那一侧，这边只是把当前登录的 access token 带过去证明"我是登录的管理员"）。
+async function generateShippingLabel(orderId) {
+  const btn = document.getElementById(`label-gen-btn-${orderId}`);
+  const originalText = btn ? btn.innerText : '';
+  if (btn) { btn.disabled = true; btn.innerText = t('generatingLabelText'); }
+
+  try {
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    const accessToken = sessionData && sessionData.session ? sessionData.session.access_token : null;
+    if (!accessToken) {
+      alert(t('operationFailed') + t('needLoginForLabel'));
+      return;
+    }
+
+    const resp = await fetch('/api/create-shipping-label', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ order_id: orderId })
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error((data && data.error) || t('labelGenerateFailedGeneric'));
+    }
+    if (data.warning) {
+      // 运单已经买成功了，只是写回数据库失败——钱已经花出去，必须把运单号展示出来，
+      // 不能让管理员以为没成功又点一次重复购买。
+      alert(`${t('labelGeneratedMsg')}\n${t('trackingNumberLabel')}${data.trackingNumber}\n\n⚠️ ${data.warning}`);
+    } else if (!data.alreadyGenerated) {
+      alert(`${t('labelGeneratedMsg')}\n${t('trackingNumberLabel')}${data.trackingNumber}`);
+    }
+    logAdminActivity('shipping_label_generate', `order: ${orderId}, tracking: ${data.trackingNumber}`);
+    await loadAdminOrders();
+  } catch (err) {
+    console.error("生成运单失败:", err);
+    alert(t('labelGenerateFailedPrefix') + err.message);
+    await loadAdminOrders(); // 重新加载一次，让按钮恢复成"重试"状态（后端已经把失败原因写回订单了）
+  } finally {
+    if (btn && document.body.contains(btn)) { btn.disabled = false; btn.innerText = originalText; }
   }
 }
 
