@@ -16,6 +16,10 @@
 // 还需要再加两个（跟前台 js 里用的是同一对公开值，不是新的密钥）：
 //   SUPABASE_URL       = 你 Supabase 项目的 URL
 //   SUPABASE_ANON_KEY  = 你 Supabase 项目的 anon key
+// 以及【真正购买】运单（不是询价）时 Shippo 额外要求的两个发货人信息
+// （询价时不需要这两项，所以之前一直没加，直到真的购买才报错）：
+//   SHIP_FROM_EMAIL    = 发货人邮箱
+//   SHIP_FROM_PHONE    = 发货人电话
 // 加完同样记得去 Vercel 项目里点一次 "Redeploy"。
 
 export default async function handler(req, res) {
@@ -182,7 +186,11 @@ async function requoteAndPurchase(shippoToken, order) {
     city: process.env.SHIP_FROM_CITY || '',
     state: process.env.SHIP_FROM_STATE || '',
     zip: process.env.SHIP_FROM_ZIP || '',
-    country: 'US'
+    country: 'US',
+    // Shippo 真正购买（不是询价）USPS 运单时，要求发货人必须带邮箱或电话，
+    // 否则会报"Seller info missing email or phone"。
+    email: process.env.SHIP_FROM_EMAIL || '',
+    phone: process.env.SHIP_FROM_PHONE || ''
   };
   const parcel = order.shipping_parcel;
 

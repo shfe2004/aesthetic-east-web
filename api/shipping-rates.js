@@ -14,6 +14,8 @@
 //   SHIP_FROM_CITY     = 发货仓库所在城市
 //   SHIP_FROM_STATE    = 发货仓库所在州（两位缩写，如 CA）
 //   SHIP_FROM_ZIP      = 发货仓库邮编
+//   SHIP_FROM_EMAIL    = 发货人邮箱（购买运单时 Shippo 要求必须有邮箱或电话之一，这里一起配好）
+//   SHIP_FROM_PHONE    = 发货人电话
 // 加完环境变量后，需要在 Vercel 项目里手动点一次 "Redeploy"（重新部署），新变量才会生效——
 // 只是保存环境变量本身不会让正在运行的函数立刻读到新值。
 
@@ -41,7 +43,13 @@ export default async function handler(req, res) {
     city: process.env.SHIP_FROM_CITY || '',
     state: process.env.SHIP_FROM_STATE || '',
     zip: process.env.SHIP_FROM_ZIP || '',
-    country: 'US'
+    country: 'US',
+    // 询价这一步本身不需要邮箱/电话，但这个询价生成的 Shippo "shipment" 之后如果被
+    // 后台用来直接购买运单（见 create-shipping-label.js），Shippo 会要求发货人带邮箱或
+    // 电话（USPS 尤其如此）。提前把这两项也带上，这样下单时问到的报价后面能直接买成功，
+    // 不用等购买失败后再触发一次"重新询价"才能买到。
+    email: process.env.SHIP_FROM_EMAIL || '',
+    phone: process.env.SHIP_FROM_PHONE || ''
   };
 
   if (!addressFrom.street1 || !addressFrom.city || !addressFrom.state || !addressFrom.zip) {
