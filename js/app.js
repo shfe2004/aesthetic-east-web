@@ -17,6 +17,10 @@ let currentShippoShipmentId = null;
 // 这次询价用的包裹重量/尺寸（见 js/shipping-config.js 的 computeParcelForCart），跟着订单
 // 一起存下来——后台"生成运单"时如果发现这次报价已经过期，需要拿这份包裹信息重新问一次价。
 let currentShippingParcel = null;
+// Shippo 地址校验结果：地址询价成功，但 Shippo 认为这个收货地址不太对（比如找不到唯一匹配、
+// 门牌号/公寓号有疑问）时是 true——不直接拦死下单（Shippo 的校验本身偶尔会有误判），
+// 而是要求顾客勾选"我已确认地址无误"之后才能继续付款，见 processPayment() 里的检查。
+let addressValidationFailed = false;
 // 结算税率，从后台 site_settings 里读，读不到时兜底用 8%（跟原来硬编码的值保持一致）
 let siteTaxRate = 0.08;
 // 满额包邮门槛（$），从后台 site_settings.free_shipping_threshold 里读；null 表示没开启这个功能
@@ -83,6 +87,11 @@ const i18n = {
     placeholderEmail: "Email Address *",
     placeholderPhone: "Phone (10 digits) *",
     placeholderAddress: "Street Address (e.g., 123 Main St) *",
+    placeholderAddress2: "Apt / Suite / Unit (optional)",
+    addressHouseNumberWarning: "Please include a house/building number (e.g., \"123 Main St\"), not just the street name.",
+    addressValidationWarningDefault: "We couldn't confirm this exact address. Please double-check it before continuing.",
+    addressValidationOverrideLabel: "I've double-checked and this address is correct — continue anyway.",
+    addressValidationBlockedAlert: "We couldn't verify your shipping address. Please check the box confirming it's correct, or fix the address above, before placing your order.",
     placeholderCity: "City *",
     selectState: "Select State *",
     placeholderZip: "Zip (5 digits) *",
@@ -148,6 +157,11 @@ const i18n = {
     placeholderEmail: "电子邮箱 (Email) *",
     placeholderPhone: "手机号码 (10位数字) *",
     placeholderAddress: "详细街道地址 *",
+    placeholderAddress2: "公寓/门牌号 Apt/Suite/Unit（选填）",
+    addressHouseNumberWarning: "请填写门牌号（例如 \"123 Main St\"），不能只写街道名。",
+    addressValidationWarningDefault: "系统无法确认这个地址是否准确，请再检查一遍再继续。",
+    addressValidationOverrideLabel: "我已经核对过，这个地址没问题——仍要继续。",
+    addressValidationBlockedAlert: "系统无法核实这个收货地址。请勾选确认地址无误，或修改上面的地址后再下单。",
     placeholderCity: "城市 (City) *",
     selectState: "选择州 (State) *",
     placeholderZip: "邮编 (5位数字) *",
@@ -1487,6 +1501,13 @@ async function openCheckoutModal() {
   selectedShippingRate = null;
   currentShippoShipmentId = null;
   currentShippingParcel = null;
+  addressValidationFailed = false;
+  const addrWarnEl0 = document.getElementById('address-validation-warning');
+  if (addrWarnEl0) addrWarnEl0.classList.add('hidden');
+  const overrideEl0 = document.getElementById('address-validation-override');
+  if (overrideEl0) overrideEl0.checked = false;
+  const houseNumWarnEl0 = document.getElementById('address-house-number-warning');
+  if (houseNumWarnEl0) houseNumWarnEl0.classList.add('hidden');
   const ratesListEl = document.getElementById('shipping-rates-list');
   if (ratesListEl) ratesListEl.innerHTML = '';
   const manualNoteEl = document.getElementById('shipping-manual-note');
@@ -1530,6 +1551,27 @@ function updateCheckoutTotalsUI() {
   return { subtotal, tax, shippingCost, total };
 }
 
+// 粗略判断地址栏是不是漏填了门牌号——真实街道地址几乎总是"数字 + 空格 + 街道名"
+// （123 Main St），例外是邮政信箱（PO Box / P.O. Box）。
+//
+// 这里有个真实踩过的坑：不能简单判断"是不是数字开头"——Tommy 真实测试时踩到的那笔订单
+// 地址就是"47th St"，这本身就是数字开头（"47"），但它其实是"第47街"这个街道名的序数词，
+// 后面根本没有再接真正的门牌号。所以要进一步排除"数字后面紧跟 st/nd/rd/th 这种序数后缀"
+// 的情况（47th / 1st / 2nd / 3rd...），只有数字后面直接是空格、或数字+字母单元号
+// （比如 123A）才当成"像是有门牌号"。
+// 不是为了做到完全准确（没法比 Shippo/USPS 自己判断得更准），只是在顾客填完表单的第一时间
+// 先拦一道最常见、最明显的那种缺漏，不用等到后台点"生成运单"才发现、黄花菜都凉了。
+function looksLikeMissingHouseNumber(address) {
+  const trimmed = (address || '').trim();
+  if (!trimmed) return false;
+  if (/^p\.?\s*o\.?\s*box\b/i.test(trimmed)) return false; // PO Box / P.O. Box，放行
+  const m = trimmed.match(/^(\d+)([A-Za-z]*)(?=[\s,]|$)/);
+  if (!m) return true; // 完全不是"数字开头"，肯定没有门牌号
+  const suffix = m[2];
+  if (suffix && /^(st|nd|rd|th)$/i.test(suffix)) return true; // "47th St" 这种，数字其实是街道序数名
+  return false; // "123 Main St" / "123A Main St" 这种，像是带了正常门牌号
+}
+
 // 把当前地址 + 购物车换算出的包裹信息发给后端 /api/shipping-rates，由后端拿着 Shippo 密钥去
 // 实时询价，前台只拿回一份可选的快递方式列表。现在地址四项填完整后会自动触发（见下面
 // scheduleAutoCalculateShipping），这个函数本身不区分是自动触发的还是点按钮手动触发的；
@@ -1539,11 +1581,15 @@ let shippingCalcSeq = 0; // 请求序号：地址改得快的时候，只采用"
                           // 避免网络慢的旧请求把新地址刚算出来的新结果覆盖掉
 async function calculateShipping(isManualClick) {
   const address = document.getElementById('cust-address').value.trim();
+  const address2 = document.getElementById('cust-address2')?.value.trim() || '';
   const city = document.getElementById('cust-city').value.trim();
   const state = document.getElementById('cust-state').value;
   const zip = document.getElementById('cust-zip').value.trim();
   const firstName = document.getElementById('cust-first-name').value.trim();
   const lastName = document.getElementById('cust-last-name').value.trim();
+
+  const houseNumWarnEl = document.getElementById('address-house-number-warning');
+  const addrWarnEl = document.getElementById('address-validation-warning');
 
   if (!address || !city || !state || !zip) {
     if (isManualClick) {
@@ -1551,6 +1597,23 @@ async function calculateShipping(isManualClick) {
     }
     return;
   }
+
+  // 地址一眼看出来就缺门牌号：直接在这里拦住，不浪费一次询价请求，也不让顾客带着一个
+  // 肯定会在"生成运单"那一步失败的地址往下走。清空已选运费，逼着顾客先把地址填完整。
+  if (looksLikeMissingHouseNumber(address)) {
+    if (houseNumWarnEl) houseNumWarnEl.classList.remove('hidden');
+    if (addrWarnEl) addrWarnEl.classList.add('hidden');
+    addressValidationFailed = false;
+    selectedShippingRate = null;
+    const ratesListElEarly = document.getElementById('shipping-rates-list');
+    if (ratesListElEarly) ratesListElEarly.innerHTML = '';
+    updateCheckoutTotalsUI();
+    if (isManualClick) {
+      alert(i18n[currentLang] ? i18n[currentLang].addressHouseNumberWarning : 'Please include a house/building number (e.g., "123 Main St"), not just the street name.');
+    }
+    return;
+  }
+  if (houseNumWarnEl) houseNumWarnEl.classList.add('hidden');
 
   const { parcel, needsManualQuote } = computeParcelForCart(cart);
   currentShippingParcel = parcel; // 跟着这次询价一起记下来，下单时随订单存进 orders.shipping_parcel
@@ -1580,7 +1643,7 @@ async function calculateShipping(isManualClick) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        addressTo: { name: `${firstName} ${lastName}`.trim(), street1: address, city, state, zip },
+        addressTo: { name: `${firstName} ${lastName}`.trim(), street1: address, street2: address2, city, state, zip },
         parcel
       })
     });
@@ -1593,6 +1656,26 @@ async function calculateShipping(isManualClick) {
     renderShippingRates(data.rates);
     // 若含古董家具，同时也提示这部分需要人工核算（穿戴甲/亚克力部分已经能自动询价了）
     if (needsManualQuote && manualNoteEl) manualNoteEl.classList.remove('hidden');
+
+    // Shippo 的地址校验结果（USPS CASS）：地址格式上没问题（能问到运费），但系统认为跟真实
+    // 地址对不上（找不到/找到多个匹配）——不是硬错误，所以询价本身仍然成功、仍然显示运费，
+    // 只是额外弹出一条软提示，要求顾客勾选确认后才能点"完成支付"（见 processPayment）。
+    addressValidationFailed = !!(data.addressValidation && data.addressValidation.is_valid === false);
+    if (addrWarnEl) {
+      if (addressValidationFailed) {
+        const warnTextEl = document.getElementById('address-validation-warning-text');
+        const msgs = data.addressValidation.messages;
+        const customText = Array.isArray(msgs) && msgs.length > 0 ? msgs.map(m => m.text || m).join('；') : '';
+        if (warnTextEl) {
+          warnTextEl.innerText = customText || (i18n[currentLang] ? i18n[currentLang].addressValidationWarningDefault : "We couldn't confirm this exact address. Please double-check it before continuing.");
+        }
+        const overrideEl = document.getElementById('address-validation-override');
+        if (overrideEl) overrideEl.checked = false;
+        addrWarnEl.classList.remove('hidden');
+      } else {
+        addrWarnEl.classList.add('hidden');
+      }
+    }
   } catch (err) {
     if (mySeq !== shippingCalcSeq) return;
     console.error('运费询价失败:', err);
@@ -1616,12 +1699,13 @@ function scheduleAutoCalculateShipping() {
   if (shippingAutoCalcTimer) clearTimeout(shippingAutoCalcTimer);
   shippingAutoCalcTimer = setTimeout(() => {
     const address = document.getElementById('cust-address')?.value.trim();
+    const address2 = document.getElementById('cust-address2')?.value.trim() || '';
     const city = document.getElementById('cust-city')?.value.trim();
     const state = document.getElementById('cust-state')?.value;
     const zip = document.getElementById('cust-zip')?.value.trim();
     if (!address || !city || !state || !/^\d{5}$/.test(zip || '')) return; // 地址还没填完整，先不触发
 
-    const key = `${address}|${city}|${state}|${zip}`;
+    const key = `${address}|${address2}|${city}|${state}|${zip}`;
     if (key === lastAutoShippingKey) return; // 跟上次自动算过的地址一样，不用重复调用付费接口
     lastAutoShippingKey = key;
     calculateShipping(false);
@@ -1631,7 +1715,7 @@ function scheduleAutoCalculateShipping() {
 // 绑定地址四个输入框的事件：文本框用 input（边打字边触发防抖），州下拉框用 change。
 // 只需要绑定一次，重复调用会被 dataset 标记挡住。
 function setupShippingAutoCalc() {
-  const addressFieldIds = ['cust-address', 'cust-city', 'cust-zip'];
+  const addressFieldIds = ['cust-address', 'cust-address2', 'cust-city', 'cust-zip'];
   addressFieldIds.forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.dataset.autoShippingBound) {
@@ -1719,11 +1803,27 @@ async function processPayment(e) {
     return;
   }
 
+  // 地址明显缺门牌号：不让下单，逼着顾客先把地址栏改完整（跟 calculateShipping 里用的
+  // 是同一个判断，这里再查一遍是因为顾客有可能在自动询价成功之后又手动改坏了地址）。
+  if (looksLikeMissingHouseNumber(document.getElementById('cust-address').value.trim())) {
+    document.getElementById('address-house-number-warning')?.classList.remove('hidden');
+    alert(i18n[currentLang] ? i18n[currentLang].addressHouseNumberWarning : 'Please include a house/building number (e.g., "123 Main St"), not just the street name.');
+    return;
+  }
+
+  // Shippo 对这个收货地址有疑问（见 calculateShipping 里设置的 addressValidationFailed），
+  // 且顾客还没勾选"我已确认地址无误"——不直接拦死下单，但必须先让顾客自己确认一遍。
+  if (addressValidationFailed && !document.getElementById('address-validation-override')?.checked) {
+    alert(i18n[currentLang] ? i18n[currentLang].addressValidationBlockedAlert : "We couldn't verify your shipping address. Please check the box confirming it's correct, or fix the address above, before placing your order.");
+    return;
+  }
+
   const firstName = document.getElementById('cust-first-name').value;
   const lastName = document.getElementById('cust-last-name').value;
   const email = document.getElementById('cust-email').value;
   const phone = document.getElementById('cust-phone').value;
   const address = document.getElementById('cust-address').value;
+  const address2 = document.getElementById('cust-address2')?.value.trim() || '';
   const city = document.getElementById('cust-city').value;
   const state = document.getElementById('cust-state').value;
   const zip = document.getElementById('cust-zip').value;
@@ -1756,6 +1856,7 @@ async function processPayment(e) {
       email: email,
       phone: phone,
       address: address,
+      address2: address2 || null,
       city: city,
       state: state,
       zip: zip,
@@ -1832,6 +1933,7 @@ async function processPayment(e) {
       selectedShippingRate = null;
       currentShippoShipmentId = null;
       currentShippingParcel = null;
+      addressValidationFailed = false;
       updateCartUI();
       renderPage();
       payBtn.disabled = false;

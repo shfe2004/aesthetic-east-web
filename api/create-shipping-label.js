@@ -203,6 +203,7 @@ async function requoteAndPurchase(shippoToken, order) {
         address_to: {
           name: `${order.first_name || ''} ${order.last_name || ''}`.trim(),
           street1: order.address || '',
+          street2: order.address2 || '',
           city: order.city || '',
           state: order.state || '',
           zip: order.zip || '',

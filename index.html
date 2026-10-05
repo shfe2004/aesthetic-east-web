@@ -299,6 +299,10 @@
         </div>
 
         <input type="text" id="cust-address" placeholder="Street Address (e.g., 123 Main St) *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderAddress">
+        <input type="text" id="cust-address2" placeholder="Apt / Suite / Unit (optional)" class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderAddress2">
+        <!-- 地址校验提示：顾客地址栏漏填门牌号（比如只写了街名）时显示在这里，不让他们
+             直接走到付款那一步才发现——门牌号缺失是导致 Shippo 后续无法生成运单最常见的原因。 -->
+        <p id="address-house-number-warning" class="hidden text-[11px] text-red-600 -mt-1.5" data-i18n="addressHouseNumberWarning">Please include a house/building number (e.g., "123 Main St"), not just the street name.</p>
 
         <div class="grid grid-cols-3 gap-2">
           <input type="text" id="cust-city" placeholder="City *" required class="border p-2.5 rounded-xl text-sm w-full bg-stone-50/50" data-i18n-placeholder="placeholderCity">
@@ -373,6 +377,16 @@
           <p id="shipping-manual-note" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2" data-i18n="manualShippingNote">
             This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.
           </p>
+          <!-- Shippo 实时地址校验（USPS CASS）：地址看着填完整了，但系统找不到/找到多个匹配的
+               真实地址时，显示在这里——不是硬拦死（偶尔会有新地址/地址库没收录的情况），
+               而是让顾客自己确认一下地址没打错，勾选确认框才能继续付款。 -->
+          <div id="address-validation-warning" class="hidden text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 space-y-1.5">
+            <p id="address-validation-warning-text" data-i18n="addressValidationWarningDefault">We couldn't confirm this exact address. Please double-check it before continuing.</p>
+            <label class="flex items-start gap-1.5 cursor-pointer">
+              <input type="checkbox" id="address-validation-override" class="mt-0.5">
+              <span data-i18n="addressValidationOverrideLabel">I've double-checked and this address is correct — continue anyway.</span>
+            </label>
+          </div>
         </div>
 
         <div class="bg-stone-50 p-3.5 rounded-xl text-xs space-y-1.5 text-stone-600 mt-2 border">

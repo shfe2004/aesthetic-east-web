@@ -69,10 +69,16 @@ export default async function handler(req, res) {
         address_to: {
           name: addressTo.name || '',
           street1: addressTo.street1 || '',
+          street2: addressTo.street2 || '',
           city: addressTo.city || '',
           state: addressTo.state || '',
           zip: addressTo.zip || '',
-          country: 'US'
+          country: 'US',
+          // 让 Shippo 顺手用 USPS 的地址库核对一下这个收货地址（CASS 校验）。这一步不影响
+          // 询价本身是否成功——就算地址校验不通过，只要格式凑合，Shippo 通常还是会把费率
+          // 报回来——校验结果单独放在返回的 address_to.validation_results 里，交给前台
+          // 决定要不要提醒顾客（见下面的 addressValidation 字段）。
+          validate: true
         },
         parcels: [
           {
@@ -110,7 +116,12 @@ export default async function handler(req, res) {
       }))
       .sort((a, b) => a.amount - b.amount);
 
-    res.status(200).json({ shipmentId: shipment.object_id, rates });
+    // address_to.validation_results 只有在上面传了 validate:true 时才会有；Shippo 对某些
+    // 国际/边缘情况可能根本不返回这个字段，统一兜底成 null，前台拿到 null 时就当作"没法
+    // 判断"处理，不弹警告（宁可漏提醒，也不要对系统本来就判断不了的地址乱报错）。
+    const addressValidation = (shipment.address_to && shipment.address_to.validation_results) || null;
+
+    res.status(200).json({ shipmentId: shipment.object_id, rates, addressValidation });
   } catch (err) {
     res.status(500).json({ error: '调用 Shippo 接口时出错：' + err.message });
   }

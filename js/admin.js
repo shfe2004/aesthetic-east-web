@@ -3802,7 +3802,7 @@ async function loadAdminOrders() {
 
     tbody.innerHTML = orders.map(o => {
       const created = o.created_at ? new Date(o.created_at).toLocaleString() : '';
-      const addr = [o.address, o.city, o.state, o.zip].filter(Boolean).join(', ');
+      const addr = [o.address, o.address2, o.city, o.state, o.zip].filter(Boolean).join(', ');
       return `
         <tr class="border-b hover:bg-gray-50">
           <td class="p-3 font-mono text-xs text-amber-900 font-bold" data-label="${t('thOrderId')}">${o.id}</td>
