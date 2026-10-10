@@ -237,6 +237,30 @@ function classifyTrafficSource() {
   return { source: 'referral', referralDomain: host };
 }
 
+// 匿名访客 ID：不是登录账号，只是存在浏览器本地 localStorage 里的一串随机字符，用来把
+// "同一个人"多次访问/多次浏览串起来，不记录姓名、邮箱、IP 等能直接识别身份的信息。
+// 跟后台语言设置一样用 localStorage 长期保存，所以同一台设备/同一个浏览器下次再来，
+// 用的还是同一个 ID；换设备、换浏览器、清除过网站数据，则会被当成"新访客"。
+function getOrCreateVisitorId() {
+  try {
+    let id = localStorage.getItem('ae_visitor_id');
+    if (!id) {
+      id = 'v_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
+      localStorage.setItem('ae_visitor_id', id);
+    }
+    return id;
+  } catch {
+    // localStorage 不可用（比如浏览器隐私模式），退化成只在这次页面停留期间有效的临时 ID——
+    // 没法跨多次访问串联，但不影响这一次访问本身的统计
+    if (!window.__aeTempVisitorId) {
+      window.__aeTempVisitorId = 'v_temp_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+    return window.__aeTempVisitorId;
+  }
+}
+
+const currentVisitorId = getOrCreateVisitorId();
+
 function trackSiteVisit() {
   try {
     const { source, referralDomain } = classifyTrafficSource();
@@ -248,12 +272,151 @@ function trackSiteVisit() {
         path: location.pathname,
         referrer: document.referrer || '',
         source,
-        referralDomain
+        referralDomain,
+        visitorId: currentVisitorId
       })
     }).catch(() => {}); // 统计功能失败不应该影响正常顾客浏览购物，安静忽略即可
   } catch (err) {
     console.error('访问统计上报失败:', err);
   }
+}
+
+// ===================== 商品浏览兴趣追踪（商品卡片在屏幕上的累计停留时长）=====================
+// 这个站是"一个长页面滚动浏览"的结构，没有单独的商品详情页，所以没法靠"打开了哪个页面"
+// 判断对哪件商品感兴趣，而是用 IntersectionObserver 监测每张商品卡片是否滚动进了屏幕可视
+// 区域（卡片至少 50% 可见才算"正在看"），从"进入可视区域"到"离开可视区域"之间的时间差
+// 就是这次的停留时长。这是个相对参考值（比如挂着页面去睡觉也会被计入"停留时间"，见后端
+// api/track-product-interest.js 里对单条停留时长的封顶处理），不是精确的"注视时长"，
+// 但足够用来在后台比较"相对哪些商品更能留住人"。
+//
+// key 是商品 id，value 是 { category, ms: 这次还没上报的累计停留毫秒数,
+// visibleSince: 当前这段"正在可视区域内"从什么时间戳(ms)开始算，不在可视区域内时为 null }
+const productDwellState = {};
+let productDwellObserver = null;
+
+function ensureDwellObserver() {
+  if (productDwellObserver) return productDwellObserver;
+  productDwellObserver = new IntersectionObserver((entries) => {
+    const now = Date.now();
+    entries.forEach(entry => {
+      const id = entry.target.dataset.dwellProductId;
+      if (!id) return;
+      const category = entry.target.dataset.dwellCategory || null;
+      if (!productDwellState[id]) productDwellState[id] = { category, ms: 0, visibleSince: null };
+      const state = productDwellState[id];
+      state.category = category;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+        if (state.visibleSince === null) state.visibleSince = now;
+      } else if (state.visibleSince !== null) {
+        state.ms += now - state.visibleSince;
+        state.visibleSince = null;
+      }
+    });
+  }, { threshold: [0, 0.5] });
+  return productDwellObserver;
+}
+
+// 商品卡片的整个 DOM 每次筛选/切换语言/选规格都会被整体重新生成（见 renderSimpleCategory /
+// renderNails 里的 container.innerHTML = ...），旧卡片节点会被直接丢弃，不会触发
+// IntersectionObserver 的"离开可视区域"回调。所以在每次重新生成卡片 HTML 之前，先结算一次
+// 当前所有"正在计时"的商品（计入已经攒下的可见时长，重置成"未在计时"状态），避免旧卡片
+// 节点消失后计时器找不到归宿、一直停在很久以前的时间戳上，导致下次结算时把这段"假的停留
+// 时间"也算进去。重新生成完 HTML 后，再用 observeAllProductCardsForDwell() 重新监测所有
+// 卡片——如果某张卡片这时候确实还在屏幕可视区域内，IntersectionObserver 会在下一帧自动
+// 发一次初始回调，重新把计时接上，中间断开的这一小段时间（通常几毫秒到几十毫秒）可以忽略。
+function pauseAllDwellTimers() {
+  const now = Date.now();
+  Object.values(productDwellState).forEach(state => {
+    if (state.visibleSince !== null) {
+      state.ms += now - state.visibleSince;
+      state.visibleSince = null;
+    }
+  });
+}
+
+function observeAllProductCardsForDwell() {
+  const observer = ensureDwellObserver();
+  document.querySelectorAll('[id^="product-card-"]').forEach(card => {
+    const id = card.id.replace('product-card-', '');
+    card.dataset.dwellProductId = id;
+    card.dataset.dwellCategory = card.dataset.category || '';
+    observer.observe(card);
+  });
+}
+
+// 把目前累计的停留时长批量上报给后端，上报过的部分清零（没清零的话下次会重复计入）。
+// useBeacon=true 用于"页面即将关闭/切到后台"这种场合——这时候再用普通 fetch 很可能来不及
+// 发出请求就被浏览器中断了，必须用专门为这种场景设计的 navigator.sendBeacon。
+function flushProductDwell(opts) {
+  opts = opts || {};
+  const now = Date.now();
+  // 先把目前还"正在计时"（卡片仍在可视区域内）的部分也结算进来，不然这些还没"离开"的
+  // 商品这次就不会被计入——但又不能真的停止计时（比如只是定时上报，用户还在继续看），
+  // 所以这里按 opts.keepTimersRunning 决定结算完是重新从现在开始计时，还是彻底停止。
+  Object.values(productDwellState).forEach(state => {
+    if (state.visibleSince !== null) {
+      state.ms += now - state.visibleSince;
+      state.visibleSince = opts.keepTimersRunning ? now : null;
+    }
+  });
+
+  const entries = Object.keys(productDwellState)
+    .map(id => ({ productId: id, category: productDwellState[id].category, dwellMs: productDwellState[id].ms }))
+    .filter(e => e.dwellMs > 0);
+
+  if (entries.length === 0) return;
+
+  try {
+    const payload = JSON.stringify({ visitorId: currentVisitorId, entries });
+    if (opts.useBeacon && navigator.sendBeacon) {
+      navigator.sendBeacon('/api/track-product-interest', new Blob([payload], { type: 'application/json' }));
+    } else {
+      fetch('/api/track-product-interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: payload
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.error('商品浏览兴趣上报失败:', err);
+  }
+
+  // 已经打包上报的这部分清零，避免下次重复计入；没达到门槛（dwellMs 为 0）的商品不受影响
+  entries.forEach(e => { productDwellState[e.productId].ms = 0; });
+}
+
+function setupProductDwellTracking() {
+  // 每 20 秒批量上报一次已经攒下的停留时长，不用等到关闭页面才一次性发——万一中途崩溃/
+  // 断网/直接划掉 App，至少已经发出去的这部分数据不会丢。keepTimersRunning: true 表示
+  // 对仍在可视区域里的商品，结算完当前这段后立刻重新开始计时，不会打断正在进行的浏览。
+  setInterval(() => flushProductDwell({ useBeacon: false, keepTimersRunning: true }), 20000);
+
+  // 切到后台标签页 / 锁屏 / 切到其它 App：先把当前已经攒下的停留时长用 sendBeacon 发出去
+  // （这个时间点之后浏览器可能随时暂停这个页面的 JS 执行，必须用专门设计成"即使页面马上
+  // 不活跃也能可靠发出"的 sendBeacon，普通 fetch 在这种场合经常来不及发完就被打断）。
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushProductDwell({ useBeacon: true, keepTimersRunning: false });
+    } else {
+      // 切回前台：IntersectionObserver 不会因为"标签页从后台切回前台"这件事本身重新触发
+      // 回调（它只在页面布局/滚动位置真的发生变化时才触发），所以这里手动检查一遍哪些
+      // 卡片这时候确实还在可视区域内，给它们重新接上计时。
+      const now = Date.now();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      document.querySelectorAll('[id^="product-card-"]').forEach(card => {
+        const id = card.dataset.dwellProductId;
+        if (!id || !productDwellState[id] || productDwellState[id].visibleSince !== null) return;
+        const rect = card.getBoundingClientRect();
+        const visibleHeight = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+        const visibleRatio = rect.height > 0 ? visibleHeight / rect.height : 0;
+        if (visibleRatio >= 0.5) productDwellState[id].visibleSince = now;
+      });
+    }
+  });
+
+  // 彻底关闭/跳转离开页面前的最后一次上报，同样必须用 sendBeacon
+  window.addEventListener('pagehide', () => flushProductDwell({ useBeacon: true, keepTimersRunning: false }));
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -269,6 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNailsVideoLazyPlay();
   setupShippingAutoCalc();
   trackSiteVisit();
+  setupProductDwellTracking();
   scrollToDeepLinkedProduct();
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -582,8 +746,33 @@ async function loadSiteDynamicConfig() {
       const wrap = document.getElementById('nails-video-wrap');
       if (wrap) wrap.classList.remove('hidden');
     }
+    // Microsoft Clarity（免费的网站行为分析工具，自带会话录屏/热力图，这里只负责"有没有
+    // 配置项目 ID、有的话就把官方跟踪代码动态插进页面"，不需要改代码就能在后台随时开关——
+    // 后台"网站全局配置"里填了 ID 才会加载，留空则完全不加载，不会给没配置的人凭空加流量。
+    if (cfg.clarity_project_id && !document.getElementById('ms-clarity-script')) {
+      injectClarityScript(cfg.clarity_project_id);
+    }
   } catch (err) {
     console.error("加载站点配置失败，使用页面默认文案:", err);
+  }
+}
+
+// 官方 Microsoft Clarity 跟踪代码的标准写法（来自 clarity.microsoft.com 后台"安装代码"页面），
+// 这里只是把项目 ID 换成动态读取的配置值，其它部分原样照抄，方便以后对照官方文档排查问题。
+function injectClarityScript(projectId) {
+  try {
+    const script = document.createElement('script');
+    script.id = 'ms-clarity-script';
+    script.innerHTML = `
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", ${JSON.stringify(projectId)});
+    `;
+    document.head.appendChild(script);
+  } catch (err) {
+    console.error('Microsoft Clarity 脚本注入失败:', err);
   }
 }
 
@@ -747,6 +936,11 @@ function renderSimpleCategory(cat) {
   const btn360Class = isAmber ? 'bg-amber-800/90 hover:bg-amber-900' : 'bg-black/70 hover:bg-black/90';
   const aspectClass = cat.card_aspect_ratio || 'aspect-square';
 
+  // 商品卡片整个 DOM 马上要被下面的 innerHTML 重新生成一遍，先把目前正在计时的停留时长
+  // 结算掉（具体原因见 pauseAllDwellTimers() 定义处的注释），避免旧卡片节点消失后计时器
+  // 找不到归宿、一直停在很久以前的时间戳上。
+  pauseAllDwellTimers();
+
   if (items.length === 0) {
     container.innerHTML = `<div class="col-span-full text-center py-12 text-stone-400">${(i18n[currentLang] && i18n[currentLang].noItemsInFilter) ? i18n[currentLang].noItemsInFilter : 'No items yet.'}</div>`;
     return;
@@ -756,7 +950,7 @@ function renderSimpleCategory(cat) {
     const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
     const hasDimensions = (item.length > 0 || item.width > 0 || item.height > 0);
     return `
-      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
+      <div id="product-card-${item.id}" data-category="${cat.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
         <div>
           <div class="relative bg-stone-100 ${aspectClass} overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
             <img src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -792,11 +986,14 @@ function renderSimpleCategory(cat) {
       </div>
     `;
   }).join('');
+  observeAllProductCardsForDwell();
 }
 
 function renderNails() {
   const container = document.getElementById('nails-grid');
   if (!container || !window.productsData) return;
+  // 原因同 renderSimpleCategory() 里一样：卡片 DOM 马上要被整体重新生成了，先结算停留时长
+  pauseAllDwellTimers();
   container.innerHTML = window.productsData.nails.map(item => {
     const currentShape = activeSelections[item.id]?.shape || '';
     const currentSize = activeSelections[item.id]?.size || '';
@@ -804,7 +1001,7 @@ function renderNails() {
     const sizes = Array.isArray(item.sizes) ? item.sizes : [];
     const mainImg = (item.images && item.images.length > 0) ? item.images[0] : (item.spinImage || 'https://via.placeholder.com/400');
     return `
-      <div id="product-card-${item.id}" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
+      <div id="product-card-${item.id}" data-category="nails" class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-stone-100 flex flex-col justify-between h-full">
         <div>
           <div class="relative bg-stone-100 aspect-square overflow-hidden group cursor-pointer" onclick="openZoomModal('${mainImg}')">
             <img id="main-img-${item.id}" src="${mainImg}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -885,6 +1082,7 @@ function renderNails() {
       </div>
     `;
   }).join('');
+  observeAllProductCardsForDwell();
 }
 
 // 原来这里是 renderMerch() / renderFurniture() 两个几乎一模一样的函数，各自写死

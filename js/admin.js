@@ -19,6 +19,7 @@ const ADMIN_I18N = {
     adminPanelTitle: "Aesthetic East Admin Panel",
     adminPanelSubtitle: "Auto-generated IDs · Dynamic site content · Cloud sync",
     previewFrontendLink: "Preview Storefront ↗",
+    adminManualBtn: "Manual",
     siteConfigSectionTitle: "🌐 Global Site Settings",
     logoLabel: "Brand Name (Logo Text)",
     bannerLabel: "Sticky Top Announcement",
@@ -33,6 +34,9 @@ const ADMIN_I18N = {
     nailsVideoUploadCancelled: "Video upload cancelled.",
     taxRateLabel: "Checkout Tax Rate (%)",
     taxRateHint: "Customers are charged this percentage as tax at checkout, e.g. 8 means 8%. Takes effect immediately after saving.",
+    clarityProjectIdLabel: "Microsoft Clarity Project ID (optional)",
+    clarityProjectIdPlaceholder: "e.g. abcd1234ef",
+    clarityProjectIdHint: "Sign up free at clarity.microsoft.com, create a project, then find this ID under Settings → Setup (it's just the ID, not the full script). Save it here to automatically enable Clarity's session recordings and click heatmaps on the storefront; leave blank to not use it. Data passes through Microsoft's servers.",
     saveSiteConfigBtn: "Save Site Settings",
     savingConfigBtn: "Saving...",
     addProductSectionTitle: "📦 Add New Product",
@@ -93,6 +97,17 @@ const ADMIN_I18N = {
     topCitiesLabel: "Top Cities",
     noVisitData: "No visit data for this period yet.",
     unknownLocation: "Unknown",
+    productInterestSectionTitle: "🎯 Product Interest Analysis",
+    sortByDwell: "By Dwell Time",
+    sortByViews: "By Views",
+    productInterestMethodNote: "Dwell time is the cumulative time a product card spent scrolled into the shopper's viewport (not exact gaze time) — useful for comparing relative interest only.",
+    thInterestProduct: "Product",
+    thInterestViews: "Views",
+    thInterestVisitors: "Unique Visitors",
+    thInterestAvgDwell: "Avg. Dwell",
+    thInterestTotalDwell: "Total Dwell",
+    sourceCategoryBreakdownTitle: "Source × Category Preference",
+    noInterestData: "No product interest data for this period yet.",
     sourceInstagram: "Instagram",
     sourceFacebook: "Facebook",
     sourceTikTok: "TikTok",
@@ -396,6 +411,7 @@ const ADMIN_I18N = {
     adminPanelTitle: "Aesthetic East 管理后台",
     adminPanelSubtitle: "自动生成编码 · 站点文案动态配置 · 云端同步",
     previewFrontendLink: "预览前台 ↗",
+    adminManualBtn: "操作手册",
     siteConfigSectionTitle: "🌐 网站全局信息配置",
     logoLabel: "品牌名称 (Logo Text)",
     bannerLabel: "顶部固定促销横幅 (Sticky Announcement)",
@@ -410,6 +426,9 @@ const ADMIN_I18N = {
     nailsVideoUploadCancelled: "已取消上传视频。",
     taxRateLabel: "结算税率 (%)",
     taxRateHint: "顾客结算页会按这个百分比算税费，比如填 8 就是 8%。改完保存后前台立刻生效。",
+    clarityProjectIdLabel: "Microsoft Clarity 项目 ID（选填）",
+    clarityProjectIdPlaceholder: "例如 abcd1234ef",
+    clarityProjectIdHint: "免费注册 clarity.microsoft.com，新建一个项目后，在「设置 → 安装跟踪代码」里能看到这串项目 ID（一串字母数字，不是完整代码）。填进来保存后，前台会自动接入 Clarity 的会话录屏、点击热力图等功能；留空表示不接入。数据会经过微软的服务器。",
     saveSiteConfigBtn: "保存站点配置",
     savingConfigBtn: "正在保存配置...",
     addProductSectionTitle: "📦 添加新商品",
@@ -470,6 +489,17 @@ const ADMIN_I18N = {
     topCitiesLabel: "访客城市排名",
     noVisitData: "这个时间段内还没有访问数据。",
     unknownLocation: "未知",
+    productInterestSectionTitle: "🎯 商品兴趣分析",
+    sortByDwell: "按停留时长",
+    sortByViews: "按浏览次数",
+    productInterestMethodNote: "停留时长是商品卡片滚动进顾客屏幕可视区域内的累计时间（并非精确注视时长），仅供比较相对热度参考。",
+    thInterestProduct: "商品",
+    thInterestViews: "浏览次数",
+    thInterestVisitors: "独立访客",
+    thInterestAvgDwell: "平均停留",
+    thInterestTotalDwell: "总停留",
+    sourceCategoryBreakdownTitle: "来源 × 分类偏好",
+    noInterestData: "这个时间段内还没有浏览兴趣数据。",
     sourceInstagram: "Instagram",
     sourceFacebook: "Facebook",
     sourceTikTok: "TikTok",
@@ -796,7 +826,7 @@ function toggleAdminLanguage() {
     loadAdminProducts().then(filterAdminProducts); // 重新拉取后按当前搜索框内容重新过滤一次，避免语言切换把筛选结果清空
     loadAdminOrders();
     loadAdminActivityLog();
-    loadSiteVisitStats(currentVisitRange);
+    loadVisitAndInterestStats(currentVisitRange);
     renderCategoryList(); // 分类管理表格是用 t() 现场拼的字符串，不是靠 data-i18n，要手动重渲染一次
     populateCategoryDropdown();
     if (currentSubtypeEditingCategory) {
@@ -818,6 +848,9 @@ function toggleAdminLanguage() {
   ["modal-edit-spec", "modal-edit-dimensions", "modal-order-items", "modal-edit-info"].forEach(id => {
     document.getElementById(id)?.remove();
   });
+  // 操作手册弹窗是中英文双语内容现成存好的，不是靠重新拉数据渲染，所以不用删 DOM 重建，
+  // 只要在弹窗开着的时候重新渲染一次文字即可（如果弹窗没开，renderAdminManual() 内部会自己跳过）。
+  if (typeof renderAdminManual === "function") renderAdminManual();
 }
 
 // ===================== 真实后台登录（Supabase Auth）=====================
@@ -912,7 +945,7 @@ async function onAdminAuthenticated() {
   loadAdminOrders();
   loadSiteSettings();
   loadAdminActivityLog();
-  loadSiteVisitStats(currentVisitRange);
+  loadVisitAndInterestStats(currentVisitRange);
   generateSmartId();
 }
 
@@ -1499,6 +1532,159 @@ function renderVisitStatsBody(rows) {
           <div class="space-y-3">${geoBarsHtml(cityEntries)}</div>
         </div>
       </div>
+    </div>
+  `;
+}
+
+// ===================== 商品兴趣分析（商品卡片停留时长 + 来源 × 分类交叉统计）=====================
+// 数据来自 product_interest 表 + 两个数据库聚合函数（见 sql/add_product_interest_tracking.sql）。
+// 之所以用数据库函数而不是像上面"访问统计"那样整段拉回浏览器自己汇总，是因为这里要做的是
+// "按商品分组求和/求平均"和"跨表 join"，数据量一大很容易在浏览器里算得很慢，交给数据库做
+// 聚合运算更稳妥。
+let currentInterestSortMode = 'dwell'; // 'dwell' 按平均停留时长排序，'views' 按浏览次数排序
+
+function updateInterestSortButtonStyles() {
+  document.querySelectorAll('.interest-sort-btn').forEach(btn => {
+    const isActive = btn.dataset.sort === currentInterestSortMode;
+    btn.classList.toggle('bg-stone-900', isActive);
+    btn.classList.toggle('text-white', isActive);
+    btn.classList.toggle('border-stone-900', isActive);
+    btn.classList.toggle('bg-white', !isActive);
+    btn.classList.toggle('text-stone-600', !isActive);
+    btn.classList.toggle('border-stone-300', !isActive);
+  });
+}
+
+function setInterestSortMode(mode) {
+  currentInterestSortMode = mode;
+  updateInterestSortButtonStyles();
+  if (window.__lastInterestStatsRows) {
+    renderProductInterestBody(window.__lastInterestStatsRows, window.__lastSourceCategoryRows || []);
+  }
+}
+
+// 跟"网站访问统计"共用同一组时间范围按钮，所以把两个加载函数包在一起，按钮 onclick 只用调这一个。
+function loadVisitAndInterestStats(range) {
+  loadSiteVisitStats(range);
+  loadProductInterestStats(range);
+}
+
+async function loadProductInterestStats(range) {
+  currentVisitRange = range || currentVisitRange;
+  const bodyEl = document.getElementById('product-interest-body');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = `<p class="text-xs text-gray-400">${t('loadingVisitStats')}</p>`;
+
+  try {
+    const startIso = rangeStartIso(currentVisitRange); // null 代表"全部"，两个 RPC 都接受 null
+    const [statsRes, breakdownRes] = await Promise.all([
+      supabaseClient.rpc('get_product_interest_stats', { p_start: startIso, p_end: null }),
+      supabaseClient.rpc('get_source_category_breakdown', { p_start: startIso, p_end: null })
+    ]);
+    if (statsRes.error) throw statsRes.error;
+    if (breakdownRes.error) throw breakdownRes.error;
+
+    window.__lastInterestStatsRows = statsRes.data || [];
+    window.__lastSourceCategoryRows = breakdownRes.data || [];
+    updateInterestSortButtonStyles();
+    renderProductInterestBody(window.__lastInterestStatsRows, window.__lastSourceCategoryRows);
+  } catch (err) {
+    console.error('加载商品兴趣分析失败:', err);
+    // 两个 RPC 函数要跑过 sql/add_product_interest_tracking.sql 才会存在——没跑过这个迁移的话，
+    // Supabase 会返回"函数不存在"的报错，这里给个比原始报错更容易看懂的提示。
+    bodyEl.innerHTML = `<p class="text-xs text-red-500">${t('loadVisitStatsFailed')}</p>`;
+  }
+}
+
+function productTitleLookup(productId) {
+  // 商品标题全站只有英文一个字段（title_en），后台商品列表一直也是这么显示的，这里保持一致
+  const p = lastLoadedProducts.find(item => item.id === productId);
+  return (p && p.title_en) ? p.title_en : productId;
+}
+
+function categoryLabelLookup(categoryId) {
+  if (!categoryId) return t('unknownLocation');
+  if (categoryId === 'nails') return currentAdminLang === 'zh' ? '穿戴甲' : 'Nails';
+  const cat = adminCategories.find(c => c.id === categoryId);
+  if (!cat) return categoryId;
+  return currentAdminLang === 'zh' ? cat.name_zh : cat.name_en;
+}
+
+function renderProductInterestBody(statsRows, sourceCategoryRows) {
+  const bodyEl = document.getElementById('product-interest-body');
+  if (!bodyEl) return;
+
+  if (!statsRows || statsRows.length === 0) {
+    bodyEl.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">${t('noInterestData')}</p>`;
+    return;
+  }
+
+  const sorted = [...statsRows].sort((a, b) => {
+    if (currentInterestSortMode === 'views') return (b.view_count || 0) - (a.view_count || 0);
+    return (b.avg_dwell_ms || 0) - (a.avg_dwell_ms || 0);
+  }).slice(0, 15); // 只展示前 15 名，避免商品一多表格长得没法看——真要看全量数据可以直接在 Supabase 里查 product_interest 表
+
+  const tableRows = sorted.map((row, idx) => {
+    const avgSec = ((row.avg_dwell_ms || 0) / 1000).toFixed(1);
+    const totalMin = ((row.total_dwell_ms || 0) / 60000).toFixed(1);
+    return `
+      <tr class="border-b border-gray-100 last:border-0">
+        <td class="py-2 px-2 text-xs text-gray-400 font-mono">#${idx + 1}</td>
+        <td class="py-2 px-2 text-xs">
+          <div class="font-semibold text-gray-800">${productTitleLookup(row.product_id)}</div>
+          <div class="text-[10px] text-gray-400 font-mono">${row.product_id} · ${categoryLabelLookup(row.category)}</div>
+        </td>
+        <td class="py-2 px-2 text-xs text-right text-gray-700">${row.view_count || 0}</td>
+        <td class="py-2 px-2 text-xs text-right text-gray-700">${row.unique_visitors || 0}</td>
+        <td class="py-2 px-2 text-xs text-right font-bold text-amber-800">${avgSec}s</td>
+        <td class="py-2 px-2 text-xs text-right text-gray-500">${totalMin}min</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 来源 × 分类 交叉表：回答"从哪个渠道来的人更常看哪个分类"。按来源分组，每个来源下面列出
+  // 该来源浏览量排名前 3 的分类，数字小的来源（比如只有一两条记录的渠道）也会显示，
+  // 不额外设门槛过滤，免得漏看刚起步、数据还不多的新渠道。
+  const bySource = {};
+  (sourceCategoryRows || []).forEach(r => {
+    if (!bySource[r.source]) bySource[r.source] = [];
+    bySource[r.source].push(r);
+  });
+  const sourceBreakdownHtml = Object.keys(bySource).length === 0 ? `<p class="text-xs text-gray-400">${t('noInterestData')}</p>` : Object.entries(bySource).map(([source, rows]) => {
+    const sourceTotal = rows.reduce((sum, r) => sum + (r.view_count || 0), 0);
+    const top3 = [...rows].sort((a, b) => (b.view_count || 0) - (a.view_count || 0)).slice(0, 3);
+    const labelKey = VISIT_SOURCE_LABEL_KEYS[source];
+    const sourceLabel = labelKey ? t(labelKey) : (source === 'unknown' ? t('unknownLocation') : source);
+    return `
+      <div class="flex items-start justify-between gap-3 py-1.5 border-b border-gray-50 last:border-0">
+        <span class="text-xs font-medium text-gray-700 w-20 shrink-0">${sourceLabel}</span>
+        <span class="text-xs text-gray-500 flex-1">
+          ${top3.map(r => `${categoryLabelLookup(r.category)} (${r.view_count})`).join(' · ')}
+        </span>
+        <span class="text-[10px] text-gray-400 shrink-0">${sourceTotal} ${t('totalVisitsLabel')}</span>
+      </div>
+    `;
+  }).join('');
+
+  bodyEl.innerHTML = `
+    <div class="overflow-x-auto -mx-1">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="text-[10px] text-gray-400 uppercase tracking-wider border-b border-gray-200">
+            <th class="py-1.5 px-2 font-semibold"></th>
+            <th class="py-1.5 px-2 font-semibold">${t('thInterestProduct')}</th>
+            <th class="py-1.5 px-2 font-semibold text-right">${t('thInterestViews')}</th>
+            <th class="py-1.5 px-2 font-semibold text-right">${t('thInterestVisitors')}</th>
+            <th class="py-1.5 px-2 font-semibold text-right">${t('thInterestAvgDwell')}</th>
+            <th class="py-1.5 px-2 font-semibold text-right">${t('thInterestTotalDwell')}</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="mt-4 pt-3 border-t border-gray-100">
+      <h4 class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">${t('sourceCategoryBreakdownTitle')}</h4>
+      ${sourceBreakdownHtml}
     </div>
   `;
 }
@@ -2300,6 +2486,15 @@ async function loadAdminProducts() {
 
     updateProductCountLabel(lastLoadedProducts.length);
     renderProductRows(lastLoadedProducts);
+
+    // "商品兴趣分析"表格里的商品标题要靠 lastLoadedProducts 才能查到，但这个函数和
+    // loadVisitAndInterestStats() 是并发触发的（见 onAdminAuthenticated），商品列表
+    // 如果因为商品数量多、网络慢等原因比兴趣统计晚加载完，兴趣表格就会先用商品 ID 兜底
+    // 渲染一次、之后却不会自动刷新——这里商品加载完之后，如果兴趣统计已经渲染过，
+    // 就用已有的数据重新渲染一次，把商品 ID 换成正确的标题。
+    if (window.__lastInterestStatsRows && typeof renderProductInterestBody === "function") {
+      renderProductInterestBody(window.__lastInterestStatsRows, window.__lastSourceCategoryRows || []);
+    }
 
   } catch (err) {
     console.error("加载商品失败:", err);
@@ -4031,6 +4226,9 @@ async function loadSiteSettings() {
     if (document.getElementById("cfg-free-shipping-threshold")) {
       document.getElementById("cfg-free-shipping-threshold").value = (cfg.free_shipping_threshold === null || cfg.free_shipping_threshold === undefined) ? "" : cfg.free_shipping_threshold;
     }
+    if (document.getElementById("cfg-clarity-project-id")) {
+      document.getElementById("cfg-clarity-project-id").value = cfg.clarity_project_id || "";
+    }
     // 重新加载配置时，之前点的"移除视频"标记也要清掉，避免误删
     nailsVideoRemoved = false;
     if (document.getElementById("cfg-nails-video-preview-container")) {
@@ -4133,6 +4331,11 @@ async function handleSaveSettings(e) {
     const freeShipInput = document.getElementById("cfg-free-shipping-threshold") ? document.getElementById("cfg-free-shipping-threshold").value.trim() : "";
     const freeShippingThreshold = freeShipInput === "" ? null : parseFloat(freeShipInput);
 
+    // 留空存 null，表示不接入 Microsoft Clarity；只做去空格处理，不校验格式——具体填的
+    // 项目 ID 对不对，前台加载不出来 Clarity 本身也不影响正常购物，不是需要卡在这里拦的事。
+    const clarityProjectIdInput = document.getElementById("cfg-clarity-project-id") ? document.getElementById("cfg-clarity-project-id").value.trim() : "";
+    const clarityProjectId = clarityProjectIdInput === "" ? null : clarityProjectIdInput;
+
     const cfg = {
       id: 1,
       logo: document.getElementById("cfg-site-logo") ? document.getElementById("cfg-site-logo").value : "",
@@ -4142,7 +4345,8 @@ async function handleSaveSettings(e) {
       hero_bg: heroBgUrl,
       tax_rate: taxRate,
       free_shipping_threshold: freeShippingThreshold,
-      nails_video_url: nailsVideoUrl
+      nails_video_url: nailsVideoUrl,
+      clarity_project_id: clarityProjectId
     };
 
     // 写入 Supabase 的 site_settings 表（单行 id=1），所有访客都会看到这份配置

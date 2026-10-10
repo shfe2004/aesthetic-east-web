@@ -57,6 +57,130 @@
       }
       .admin-responsive-table td.cell-image::before { content: none; }
     }
+
+    /* ===================== 操作手册弹窗（自己写纯 CSS，不依赖 Tailwind 工具类）=====================
+       这个项目的 css/tailwind.min.css 是按现有页面里用到的类名裁剪过的静态文件，不是完整的 Tailwind，
+       新加的这个弹窗如果用了页面里还没出现过的工具类（比如 max-h-[85vh]、md:flex-row）大概率不会生效。
+       为避免这个坑，手册弹窗整体样式都用下面这段独立的 CSS 写，不依赖 Tailwind 工具类。 */
+    .admin-manual-hidden { display: none !important; }
+    .admin-manual-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(17, 24, 39, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .admin-manual-box {
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+      width: 100%;
+      max-width: 960px;
+      height: 85vh;
+      max-height: 720px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .admin-manual-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #e5e7eb;
+      flex-shrink: 0;
+    }
+    .admin-manual-header h2 { font-size: 1.05rem; font-weight: 700; color: #1f2937; margin: 0; }
+    .admin-manual-header-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .admin-manual-lang-btn,
+    .admin-manual-close-btn {
+      border: none;
+      background: #f3f4f6;
+      color: #4b5563;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .admin-manual-lang-btn:hover,
+    .admin-manual-close-btn:hover { background: #e5e7eb; }
+    .admin-manual-body { display: flex; flex: 1; min-height: 0; overflow-y: auto; }
+    .admin-manual-nav {
+      flex-shrink: 0;
+      width: 220px;
+      border-right: 1px solid #e5e7eb;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    .admin-manual-nav-item {
+      padding: 0.55rem 0.75rem;
+      border-radius: 0.6rem;
+      font-size: 0.8rem;
+      color: #4b5563;
+      cursor: pointer;
+      margin-bottom: 0.15rem;
+      line-height: 1.3;
+    }
+    .admin-manual-nav-item:hover { background: #f3f4f6; }
+    .admin-manual-nav-item-active { background: #fef3c7; color: #92400e; font-weight: 700; }
+    .admin-manual-content { flex: 1; padding: 1.5rem 1.75rem; overflow-y: auto; font-size: 0.875rem; color: #374151; line-height: 1.75; }
+    .admin-manual-content-title { font-size: 1.1rem; font-weight: 700; color: #1f2937; margin: 0 0 0.9rem; }
+    .admin-manual-content h3 { font-size: 1rem; font-weight: 700; color: #1f2937; margin: 1.1rem 0 0.5rem; }
+    .admin-manual-content p { margin: 0 0 0.85rem; }
+    .admin-manual-content strong { color: #1f2937; }
+    .admin-manual-content code {
+      background: #f3f4f6;
+      color: #92400e;
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.3rem;
+      font-size: 0.8em;
+    }
+    .admin-manual-content ul, .admin-manual-content ol { margin: 0 0 0.85rem; padding-left: 1.3rem; }
+    .admin-manual-content li { margin-bottom: 0.3rem; }
+    .admin-manual-content blockquote {
+      margin: 0 0 0.85rem;
+      padding: 0.6rem 0.9rem;
+      background: #f9fafb;
+      border-left: 3px solid #d1d5db;
+      color: #4b5563;
+      border-radius: 0.4rem;
+    }
+    .admin-manual-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 1rem;
+      font-size: 0.8rem;
+    }
+    .admin-manual-content th, .admin-manual-content td {
+      border: 1px solid #e5e7eb;
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    .admin-manual-content th { background: #f9fafb; font-weight: 700; color: #374151; }
+
+    /* 手机端（跟页面其它 md: 断点一致用 767px）改成上下布局：导航变成一行可横向滚动的标签条，
+       内容区在下面，不然侧边栏 220px 宽度在小屏幕上会把内容区挤得很窄。 */
+    @media (max-width: 767px) {
+      .admin-manual-box { height: 92vh; max-height: none; }
+      .admin-manual-body { flex-direction: column; }
+      .admin-manual-nav {
+        width: 100%;
+        max-height: 30%;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.35rem;
+      }
+      .admin-manual-nav-item { flex-shrink: 0; white-space: nowrap; margin-bottom: 0; }
+      .admin-manual-content { padding: 1.1rem 1.1rem; }
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen p-4 md:p-8">
@@ -90,6 +214,13 @@
         <button onclick="toggleAdminLanguage()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-2 sm:py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
           <i class="fa-solid fa-globe"></i>
           <span id="admin-lang-btn-text">EN</span>
+        </button>
+        <!-- 操作手册：中英文内容跟着这个「地球图标」语言切换按钮共用同一个 currentAdminLang，
+             切换语言时手册弹窗里的文字也会跟着变（见 js/admin-manual.js 的 renderAdminManual()）。
+             不受任何权限控制——不管是超级管理员还是只有部分权限的普通管理员，登录后都能看到这个入口。 -->
+        <button onclick="openAdminManual()" class="text-xs font-bold text-stone-600 hover:text-stone-900 border border-stone-300 rounded-full px-3 py-2 sm:py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
+          <i class="fa-solid fa-book"></i>
+          <span data-i18n="adminManualBtn">操作手册</span>
         </button>
         <a href="index.html" target="_blank" class="text-amber-800 hover:text-amber-900 text-sm font-medium px-1 py-2 sm:py-0" data-i18n="previewFrontendLink">预览前台 ↗</a>
         <button id="admin-signout-btn" class="text-xs font-bold text-red-600 hover:text-red-800 border border-red-200 rounded-full px-3 py-2 sm:py-1.5 flex items-center gap-1.5 transition-colors bg-white shadow-sm">
@@ -137,6 +268,13 @@
           </div>
         </div>
 
+        <!-- 新增：Microsoft Clarity 行为分析接入（免费，自带会话录屏/热力图，留空则不接入） -->
+        <div class="space-y-2 pt-2 border-t border-gray-100">
+          <label class="block text-sm font-medium text-gray-700" data-i18n="clarityProjectIdLabel">Microsoft Clarity 项目 ID（选填）</label>
+          <input type="text" id="cfg-clarity-project-id" placeholder="例如 abcd1234ef" data-i18n-placeholder="clarityProjectIdPlaceholder" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-800 focus:outline-none">
+          <p class="text-xs text-gray-400" data-i18n="clarityProjectIdHint">免费注册 clarity.microsoft.com，新建一个项目后，在"设置 → 安装跟踪代码"里能看到这串项目 ID（一串字母数字，不是完整代码）。填进来保存后，前台会自动接入 Clarity 的会话录屏、点击热力图等功能；留空表示不接入。数据会经过微软的服务器。</p>
+        </div>
+
         <!-- 新增：Hero 背景图上传与预览 -->
         <div class="space-y-2 pt-2 border-t border-gray-100">
           <label class="block text-sm font-medium text-gray-700" data-i18n="heroBgLabel">Hero 顶部横幅背景图 (自定义上传)</label>
@@ -170,15 +308,32 @@
       <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-lg font-bold text-gray-800" data-i18n="visitStatsSectionTitle">📊 网站访问统计</h2>
         <div id="visit-range-btn-group" class="flex items-center gap-2 flex-wrap">
-          <button onclick="loadSiteVisitStats('today')" data-range="today" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeToday">今日</button>
-          <button onclick="loadSiteVisitStats('week')" data-range="week" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeWeek">本周</button>
-          <button onclick="loadSiteVisitStats('month')" data-range="month" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeMonth">本月</button>
-          <button onclick="loadSiteVisitStats('year')" data-range="year" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeYear">本年</button>
-          <button onclick="loadSiteVisitStats('all')" data-range="all" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeAll">全部</button>
+          <button onclick="loadVisitAndInterestStats('today')" data-range="today" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeToday">今日</button>
+          <button onclick="loadVisitAndInterestStats('week')" data-range="week" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeWeek">本周</button>
+          <button onclick="loadVisitAndInterestStats('month')" data-range="month" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeMonth">本月</button>
+          <button onclick="loadVisitAndInterestStats('year')" data-range="year" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeYear">本年</button>
+          <button onclick="loadVisitAndInterestStats('all')" data-range="all" class="visit-range-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-white text-stone-600 border-stone-300" data-i18n="rangeAll">全部</button>
         </div>
       </div>
       <div id="visit-stats-body">
         <p class="text-xs text-gray-400" data-i18n="loadingVisitStats">正在加载访问统计...</p>
+      </div>
+
+      <!-- 商品兴趣分析：跟上面共用同一组时间范围按钮，不单独再放一套。数据来自
+           product_interest 表（见 sql/add_product_interest_tracking.sql），记录的是商品卡片
+           在顾客屏幕可视区域内的累计停留时长，不是精确的"注视时长"，只能用来比较相对热度。 -->
+      <div class="mt-6 pt-5 border-t border-gray-100">
+        <div class="flex items-center justify-between gap-2 mb-1">
+          <h3 class="text-sm font-bold text-gray-800" data-i18n="productInterestSectionTitle">🎯 商品兴趣分析</h3>
+          <div class="flex items-center gap-1 text-xs">
+            <button onclick="setInterestSortMode('dwell')" data-sort="dwell" class="interest-sort-btn px-2.5 py-1 rounded-full font-medium border transition-colors" data-i18n="sortByDwell">按停留时长</button>
+            <button onclick="setInterestSortMode('views')" data-sort="views" class="interest-sort-btn px-2.5 py-1 rounded-full font-medium border transition-colors" data-i18n="sortByViews">按浏览次数</button>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-400 mb-3" data-i18n="productInterestMethodNote">停留时长是商品卡片滚动进顾客屏幕可视区域内的累计时间（并非精确注视时长），仅供比较相对热度参考。</p>
+        <div id="product-interest-body">
+          <p class="text-xs text-gray-400" data-i18n="loadingVisitStats">正在加载访问统计...</p>
+        </div>
       </div>
     </div>
 
@@ -794,7 +949,31 @@
     </div>
   </div>
 
+  <!-- 操作手册弹窗：不挂在 admin-section-xxx 任何一个权限区块下面，所有登录成功的管理员
+       （不管权限多少）都能点开，内容来自 js/admin-manual.js 里现成存好的中英文 HTML，
+       根据 currentAdminLang 切换，参见该文件顶部注释。 -->
+  <div id="admin-manual-modal" class="admin-manual-hidden admin-manual-overlay">
+    <div class="admin-manual-box">
+      <div class="admin-manual-header">
+        <h2 id="admin-manual-modal-title">📖 后台操作手册</h2>
+        <div class="admin-manual-header-actions">
+          <!-- 弹窗是全屏遮罩，挡住了背景里的地球图标，所以这里放一个小的语言切换按钮，调用
+               跟背景那个按钮完全一样的 toggleAdminLanguage()，不用先关掉手册才能切语言。 -->
+          <button type="button" onclick="toggleAdminLanguage()" class="admin-manual-lang-btn" title="Switch language / 切换语言">
+            <i class="fa-solid fa-globe"></i>
+          </button>
+          <button type="button" onclick="closeAdminManual()" class="admin-manual-close-btn" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div id="admin-manual-body" class="admin-manual-body">
+        <nav id="admin-manual-nav" class="admin-manual-nav"></nav>
+        <div id="admin-manual-content" class="admin-manual-content"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/supabase-client.js"></script>
+  <script src="js/admin-manual.js"></script>
   <script src="js/admin.js"></script>
   <script src="js/tryon-config.js"></script>
   <script src="js/tryon-editor.js"></script>
