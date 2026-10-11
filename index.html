@@ -138,6 +138,10 @@
              省得走到最后一步填完地址才被拦下来——具体是哪一项不够货，在上面每个商品自己的
              卡片里也会单独标红提示。 -->
         <p id="cart-stock-warning-banner" class="hidden text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 text-center font-medium"></p>
+        <!-- 承诺发货时间提示：文字由 js/app.js 的 renderShipPromiseNote() 动态填充（取决于
+             后台"网站全局配置"里的 ship_promise_hours，留空就不显示），不是靠 data-i18n，
+             因为要把小时数拼进句子里。购物车含古董家具时也不会显示（家具不适用这条承诺）。 -->
+        <p id="cart-ship-promise-note" class="hidden text-[11px] text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-2 text-center"></p>
         <button id="proceed-checkout-btn" onclick="openCheckoutModal()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-xl transition shadow-md flex items-center justify-center gap-2 disabled:hover:bg-stone-900">
           <span data-i18n="checkoutBtn">Proceed to Checkout</span>
           <i class="fa-solid fa-arrow-right text-xs"></i>
@@ -369,6 +373,9 @@
              按钮保留做手动重新查询用（比如改地址后想马上刷新，不想等防抖延迟）。
              报价列表单独限制了一个滚动高度，报价选项多的时候不会把整个结算弹窗撑得很长。 -->
         <div id="shipping-section" class="border rounded-xl p-3 bg-stone-50/50 space-y-2">
+          <!-- 同一个承诺发货时间提示，结算弹窗这里打开/购物车内容变化/语言切换时都会重新渲染一次，
+               逻辑见 js/app.js 的 renderShipPromiseNote() -->
+          <p id="checkout-ship-promise-note" class="hidden text-[11px] text-stone-600 bg-stone-100 border border-stone-200 rounded-lg p-2"></p>
           <p class="text-[11px] text-stone-400" data-i18n="shippingAutoHint">Shipping cost will appear automatically once your address is complete.</p>
           <button type="button" onclick="calculateShipping(true)" id="calc-shipping-btn" class="w-full bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold py-2.5 rounded-xl transition" data-i18n="calcShippingBtn">
             Recalculate Shipping

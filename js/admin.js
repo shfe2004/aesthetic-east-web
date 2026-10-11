@@ -364,6 +364,8 @@ const ADMIN_I18N = {
     catCountsFreeShippingLabel: "Counts toward free-shipping threshold (checked by default for small items; usually unchecked for furniture/large items)",
     freeShippingThresholdLabel: "Free Shipping Threshold ($ USD, optional)",
     freeShippingThresholdHint: "When the subtotal of items that count toward this threshold (set per-category) reaches this amount, shipping is automatically free at checkout. Leave blank to disable free shipping.",
+    shipPromiseHoursLabel: "Ship Promise (hours, optional)",
+    shipPromiseHoursHint: "Shows \"Ships within N hours of order confirmation\" in the cart and at checkout. Only applies to nails/merch — antique furniture orders are excluded (they go through manual freight quoting). Leave blank to hide this note.",
     tieredPricingTitle: "Tiered Pricing (optional)",
     tieredPricingAddRowBtn: "+ Add Tier",
     tieredPricingHint: "E.g. buy 1 for $20, buy 2 for $17.50 each, buy 3+ for $15 each. If this product has any tiers configured, its discount above (and the category's default discount) is completely ignored — tiered pricing always wins.",
@@ -756,6 +758,8 @@ const ADMIN_I18N = {
     catCountsFreeShippingLabel: "计入满额包邮门槛（小件商品默认勾选，家具等大件通常不勾）",
     freeShippingThresholdLabel: "满额包邮门槛 ($ USD，选填)",
     freeShippingThresholdHint: "购物车里\"算小件\"的商品小计（分类管理里可以设置哪些分类算小件）达到这个金额，结算时自动包邮。留空表示不开启满额包邮。",
+    shipPromiseHoursLabel: "承诺发货时间 (小时，选填)",
+    shipPromiseHoursHint: "购物车和结算页会显示\"下单确认后 N 小时内发货\"。只影响穿戴甲/周边商品，古董家具订单不受这条承诺约束（走人工核算运费）。留空表示不显示这条提示。",
     tieredPricingTitle: "阶梯定价（选填）",
     tieredPricingAddRowBtn: "+ 添加一档",
     tieredPricingHint: "比如：买1件20元、买2件每件17.5元、买3件以上每件15元。只要这件商品配置了阶梯定价，上面的折扣（以及分类默认折扣）会被完全忽略——阶梯定价优先生效。",
@@ -4226,6 +4230,10 @@ async function loadSiteSettings() {
     if (document.getElementById("cfg-free-shipping-threshold")) {
       document.getElementById("cfg-free-shipping-threshold").value = (cfg.free_shipping_threshold === null || cfg.free_shipping_threshold === undefined) ? "" : cfg.free_shipping_threshold;
     }
+    // 承诺发货时间同样留空表示没开启这条提示
+    if (document.getElementById("cfg-ship-promise-hours")) {
+      document.getElementById("cfg-ship-promise-hours").value = (cfg.ship_promise_hours === null || cfg.ship_promise_hours === undefined) ? "" : cfg.ship_promise_hours;
+    }
     if (document.getElementById("cfg-clarity-project-id")) {
       document.getElementById("cfg-clarity-project-id").value = cfg.clarity_project_id || "";
     }
@@ -4331,6 +4339,10 @@ async function handleSaveSettings(e) {
     const freeShipInput = document.getElementById("cfg-free-shipping-threshold") ? document.getElementById("cfg-free-shipping-threshold").value.trim() : "";
     const freeShippingThreshold = freeShipInput === "" ? null : parseFloat(freeShipInput);
 
+    // 承诺发货时间同样没有默认值，留空存 null 表示不显示这条提示（跟满额包邮门槛一个道理）
+    const shipPromiseInput = document.getElementById("cfg-ship-promise-hours") ? document.getElementById("cfg-ship-promise-hours").value.trim() : "";
+    const shipPromiseHoursVal = shipPromiseInput === "" ? null : parseInt(shipPromiseInput, 10);
+
     // 留空存 null，表示不接入 Microsoft Clarity；只做去空格处理，不校验格式——具体填的
     // 项目 ID 对不对，前台加载不出来 Clarity 本身也不影响正常购物，不是需要卡在这里拦的事。
     const clarityProjectIdInput = document.getElementById("cfg-clarity-project-id") ? document.getElementById("cfg-clarity-project-id").value.trim() : "";
@@ -4345,6 +4357,7 @@ async function handleSaveSettings(e) {
       hero_bg: heroBgUrl,
       tax_rate: taxRate,
       free_shipping_threshold: freeShippingThreshold,
+      ship_promise_hours: shipPromiseHoursVal,
       nails_video_url: nailsVideoUrl,
       clarity_project_id: clarityProjectId
     };

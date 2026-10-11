@@ -25,6 +25,8 @@ let addressValidationFailed = false;
 let siteTaxRate = 0.08;
 // 满额包邮门槛（$），从后台 site_settings.free_shipping_threshold 里读；null 表示没开启这个功能
 let siteFreeShippingThreshold = null;
+// 承诺发货时间（小时），从后台 site_settings.ship_promise_hours 里读；null/0 表示没开启这条提示
+let shipPromiseHours = null;
 // 穿戴甲手工制作视频的地址，读到了才显示这个模块；真正开始加载视频文件延迟到它滚动进可视区域时
 let nailsVideoUrl = null;
 let activeSelections = {};
@@ -110,6 +112,7 @@ const i18n = {
     chooseShippingPrompt: "Select a shipping option:",
     shippingAutoHint: "Shipping cost will appear automatically once your address is complete.",
     manualShippingNote: "This order contains antique furniture — shipping cost will be quoted manually and confirmed with you after checkout.",
+    shipPromiseTemplate: "📦 Ships within {h} hours of order confirmation (excludes antique furniture).",
     shippingCalcError: "Could not get shipping rates. Please check your address and try again.",
     shippingNotCalculatedYet: "Please finish entering your address so we can calculate shipping before completing payment.",
     fillAddressFirst: "Please fill in your address, city, state and zip first.",
@@ -180,6 +183,7 @@ const i18n = {
     chooseShippingPrompt: "请选择一种快递方式：",
     shippingAutoHint: "地址填写完整后将自动显示运费。",
     manualShippingNote: "此订单包含古董家具，运费将在下单后由客服人工核算并与您确认。",
+    shipPromiseTemplate: "📦 下单确认后 {h} 小时内发货（不含古董家具）。",
     shippingCalcError: "获取运费失败，请检查地址信息后重试。",
     shippingNotCalculatedYet: "请先填写完整地址以便计算运费，再完成支付。",
     fillAddressFirst: "请先填写详细地址、城市、州和邮编。",
@@ -736,6 +740,9 @@ async function loadSiteDynamicConfig() {
     siteFreeShippingThreshold = (cfg.free_shipping_threshold !== null && cfg.free_shipping_threshold !== undefined)
       ? parseFloat(cfg.free_shipping_threshold)
       : null;
+    shipPromiseHours = (cfg.ship_promise_hours !== null && cfg.ship_promise_hours !== undefined)
+      ? parseInt(cfg.ship_promise_hours, 10)
+      : null;
     // 虚拟试戴·手模型标定结果（见 sql/add_tryon_hand_zones_column.sql）：后台标定过就用
     // 标定过的精确坐标，没标定过就保持 js/tryon.js 里的默认兜底坐标，不影响正常使用。
     if (cfg.tryon_hand_zones && typeof tryonApplyHandZonesOverride === 'function') {
@@ -821,6 +828,9 @@ function renderPage() {
   renderNails();
   renderCategorySections();
   updateCartUI();
+  // 结算弹窗如果正好开着（比如顾客在结算页中途切换了语言），这条提示也要跟着换语言；
+  // updateCartUI() 只会刷新购物车抽屉那一份，结算弹窗这份要单独再刷新一次
+  renderShipPromiseNote('checkout-ship-promise-note');
 }
 
 // 当前每个分类栏目选中的子类型筛选（key 是 categoryId，value 是 subtypeId 或 'all'）
@@ -1301,6 +1311,27 @@ function addSimpleToCart(category, id) {
   refreshCartStockStatus();
 }
 
+// 承诺发货时间提示："下单确认后 N 小时内发货"，N 是后台"网站全局配置"里填的
+// ship_promise_hours（留空/0 就完全不显示）。古董家具走人工核算运费/货代对接，不是
+// 标准发货流程，所以购物车里只要含有任意一件古董家具（不管是不是还有别的商品混在一起），
+// 这条提示就不显示，避免对家具订单做出不适用的时间承诺（家具相关的运费说明走的是
+// 已有的 manualShippingNote，两者不会同时出现在同一个购物车状态里）。
+//
+// elementIds：同一份渲染逻辑同时供购物车抽屉和结算弹窗两个位置的 <p> 标签复用，
+// 调用方传各自的元素 id 进来即可。
+function renderShipPromiseNote(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const hasFurniture = cart.some(item => item.category === 'furniture');
+  if (!shipPromiseHours || hasFurniture) {
+    el.classList.add('hidden');
+    return;
+  }
+  const template = (i18n[currentLang] && i18n[currentLang].shipPromiseTemplate) || '📦 Ships within {h} hours of order confirmation (excludes antique furniture).';
+  el.innerText = template.replace('{h}', shipPromiseHours);
+  el.classList.remove('hidden');
+}
+
 function updateCartUI() {
   const badge = document.getElementById('cart-badge');
   const container = document.getElementById('cart-items');
@@ -1312,6 +1343,7 @@ function updateCartUI() {
     badge.style.display = totalCount > 0 ? 'flex' : 'none';
   }
   if (totalEl) totalEl.innerText = `$${subtotal.toFixed(2)}`;
+  renderShipPromiseNote('cart-ship-promise-note');
 
   // 任意一项库存核对结果为"不够"，就不让顾客进到结算页，先在购物车里把它解决掉
   const anyInsufficient = cart.some(item => {
@@ -1714,6 +1746,7 @@ async function openCheckoutModal() {
   if (calcBtn) { calcBtn.disabled = false; calcBtn.classList.remove('hidden'); }
 
   updateCheckoutTotalsUI();
+  renderShipPromiseNote('checkout-ship-promise-note');
   document.getElementById('checkout-form').classList.remove('hidden');
   document.getElementById('checkout-success').classList.add('hidden');
   closeCartDrawer();
